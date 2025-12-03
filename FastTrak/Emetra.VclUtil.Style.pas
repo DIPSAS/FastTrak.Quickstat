@@ -1,0 +1,482 @@
+﻿{$HINTS OFF}
+unit Emetra.VclUtil.Style;
+
+interface
+
+uses
+  Emetra.VclUtil.ColorSet,
+  Emetra.VclUtil.ColorSet.Interfaces,
+  Emetra.VclUtil.ColorCalculator,
+  Emetra.VclUtil.Style.Interfaces,
+  {Standard}
+  Windows, Controls, Classes, ExtCtrls, StdCtrls, SysUtils, Graphics, Tabs,
+  Forms, TypInfo, Contnrs, ComCtrls, ToolWin;
+
+type
+  TGuiStyle = class( TGuiColorSet, IGuiColorSet, IGuiListBoxColorSet, IGuiStyle )
+  strict private
+    FClientList: TObjectList;
+    FToolbarHeight: integer;
+    FFontName: string;
+    FFontSize: integer;
+    FMinFontSize: integer;
+    fFlat: boolean;
+  private
+    procedure StyleHeaderControl( AControl: TControl );
+    { Property Accessors }
+    function Get_Flat: boolean;
+    function Get_FontSize: integer;
+    function Get_FontName: string;
+    procedure Set_BaseColor( const ABaseColor: TColor );
+    procedure Set_FontName( const AFontName: string );
+    procedure Set_FontSize( const AFontSize: integer );
+    procedure Set_Flat( const AValue: boolean );
+  protected
+    procedure NotifyClients;
+    procedure SetColor( AControl: TControl; const APropName: string = 'Color'; AColor: TColor = clNone );
+  public
+    { Initialization }
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
+    { Registration and deregistration of stylable elements }
+    procedure RegisterClient( AClient: IGuiStyleObserver );
+    procedure UnregisterClient( AClient: IGuiStyleObserver );
+    procedure UnregisterAll;
+    { Other members }
+    function ToolbarHeight: integer;
+    procedure StyleFrame( AFrame: TFrame );
+    procedure StyleForm( AForm: TForm );
+    procedure StyleHeaderLabel( ALabel: TLabel );
+    procedure StyleHeaderPanel( APanel: TPanel );
+    procedure StyleButton( AButton: TCustomButton );
+    procedure StyleButtonPanel( APanel: TCustomPanel );
+    procedure StyleCheckPanel( APanel: TCustomPanel );
+    procedure StylePanel( APanel: TCustomPanel );
+    procedure StyleLabel( ALabel: TLabel );
+    procedure StyleBoldLabel( ALabel: TLabel );
+    procedure StyleSmallLabel( ALabel: TLabel );
+    procedure StyleInfoLabel( ALabel: TLabel );
+    procedure StyleTopPanel( APanel: TPanel );
+    procedure StyleTopLabel( ALabel: TLabel );
+    procedure StyleToolBar( AToolbar: TToolbar );
+    procedure StyleSimpleCheckbox( ACheck: TCheckBox );
+    procedure StyleSmallHeaderLabel( ALabel: TLabel );
+    procedure StyleTabset( ATabSet: TTabSet );
+  published
+    property Flat: boolean read Get_Flat write Set_Flat;
+    property FontName: string read Get_FontName write Set_FontName;
+    property FontSize: integer read Get_FontSize write Set_FontSize;
+  end;
+
+  { Special colors }
+
+implementation
+
+uses
+  System.Math, Vcl.Buttons;
+
+type
+  TExposedPanel = class( TCustomPanel )
+  public
+    property AutoSize;
+    property Color;
+    property Font;
+  end;
+
+{$REGION 'TGuiStyle'}
+
+procedure TGuiStyle.AfterConstruction;
+const
+  FONT_SEGOE_UI = 'Segoe UI';
+  FONT_ARIAL    = 'Arial';
+begin
+  inherited;
+  fFlat := false;
+  FClientList := TObjectList.Create( false );
+  { Set font based on screen size and availability }
+  if Screen.Fonts.IndexOf( FONT_SEGOE_UI ) <> -1 then
+    FFontName := FONT_SEGOE_UI
+  else
+    FFontName := FONT_ARIAL;
+  if Screen.Height >= 1024 then
+    FFontSize := 10
+  else
+    FFontSize := 9;
+  FMinFontSize := 8;
+  SetBaseColor( clBrownGray );
+end;
+
+procedure TGuiStyle.BeforeDestruction;
+begin
+  FClientList.Free;
+  inherited;
+end;
+
+function TGuiStyle.Get_Flat: boolean;
+begin
+  Result := fFlat;
+end;
+
+function TGuiStyle.Get_FontSize: integer;
+begin
+  Result := FFontSize;
+end;
+
+procedure TGuiStyle.StyleSimpleCheckbox( ACheck: TCheckBox );
+begin
+  ACheck.Font.Name := FFontName;
+  ACheck.Font.Size := Max( FFontSize - 1, FMinFontSize );
+  ACheck.Font.Color := VeryDarkColor;
+  if ACheck.Alignment = taLeftJustify then
+    ACheck.Width := 15 + 7 * ACheck.Font.Size;
+  ACheck.Ctl3D := not fFlat;
+end;
+
+procedure TGuiStyle.StyleSmallHeaderLabel( ALabel: TLabel );
+begin
+  ALabel.Font.Name := FFontName;
+  ALabel.Font.Size := Max( FFontSize - 1, FMinFontSize );
+  ALabel.AlignWithMargins := true;
+  ALabel.Margins.Right := 3;
+  ALabel.Layout := tlCenter;
+  ALabel.Font.Color := clWhite;
+  ALabel.Font.Style := [];
+end;
+
+procedure TGuiStyle.StyleHeaderPanel( APanel: TPanel );
+begin
+  StyleHeaderControl( APanel );
+  APanel.Ctl3D := not fFlat;
+end;
+
+procedure TGuiStyle.StyleHeaderLabel( ALabel: TLabel );
+begin
+  StyleHeaderControl( ALabel );
+end;
+
+procedure TGuiStyle.StyleToolBar( AToolbar: TToolbar );
+begin
+  AToolbar.Font.Name := FFontName;
+  AToolbar.Font.Size := Max( FFontSize - 1, FMinFontSize );
+  if Assigned( AToolbar.Images ) then
+  begin
+    AToolbar.AutoSize := false;
+    FToolbarHeight := AToolbar.Images.Height + abs( AToolbar.Font.Height ) + 14;
+  end
+  else
+    AToolbar.AutoSize := true;
+  if AToolbar.ShowCaptions then
+    AToolbar.Height := FToolbarHeight
+  else
+    AToolbar.Height := AToolbar.Images.Height + 11;
+  AToolbar.BorderWidth := 0;
+  AToolbar.EdgeOuter := esLowered;
+  AToolbar.EdgeInner := esRaised;
+  if fFlat then
+  begin
+    AToolbar.EdgeBorders := [ebBottom];
+    AToolbar.DrawingStyle := dsNormal;
+    AToolbar.GradientStartColor := clNone;
+    AToolbar.GradientEndColor := clNone;
+  end
+  else
+  begin
+    AToolbar.EdgeBorders := [ebTop, ebBottom];
+    AToolbar.GradientEndColor := MediumColor;
+    AToolbar.GradientStartColor := VeryLightColor;
+    AToolbar.DrawingStyle := dsGradient;
+  end;
+  AToolbar.Transparent := false;
+end;
+
+procedure TGuiStyle.StyleHeaderControl( AControl: TControl );
+var
+  thisFont: TFont;
+  thisPanel: TPanel;
+begin
+  Assert( Assigned( AControl ) );
+  if AControl is TLabel then
+    with AControl as TLabel do
+    begin
+      Transparent := true;
+      Layout := tlCenter;
+      Align := alClient;
+      AlignWithMargins := true;
+      Margins.Left := 8;
+      Margins.Top := 0;
+      Margins.Bottom := 0;
+      Margins.Right := 2;
+      thisFont := Font
+    end
+  else if AControl is TPanel then
+    thisFont := TPanel( AControl ).Font
+  else
+    exit;
+  thisFont.Name := FFontName;
+  thisFont.Size := FFontSize + 1;
+  thisFont.Color := clWhite;
+  thisFont.Style := [fsBold];
+  if AControl is TPanel then
+    thisPanel := AControl as TPanel
+  else if AControl.Parent is TPanel then
+    thisPanel := AControl.Parent as TPanel
+  else
+    exit;
+  thisPanel.BorderWidth := 0;
+  thisPanel.AutoSize := false;
+  thisPanel.Color := BaseColor;
+  thisPanel.ClientHeight := abs( thisFont.Height ) + 10;
+end;
+
+procedure TGuiStyle.StylePanel( APanel: TCustomPanel );
+begin
+  with TExposedPanel( APanel ) do
+  begin
+    Color := LightColor;
+    Font.Color := VeryDarkColor;
+    Font.Name := FFontName;
+  end;
+end;
+
+procedure TGuiStyle.StyleTopPanel( APanel: TPanel );
+begin
+  APanel.BevelEdges := [beTop, beBottom];
+  APanel.BevelKind := bkTile;
+  APanel.Color := VeryLightColor;
+  APanel.Font.Name := FFontName;
+end;
+
+procedure TGuiStyle.StyleTopLabel( ALabel: TLabel );
+begin
+  ALabel.Font.Name := FFontName;
+  ALabel.Font.Size := FFontSize + 5;
+  ALabel.Font.Style := [fsBold];
+  ALabel.Font.Color := DarkColor;
+end;
+
+function TGuiStyle.ToolbarHeight: integer;
+begin
+  Result := FToolbarHeight;
+end;
+
+procedure TGuiStyle.StyleFrame( AFrame: TFrame );
+begin
+  AFrame.Color := LightColor;
+  AFrame.Font.Name := FFontName;
+  AFrame.Font.Size := FFontSize;
+end;
+
+procedure TGuiStyle.StyleButton( AButton: TCustomButton );
+begin
+  if AButton is TButton then
+    with AButton as TButton do
+    begin
+      Font.Name := FFontName;
+      Font.Size := FFontSize - 1;
+      Width := 60 + 3 * abs( Font.Height );
+      Margins.Top := 8;
+      Margins.Bottom := 8;
+    end
+  else if AButton is TBitBtn then
+    with AButton as TBitBtn do
+    begin
+      Font.Name := FFontName;
+      Font.Size := FFontSize - 1;
+      Margins.Top := 8;
+      Margins.Bottom := 8;
+      Width := 64 + 4 * abs( Font.Height );
+    end;
+end;
+
+procedure TGuiStyle.StyleButtonPanel( APanel: TCustomPanel );
+begin
+  with TExposedPanel( APanel ) do
+  begin
+    AutoSize := false;
+    Color := LightColor;
+    BorderWidth := 0;
+    Font.Size := FFontSize;
+    Font.Name := FFontName;
+    Font.Color := DarkColor;
+    ParentColor := false;
+    Height := 44 + abs( Font.Height );
+  end;
+end;
+
+procedure TGuiStyle.StyleCheckPanel( APanel: TCustomPanel );
+var
+  cbShowAll: TControl;
+begin
+  with TExposedPanel( APanel ) do
+  begin
+    Font.Name := FFontName;
+    Font.Size := Max( FFontSize - 1, FMinFontSize );
+    Height := abs( Font.Height ) + 12;
+    AutoSize := false;
+    Padding.Top := 3;
+    Padding.Left := 3;
+    Padding.Right := 3;
+    Padding.Bottom := 3;
+  end;
+end;
+
+procedure TGuiStyle.StyleForm( AForm: TForm );
+begin
+  AForm.Color := LightColor;
+  AForm.Font.Name := FFontName;
+  AForm.Font.Size := FFontSize;
+end;
+
+procedure TGuiStyle.StyleTabset( ATabSet: TTabSet );
+begin
+  with ATabSet do
+  begin
+    Font.Name := FFontName;
+    Font.Size := Max( FFontSize - 1, FMinFontSize );
+    Style := tsSoftTabs;
+    ParentBackground := false;
+    BackgroundColor := VeryLightColor;
+    UnselectedColor := VeryLightColor;
+    SelectedColor := LightColor;
+    DitherBackground := true;
+    Height := abs( Font.Height ) + 10;
+  end;
+end;
+
+procedure TGuiStyle.Set_BaseColor( const ABaseColor: TColor );
+begin
+  SetBaseColor( ABaseColor );
+  NotifyClients;
+end;
+
+procedure TGuiStyle.NotifyClients;
+var
+  n: integer;
+  thisElement: IGuiStyleObserver;
+begin
+  n := 0;
+  while n < FClientList.Count do
+  begin
+    if Supports( FClientList[n], IGuiStyleObserver, thisElement ) then
+      thisElement.UpdateStyle( Self );
+    inc( n );
+  end;
+end;
+
+procedure TGuiStyle.RegisterClient( AClient: IGuiStyleObserver );
+begin
+  if Assigned( AClient ) then
+  begin
+    FClientList.Add( TObject( AClient ) );
+    AClient.UpdateStyle( Self );
+  end;
+end;
+
+procedure TGuiStyle.UnregisterClient( AClient: IGuiStyleObserver );
+begin
+  FClientList.Remove( TObject( AClient ) );
+end;
+
+procedure TGuiStyle.UnregisterAll;
+begin
+  FClientList.Clear;
+end;
+
+procedure TGuiStyle.StyleInfoLabel( ALabel: TLabel );
+begin
+  with ALabel do
+  begin
+    AlignWithMargins := true;
+    Font.Name := FFontName;
+    Font.Size := Max( Min( FFontSize - 1, 9 ), FMinFontSize );
+    Font.Color := TColorCalculator.BlendColors( VeryDarkColor, PrettyDarkColor, 50 );
+    Transparent := true;
+    EllipsisPosition := epEndEllipsis;
+    Layout := tlCenter;
+    AutoSize := false;
+    Height := abs( Font.Height ) + 4;
+    Hint := Caption;
+    ShowHint := true;
+  end;
+end;
+
+procedure TGuiStyle.StyleLabel( ALabel: TLabel );
+begin
+  with ALabel do
+  begin
+    Font.Name := FFontName;
+    Font.Size := Max( FFontSize - 1, FMinFontSize );
+    Font.Color := VeryDarkColor;
+    Transparent := true;
+    AutoSize := true;
+  end;
+end;
+
+procedure TGuiStyle.StyleBoldLabel( ALabel: TLabel );
+begin
+  with ALabel do
+  begin
+    Font.Name := FFontName;
+    Font.Size := FFontSize + 1;
+    Font.Style := [fsBold];
+    Transparent := true;
+    AutoSize := true;
+  end;
+end;
+
+procedure TGuiStyle.StyleSmallLabel( ALabel: TLabel );
+begin
+  StyleLabel( ALabel );
+  ALabel.Font.Size := Max( ALabel.Font.Size - 1, FMinFontSize );
+end;
+
+procedure TGuiStyle.SetColor( AControl: TControl; const APropName: string = 'Color'; AColor: TColor = clNone );
+begin
+  if AColor = clNone then
+    AColor := LightColor;
+  SetOrdProp( AControl, APropName, AColor );
+end;
+
+function TGuiStyle.Get_FontName: string;
+begin
+  Result := FFontName;
+end;
+
+procedure TGuiStyle.Set_FontName( const AFontName: string );
+begin
+  if AFontName <> FFontName then
+  begin
+    FFontName := AFontName;
+    NotifyClients;
+  end;
+end;
+
+procedure TGuiStyle.Set_FontSize( const AFontSize: integer );
+begin
+  if AFontSize <> FFontSize then
+  begin
+    FFontSize := AFontSize;
+    NotifyClients;
+  end;
+end;
+
+procedure TGuiStyle.Set_Flat( const AValue: boolean );
+begin
+  if AValue <> fFlat then
+  begin
+    fFlat := AValue;
+    NotifyClients;
+  end;
+end;
+
+{$ENDREGION}
+
+initialization
+
+GlobalStyle := TGuiStyle.Create;
+
+finalization
+
+GlobalStyle := nil;
+
+end.

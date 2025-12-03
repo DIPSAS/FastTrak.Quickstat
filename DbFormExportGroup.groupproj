@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{3D933599-72AD-4840-9B12-D5DC5A262359}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="DbFormExport.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Test\TestClassSqlGenerator.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DbFormExport">
+        <MSBuild Projects="DbFormExport.dproj"/>
+    </Target>
+    <Target Name="DbFormExport:Clean">
+        <MSBuild Projects="DbFormExport.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DbFormExport:Make">
+        <MSBuild Projects="DbFormExport.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TestClassSqlGenerator">
+        <MSBuild Projects="Test\TestClassSqlGenerator.dproj"/>
+    </Target>
+    <Target Name="TestClassSqlGenerator:Clean">
+        <MSBuild Projects="Test\TestClassSqlGenerator.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestClassSqlGenerator:Make">
+        <MSBuild Projects="Test\TestClassSqlGenerator.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DbFormExport;TestClassSqlGenerator"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DbFormExport:Clean;TestClassSqlGenerator:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DbFormExport:Make;TestClassSqlGenerator:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

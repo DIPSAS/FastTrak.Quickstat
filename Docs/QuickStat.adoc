@@ -1,0 +1,7 @@
+QuickStat user manual
+=====================
+
+Background
+----------
+QuickStat is a companion application for FastTrak, allowing easy extraction
+of datasets from the database.

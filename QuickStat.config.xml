@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<QuickStat>
+  <Connections>
+  	<Connection>
+  	  <Name>Testdatabase (NDV)</Name>
+  	  <StudyName>NDV</StudyName>
+  	  <ConnectionString>FILE NAME=.\FastTrak.UDL</ConnectionString>
+  	</Connection>
+  </Connections>
+</QuickStat>
