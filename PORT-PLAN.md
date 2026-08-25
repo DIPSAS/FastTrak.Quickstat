@@ -1,8 +1,24 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation** — Phase 0 running
+Status: **in implementation — Phase 0 complete (`3b1f8c0`). Resume at Phase 1.**
 Branch: `feature/dotnet`
 Last updated: 2026-08-25
+
+> **Resume here.** Phase 0 landed and its exit criteria were verified independently: clean Debug and
+> Release builds with zero warnings, `dotnet test` 4/4 in both, `QuickStat.exe` at x64, launches with
+> a foreign working directory and exits 0, `LOGS\` created beside the exe. Next action is **Phase 1**
+> (one blocking agent, contracts only) using the file-ownership map in §5.
+>
+> Things established during Phase 0 that later steps depend on:
+> - Test stack is **xUnit v2 on VSTest**. Do not "upgrade" to xunit.v3 — it breaks `dotnet test` on
+>   this SDK. Evidence is in `Directory.Packages.props`.
+> - DI extension point: `ConfigureServices` in `QuickStat.App/App.xaml.cs`, with one labelled anchor
+>   comment per phase so parallel agents never edit the same lines.
+> - WPF projects get a **reduced** implicit-usings set — no `System.IO`. Add it per file.
+> - `GenerateDocumentationFile=true` with `CS1591` in `NoWarn`: docs are produced but not mandated.
+> - Warnings are errors and `EnforceCodeStyleInBuild` is live: an unused `using` fails the build.
+> - `.gitignore` carries a `!/QuickStat.App/` negation that must not be removed — the pre-existing
+>   Mac `*.app` pattern otherwise hides the entire application from git.
 
 ---
 
