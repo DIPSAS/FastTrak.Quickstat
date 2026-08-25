@@ -422,7 +422,7 @@ begin
   try
     AddCollector( TVarSetCollector.CreateForNumeric( 'SIZE', StrTitleAntropometrics, SET_HEIGHT_WEIGHT_BMI, fDatapointFactory, fSQL, GlobalLog ) );
     { GBD Protocol VarSet collectors }
-    if TRegEx.IsMatch( fStudyId.StudyName, 'GBD|LANGTID' ) then
+    if TRegEx.IsMatch( fStudyId.StudyName, 'GBD|LANGTID|KORTTID' ) then
     begin
       AddCollector( fCollectorFactory.CreateCollector( QS_WEIGHT_DAYS ) );
       AddCollector( fCollectorFactory.CreateCollector( QS_GBD_TVANGSVEDTAK ) );
@@ -452,7 +452,7 @@ begin
       AddCollectorsDiagnose;
       AddCollectorsDrug;
     end;
-    if TRegEx.IsMatch( fStudyId.StudyName, 'NDV|ENDO|LANGTID|GBD' ) then
+    if TRegEx.IsMatch( fStudyId.StudyName, 'NDV|ENDO|LANGTID|GBD|KORTTID' ) then
     begin
       { NDV Protocol VarSet collectors }
       AddCollector( fCollectorFactory.CreateCollector( QS_NDV_DIAGNOSE ) );
