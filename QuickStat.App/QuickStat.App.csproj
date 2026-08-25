@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    QuickStat.App - the WPF application.
+
+    HARD CONSTRAINT: AssemblyName MUST be "QuickStat" so the executable is QuickStat.exe.  Config
+    discovery in the deployed product is ChangeFileExt(ParamStr(0), '.config.xml'); renaming the
+    assembly stops QuickStat.config.xml resolving for every existing installation
+    (PORT-PLAN.md §4.1).  Do not "tidy" this to match the project name.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+
+    <AssemblyName>QuickStat</AssemblyName>
+    <RootNamespace>QuickStat</RootNamespace>
+
+    <!-- Existing icon at the repository root; not copied, not moved. -->
+    <ApplicationIcon>..\QuickStat_Icon.ico</ApplicationIcon>
+
+    <!-- Per-monitor DPI v2, asInvoker, common controls v6. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickStat.Core\QuickStat.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuickStat.Tests" />
+  </ItemGroup>
+
+</Project>

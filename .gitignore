@@ -197,3 +197,75 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# =============================================================================
+# .NET / WPF port (see PORT-PLAN.md).  Appended - nothing above this line was
+# changed or reordered; the Delphi build still depends on it.
+#
+# Already covered above and deliberately not repeated:
+#   [Bb]in/, [Oo]bj/, [Ll]og/, [Ll]ogs/   build output and the LOGS\ run directory
+#   *.exe                                  build output
+#   *.ini                                  settings files must never be committed
+#   *.local, *.binlog, .vscode/*           already listed
+# =============================================================================
+
+# DO NOT REMOVE.  The Mac bundle pattern "*.app" further up matches the QuickStat.App project
+# directory (git is case-insensitive on Windows), which silently hides the entire WPF application
+# from source control.  The existing line is left in place as required, so re-include the project
+# here instead.
+!/QuickStat.App/
+
+# Visual Studio / Rider / VS Code workspace state
+.vs/
+.idea/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.slnx.user
+*.[Cc]ache
+!?*.[Cc]ache/
+
+# Build output not already covered by [Bb]in/ and [Oo]bj/
+artifacts/
+[Oo]ut/
+BenchmarkDotNet.Artifacts/
+project.lock.json
+project.fragment.lock.json
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+*.nuget.props
+*.nuget.targets
+
+# Test and coverage output
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# ReSharper / JetBrains
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Roslyn / MSBuild caches
+*.ide/
+.msbuild.cache
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Publish output
+publish/
+PublishProfiles/*.user
+*.[Pp]ublish.xml
+*.pubxml
+*.pubxml.user
+*.azurePubxml

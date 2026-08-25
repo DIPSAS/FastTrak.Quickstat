@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    QuickStat.Tests - xUnit v2 on VSTest.
+
+    RUNNER CHOICE, READ BEFORE CHANGING: do not "upgrade" this to xunit.v3.  It was tried and it
+    breaks "dotnet test" on this SDK - the suite reports "Zero tests ran" even though the tests pass
+    when the test binary is run directly.  The full evidence is in Directory.Packages.props.
+
+    net10.0-windows + UseWPF because the suite references QuickStat.App (which is WPF) as well as
+    QuickStat.Core.  No database is available to tests (PORT-PLAN.md §9 R9) - everything must be
+    unit-testable without a server.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>QuickStat.Tests</RootNamespace>
+    <AssemblyName>QuickStat.Tests</AssemblyName>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickStat.App\QuickStat.App.csproj" />
+    <ProjectReference Include="..\QuickStat.Core\QuickStat.Core.csproj" />
+  </ItemGroup>
+
+</Project>

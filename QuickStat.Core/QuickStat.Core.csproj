@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    QuickStat.Core - domain, configuration, data access, collectors and export.
+
+    Deliberately NOT a Windows-specific TFM and deliberately without any WPF reference:
+    PresentationCore / WindowsBase / PresentationFramework must never appear here.  Colours in the
+    domain are a plain Rgb struct (PORT-PLAN.md §5 Phase 1); the App layer converts to
+    System.Windows.Media.Color.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>QuickStat</RootNamespace>
+    <AssemblyName>QuickStat.Core</AssemblyName>
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuickStat.Tests" />
+  </ItemGroup>
+
+</Project>

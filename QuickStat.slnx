@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="QuickStat.App/QuickStat.App.csproj" />
+  <Project Path="QuickStat.Core/QuickStat.Core.csproj" />
+  <Project Path="QuickStat.Tests/QuickStat.Tests.csproj" />
+</Solution>

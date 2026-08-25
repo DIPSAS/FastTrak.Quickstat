@@ -1,0 +1,20 @@
+<Window x:Class="QuickStat.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="QuickStat"
+        Height="800"
+        Width="1280"
+        WindowStartupLocation="CenterScreen">
+    <!--
+        PLACEHOLDER.  Phase 3 replaces the contents of this window: step 3.1 owns the shell (banner,
+        progress, splitter, theme), steps 3.2-3.6 own the tabs, grid and dialogs.  Nothing here
+        should be treated as a layout decision.
+    -->
+    <Grid>
+        <TextBlock HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   TextAlignment="Center"
+                   FontSize="18"
+                   Text="QuickStat &#x2013; .NET port skeleton&#x0A;This window is a placeholder; Phase 3 builds the real UI." />
+    </Grid>
+</Window>

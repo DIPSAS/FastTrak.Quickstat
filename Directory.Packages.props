@@ -1,0 +1,61 @@
+<Project>
+
+  <!--
+    Central Package Management for the .NET port.
+
+    Every NuGet version used by QuickStat.Core / QuickStat.App / QuickStat.Tests is pinned here and
+    ONLY here.  A <PackageReference> in a .csproj must never carry a Version attribute.
+
+    The dependency list is deliberately curated (PORT-PLAN.md §1.1): CommunityToolkit.Mvvm,
+    Microsoft.Data.SqlClient, Microsoft.Extensions.*, ClosedXML, xUnit.  No commercial control
+    suites, no additional libraries without a plan change.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!--
+      Transitive pinning off: it would promote every transitive dependency of Microsoft.Data.SqlClient
+      and ClosedXML into a direct, version-locked reference and make routine upgrades painful.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- Application / library dependencies -->
+  <ItemGroup>
+    <PackageVersion Include="ClosedXML" Version="0.105.1" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <!--
+    Test stack: xunit v2 on VSTest.  READ BEFORE "UPGRADING" TO xunit.v3.
+
+    xunit.v3 was tried first and rejected.  It is a Microsoft.Testing.Platform (MTP) framework, and
+    MTP orchestration under "dotnet test" is broken on this SDK (10.0.400): the suite reports
+    "Zero tests ran" / exit code 5 even though the test executable itself discovers and passes every
+    test when run directly.  Established by experiment, not by guesswork:
+
+      * a bare, minimal xunit.v3 project outside this repo fails identically, so it is not our
+        configuration;
+      * xunit.v3 3.1.0 fails the same way as 4.0.0, so it is not a version regression;
+      * removing UseWPF / net10.0-windows / IsTestProject changes nothing;
+      * the other MTP entry point, <TestingPlatformDotnetTestSupport>, is dead on .NET 10 - it
+        errors with "Testing with VSTest target is no longer supported ...";
+      * the same minimal project on xunit v2 + VSTest passes.
+
+    "dotnet build && dotnet test" passing is an acceptance criterion (PORT-PLAN.md §10.1) and is
+    what every implementation agent and any future CI will run, so the mature stack wins.  Nothing
+    this port needs - facts, theories, golden-file and byte-comparison assertions - requires v3.
+
+    Revisit when MTP's "dotnet test" support stabilises; it is a package swap, not a rewrite.
+  -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+</Project>

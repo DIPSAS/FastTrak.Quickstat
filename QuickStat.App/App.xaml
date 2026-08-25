@@ -1,0 +1,13 @@
+<Application x:Class="QuickStat.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        Deliberately NO StartupUri.  The generic host owns the composition root: App.OnStartup
+        resolves MainWindow from DI and shows it.  A StartupUri here would open a second, un-injected
+        window on top of it.
+
+        Application-level resources (theme, brushes, typography, control styles) are step 3.1's
+        file - QuickStat.App/Theme/**.  Do not start a theme here.
+    -->
+    <Application.Resources />
+</Application>

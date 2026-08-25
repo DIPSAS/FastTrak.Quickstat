@@ -1,0 +1,67 @@
+<Project>
+
+  <!--
+    Shared build settings for the QuickStat .NET port (PORT-PLAN.md §4, §5 Phase 0).
+
+    GUARD: this file sits at the repository root, next to the Delphi tree, so it would otherwise
+    apply to *any* MSBuild project created anywhere below it (a scratch project, a tool's temporary
+    project, a future unrelated sample).  Everything below is therefore conditioned on the project
+    name starting with "QuickStat" - the three port projects and any QuickStat.* project a later
+    phase adds.  Anything else gets plain SDK defaults.
+  -->
+
+  <PropertyGroup>
+    <IsQuickStatProject Condition="$(MSBuildProjectName.StartsWith('QuickStat'))">true</IsQuickStatProject>
+    <IsQuickStatProject Condition="'$(IsQuickStatProject)' == ''">false</IsQuickStatProject>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsQuickStatProject)' == 'true'">
+
+    <!-- Language -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Correctness: no warning survives a build. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>9999</WarningLevel>
+    <Deterministic>true</Deterministic>
+
+    <!-- Analyzers -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!--
+      Phase 1 documents every public type with XML comments, so documentation generation is on from
+      day one.  CS1591 ("missing XML comment for publicly visible type or member") is suppressed:
+      with TreatWarningsAsErrors it would otherwise turn every partially-documented file into a wall
+      of build errors while a phase is mid-flight.  Docs are produced, but not mandated by the build.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!--
+      x64 only.  The Delphi build is x86 purely because of its toolchain; Microsoft.Data.SqlClient is
+      managed TDS, so nothing in the .NET stack needs 32-bit (PORT-PLAN.md §4.1).
+    -->
+    <PlatformTarget>x64</PlatformTarget>
+
+    <!--
+      MUST stay false.  CSV export deliberately formats numbers with the OS locale decimal separator
+      (comma on nb-NO) for byte-parity with the Delphi build - see PORT-PLAN.md §6.  Invariant
+      globalization would silently switch every exported number to a full stop.
+    -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!-- Product metadata -->
+    <Company>DIPS</Company>
+    <Product>QuickStat</Product>
+    <NeutralLanguage>en</NeutralLanguage>
+    <Copyright>Copyright (c) DIPS</Copyright>
+
+    <!-- Nothing here is published to a NuGet feed. -->
+    <IsPackable>false</IsPackable>
+
+  </PropertyGroup>
+
+</Project>
