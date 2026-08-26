@@ -101,12 +101,25 @@ The canonical app references `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`, `AddNationa
 antibiotic collectors. Those symbols are absent from `develop`, `develop_old` and `master`, so
 **`develop_old` cannot build this application at all** — that part is verified, not inferred.
 
-**CI cannot build this application — verified in `C:\work\FastTrak.BuildServer` at `HEAD`.**
-`QuickStat.fbp8` sets `QuickStatDir = %Source%\App.QuickStat`, then compiles with
-`searchpath = $(FastTrakDir)\Lib\Service;…;$(FastTrakDir)\EPR\QA;…`, behind an
-`action.continua.iscontinua` guard that rewrites `$(FastTrakDir)` → `%FastTrakDir%` in the `.dproj`.
-`FastTrakDir` is a Continua-supplied variable bound to the **`FastTrakDevelop` source** — a separate
-FastTrak checkout tracking `develop`. It is **not** the FastTrakApps `FastTrak` submodule.
+**QuickStat almost certainly has no working build — checked in `C:\work\FastTrak.BuildServer` at
+`HEAD`.** `QuickStat.fbp8` sets `QuickStatDir = %Source%\App.QuickStat` and compiles with
+`searchpath = $(FastTrakDir)\Lib\Service;…;$(FastTrakDir)\EPR\QA;…`. An
+`action.continua.iscontinua` guard rewrites `$(FastTrakDir)` → `%FastTrakDir%` in the `.dproj`, but
+that guard has exactly **one** child — the find/replace. `action.delphi.build` is its *sibling*, so
+only the `.dproj` rewrite is CI-conditional; **the compile runs either way.**
+
+`FastTrakDir` resolves two ways, and both point away from the features:
+
+- **Under Continua** it is bound to the `$Source.FastTrakDevelop` source. *What branch that source
+  tracks has not been observed* — Continua's source definitions are in neither repo, and the
+  inference is read off the name. This is the one load-bearing assumption under R13: if
+  `FastTrakDevelop` happened to track a tarmscreening ref, the build would succeed and R13
+  collapses. Treat it as probable, not established.
+- **Outside Continua** the variable's own `defaultvalue` is `c:\work\FastTrak` — a local dev path.
+  That working copy is on `master` today, which lacks every one of the symbols, so a local build
+  fails now for reasons independent of Continua. This part *is* verified.
+
+Either way it is **not** the FastTrakApps `FastTrak` submodule.
 
 `develop` has never carried any of the four collector features, nor `TPatientList.AddNationalIds`
 (0 hits for `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`, `QS_DRUG_J01XX05` and
@@ -561,7 +574,7 @@ Not blocking; each has a working default so implementation can proceed.
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
-| R13 | **QuickStat has no working CI build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`, a Continua variable bound to the `FastTrakDevelop` source, which tracks `develop` — where none of the four features nor `AddNationalIds` has ever existed. Verified against the build definition at `HEAD` | Out of scope for the port, but it means *no automated build validates the Delphi reference app*, so "does the Delphi build still work" is never a usable check during parity work. Phase 5's parity pass must run against the **existing deployed exe**, not a freshly built one. Worth fixing on the Delphi side independently |
+| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | Regardless of how the Continua half resolves, do not rely on a Delphi build as a check — nobody has demonstrated one succeeding. Phase 5's parity pass runs against the **existing deployed exe**, not a freshly built one. To settle R13 properly, someone with Continua access should read the `FastTrakDevelop` source definition; it is a five-minute check and it would either confirm this row or overturn it |
 | R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos |
 
 ---
