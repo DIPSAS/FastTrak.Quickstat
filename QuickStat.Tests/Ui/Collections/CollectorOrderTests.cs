@@ -101,8 +101,31 @@ public class CollectorOrderTests
         Assert.Equal(ShippedOrder, visible);
     }
 
+    [Fact]
+    public void BokmaalAndNynorskAgree()
+    {
+        // Worth pinning because the rule reads the machine's culture and Norwegian installations are
+        // both: the development machine is nn-NO and the shipped build's users are on nb-NO. The two
+        // share one collation, so the column order of an export does not depend on which.
+        List<string> bokmaal;
+        List<string> nynorsk;
+
+        using (new CultureScope("nb-NO"))
+        {
+            bokmaal = SortedTitles("KORTTID");
+        }
+
+        using (new CultureScope("nn-NO"))
+        {
+            nynorsk = SortedTitles("KORTTID");
+        }
+
+        Assert.Equal(bokmaal, nynorsk);
+    }
+
     [Theory]
     [InlineData("nb-NO")]
+    [InlineData("nn-NO")]
     [InlineData("en-US")]
     [InlineData("tr-TR")]
     public void TheDemographicElementsComeFirstWhateverTheMachinesCultureIs(string cultureName)
