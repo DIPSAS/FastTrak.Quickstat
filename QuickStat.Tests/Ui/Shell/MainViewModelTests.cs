@@ -45,7 +45,7 @@ public class MainViewModelTests
                 WindowState,
                 new FakeApplicationInfo(),
                 new PopulationTabViewModel(new PopulationPickerViewModel()),
-                new CollectionsTabViewModel(Workspace, identification),
+                Collections.CollectionsTabHarness.Headless(Workspace, identification, Progress),
                 new PackagesTabViewModel(),
                 Dataset);
         }
