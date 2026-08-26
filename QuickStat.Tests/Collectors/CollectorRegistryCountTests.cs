@@ -12,8 +12,9 @@ namespace QuickStat.Tests.Collectors;
 /// <remarks>
 /// <para>
 /// The target is 131 distinct names and 124 for a <c>KORTTID</c> study, counted against the
-/// canonical application. Phase 4 is restoring the five registrations this repository has commented
-/// out; the constants in <see cref="CollectorTestContext"/> track how far it has got.
+/// canonical application, and Phase 4 reached it by restoring the five registrations this
+/// repository has commented out. The constants live in <see cref="CollectorTestContext"/> so that
+/// the two files that count collectors cannot drift apart.
 /// </para>
 /// <para>
 /// A <c>KORTTID</c> count is only meaningful together with a probe outcome, because

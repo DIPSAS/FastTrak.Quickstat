@@ -9,14 +9,14 @@ namespace QuickStat.Collectors.Registry;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the most important readability decision in step 2.4: 126 registrations spread over six
+/// This is the most important readability decision in step 2.4: 131 registrations spread over seven
 /// files are only reviewable if each one shows nothing but the facts that differ between
 /// collectors. Everything a Delphi constructor did implicitly - the variable prefix, the batch
 /// size, the title suffix - happens here, once.
 /// </para>
 /// <para>
 /// <see cref="CollectorDescriptor.PidBinding"/> is <b>derived</b> from the generated SQL rather
-/// than typed out per collector. That removes 126 chances of getting it wrong and it reproduces the
+/// than typed out per collector. That removes 131 chances of getting it wrong and it reproduces the
 /// Delphi rule exactly, which was itself implicit: <c>TDataCollector.SQL</c> substitutes
 /// <c>{IdList}</c> only when the batch size exceeds one, and <c>RunBatch</c> takes the
 /// <c>:PersonId</c> path only when it does not.

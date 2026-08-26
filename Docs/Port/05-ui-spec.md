@@ -913,8 +913,9 @@ screenshot 2/3 you can see the residual selection on `^ Kjønn`.
   **Corrected during Phase 3 wave 2 (step 3.3): use `StringComparer.CurrentCultureIgnoreCase`, not
   `StringComparer.Ordinal`.** This bullet previously said ordinal, "to keep the `^` group first". It
   does the opposite: `'^'` is U+005E, above `'Z'` and below `'a'`, and every other title starts with
-  a capital, so ordinal sorts all eleven `^ ` elements **last**. Sorted against the real
-  120-collector KORTTID registry, only a linguistic ignore-case comparer reproduces screenshot 2
+  a capital, so ordinal sorts all eleven `^ ` elements **last**. Sorted against the real KORTTID
+  registry (120 collectors when step 3.3 ran the experiment, 124 since Phase 4 restored the five
+  missing registrations), only a linguistic ignore-case comparer reproduces screenshot 2
   (`^ Alder … ^ Statuskode`, then `Antropometri…`, `Diabetes…`, `Labdata…`, `NDV…`). `Sorted := true`
   is `LBS_SORT`, whose default comparison is `CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE)` —
   culture-sensitive, which is what `CurrentCultureIgnoreCase` means. See PORT-PLAN.md §6; this is a
