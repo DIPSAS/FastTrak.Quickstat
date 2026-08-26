@@ -53,6 +53,24 @@ public class CollectorTitleTests
     }
 
     [Fact]
+    public void RoasBaseCarriesTheLastSuffixExactlyOnce()
+    {
+        // The bug commit 8a9954c13 shipped and 08e35bd8d fixed: the literal was registered as
+        // 'Autommunitet (siste)' while TVarSetCollector appends ' (siste)' itself, so the list read
+        // "Autommunitet (siste) (siste)". Asserting the occurrence count, not just the string, is
+        // what makes that specific mistake impossible to reintroduce.
+        string displayed = CollectorTestContext
+            .ByName(CollectorCatalog.All, CollectorNames.RoasBase)
+            .Descriptor.Title;
+
+        Assert.Equal("Autommunitet (siste)", displayed);
+
+        // Registered short, displayed long, and the suffix appears once - not twice.
+        Assert.Equal("Autommunitet", CollectorTitles.RoasBase);
+        Assert.Equal(1, displayed.Split(CollectorTitle.LastSuffix).Length - 1);
+    }
+
+    [Fact]
     public void RegisteredMaxTitlesCarryTheHoyesteSuffix()
     {
         AssertTitle(CollectorNames.RoasGwasAutoAntibody, "GWAS Autoantistoffer (høyeste)");

@@ -473,6 +473,25 @@ public static class CollectorTitles
     /// <summary><c>EPR.QA.Collector.Factory.pas:319</c>.</summary>
     public const string RoasPoiQuantity = "POI Diagnoseår";
 
+    /// <summary>
+    /// <c>EPR.QA.Collector.Factory.pas:321</c>. Registered <b>without</b> <c>' (siste)'</c>, and the
+    /// <c>Autommunitet</c> misspelling is deliberate.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Commit <c>8a9954c13</c> registered the literal <c>'Autommunitet (siste)'</c> and
+    /// <c>08e35bd8d</c> had to strip the suffix back off, because <c>TVarSetCollector</c> appends it
+    /// in its own constructor. <see cref="Make.VarSetNumeric"/> does the same, so the displayed
+    /// title is <c>Autommunitet (siste)</c> with the suffix appearing exactly once - which is what
+    /// <c>CollectorTitleTests</c> asserts.
+    /// </para>
+    /// <para>
+    /// Correct Norwegian would be <c>Autoimmunitet</c>. Preserved because it is what users see on
+    /// the shipping build and what a saved package title would match (PORT-PLAN.md §8.3).
+    /// </para>
+    /// </remarks>
+    public const string RoasBase = "Autommunitet";
+
     /// <summary><c>EPR.QA.Collector.Factory.pas:323</c>.</summary>
     public const string DogfoodDatabaseVersion = "Dogfood: Databaseversjoner";
 }

@@ -80,6 +80,30 @@ public static class ItemSets
     public static IReadOnlyList<int> PoiQuantity { get; } =
         [6089, 3486, 6332, 6323, 6324, 6334, 6328, 6330, 6331, 6333, 6327, 6326, 8544];
 
+    /// <summary><c>SET_ROAS_BASE</c> - 68 ids (<c>EPR.QA.Definitions.pas:103-105</c>).</summary>
+    /// <remarks>
+    /// <para>
+    /// The largest set in the file, and the one that most needs its order left alone: at 68 items it
+    /// can add 68 columns to the matrix, and the generated <c>IN ( … )</c> list is what a golden file
+    /// compares. Transcribed in the source order, three source lines flattened into seven rows of
+    /// ten; there are no duplicates.
+    /// </para>
+    /// <para>
+    /// Restored by Phase 4 from commit <c>8a9954c13</c>
+    /// (<c>Docs/Port/03-collectors.md</c> §E.3).
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<int> RoasBase { get; } =
+    [
+        4255, 6314, 3486, 6312, 6323, 6313, 6324, 6299, 6089, 6090,
+        6321, 6332, 3410, 6328, 6317, 6327, 6316, 6326, 8594, 8595,
+        6318, 6334, 6329, 3411, 6330, 6320, 6331, 6322, 6333, 8543,
+        8544, 6669, 6670, 6671, 6607, 5069, 3982, 6633, 6634, 6635,
+        6636, 6637, 6638, 6639, 6640, 6808, 6641, 5170, 9996, 3983,
+        7135, 4002, 6682, 3985, 8797, 6605, 2143, 9477, 10643, 3846,
+        3981, 6804, 6805, 6802, 6803, 7977, 7979, 6807,
+    ];
+
     /// <summary>
     /// The dogfood collector's inline pair, <c>[3812, 5117]</c>
     /// (<c>EPR.QA.Collector.Factory.pas:323</c>) - not a <c>SET_*</c> constant upstream.

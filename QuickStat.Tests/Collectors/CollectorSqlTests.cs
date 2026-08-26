@@ -264,6 +264,48 @@ public class CollectorSqlTests
     }
 
     [Fact]
+    public void RoasBaseCarriesAll68ItemIdsInTheDelphiOrder()
+    {
+        // Docs/Port/03-collectors.md §E.3, count-verified against EPR.QA.Definitions.pas:103-105.
+        // Order is observable in the generated IN ( … ) list, so it is asserted rather than the set.
+        Assert.Equal(68, ItemSets.RoasBase.Count);
+        Assert.Equal(ItemSets.RoasBase.Count, ItemSets.RoasBase.Distinct().Count());
+
+        Assert.Equal(
+            new[]
+            {
+                4255, 6314, 3486, 6312, 6323, 6313, 6324, 6299, 6089, 6090,
+                6321, 6332, 3410, 6328, 6317, 6327, 6316, 6326, 8594, 8595,
+                6318, 6334, 6329, 3411, 6330, 6320, 6331, 6322, 6333, 8543,
+                8544, 6669, 6670, 6671, 6607, 5069, 3982, 6633, 6634, 6635,
+                6636, 6637, 6638, 6639, 6640, 6808, 6641, 5170, 9996, 3983,
+                7135, 4002, 6682, 3985, 8797, 6605, 2143, 9477, 10643, 3846,
+                3981, 6804, 6805, 6802, 6803, 7977, 7979, 6807,
+            },
+            ItemSets.RoasBase);
+
+        // TVarSetCollector.CreateForNumeric: SpSnapshotVarset( itNumeric, … ), prefix '', batch 100.
+        ICollector roasBase = CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.RoasBase);
+
+        Assert.Equal(string.Empty, roasBase.Descriptor.VarPrefix);
+        Assert.Equal(CollectorKind.VarSet, roasBase.Descriptor.Kind);
+        Assert.Equal(100, roasBase.Descriptor.BatchSize);
+
+        AssertContains(CollectorNames.RoasBase, "cdp.Quantity AS DpValue");
+        AssertContains(CollectorNames.RoasBase, "ISNULL(cdp.Quantity,-1) <> -1");
+        AssertContains(
+            CollectorNames.RoasBase,
+            "AND ( cdp.ItemId IN ( " +
+            "4255, 6314, 3486, 6312, 6323, 6313, 6324, 6299, 6089, 6090, " +
+            "6321, 6332, 3410, 6328, 6317, 6327, 6316, 6326, 8594, 8595, " +
+            "6318, 6334, 6329, 3411, 6330, 6320, 6331, 6322, 6333, 8543, " +
+            "8544, 6669, 6670, 6671, 6607, 5069, 3982, 6633, 6634, 6635, " +
+            "6636, 6637, 6638, 6639, 6640, 6808, 6641, 5170, 9996, 3983, " +
+            "7135, 4002, 6682, 3985, 8797, 6605, 2143, 9477, 10643, 3846, " +
+            "3981, 6804, 6805, 6802, 6803, 7977, 7979, 6807 ) )");
+    }
+
+    [Fact]
     public void ThresholdIsRenderedWithAnInvariantDecimalSeparator()
     {
         // SpSnapshotQuantityIfBelowThreshold passes explicit en-US format settings so that a

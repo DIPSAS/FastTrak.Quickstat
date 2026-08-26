@@ -18,8 +18,10 @@ public static partial class CollectorCatalog
         Make.VarSetNumeric(CollectorNames.RoasPoiOrdinal, CollectorTitles.RoasPoiOrdinal, ItemSets.PoiOrdinal),
         Make.VarSetNumeric(CollectorNames.RoasPoiQuantity, CollectorTitles.RoasPoiQuantity, ItemSets.PoiQuantity),
 
-        // Phase 4 slots QS_ROAS_BASE in here - 68 item ids, registered as the bare literal
-        // 'Autommunitet' so that TVarSetCollector's own ' (siste)' is not doubled.
+        // QS_ROAS_BASE, last in the ROAS block (QuickStat.Collectors.pas:480). 68 item ids, and the
+        // title is registered as the bare literal 'Autommunitet' so that VarSetNumeric's own
+        // ' (siste)' is not doubled - the mistake commit 8a9954c13 made and 08e35bd8d fixed.
+        Make.VarSetNumeric(CollectorNames.RoasBase, CollectorTitles.RoasBase, ItemSets.RoasBase),
     ];
 
     private static IReadOnlyList<ICollector> CreateDogfoodCollectors() =>

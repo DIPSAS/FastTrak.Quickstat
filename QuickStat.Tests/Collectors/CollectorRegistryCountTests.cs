@@ -109,7 +109,7 @@ public class CollectorRegistryCountTests
         Assert.Equal(79, CollectorCatalog.GbdFamily.Count);
         Assert.Equal(8, CollectorCatalog.NdvFamily.Count);
         Assert.Equal(3, CollectorCatalog.GwasFamily.Count);
-        Assert.Equal(2, CollectorCatalog.RoasFamily.Count);
+        Assert.Equal(3, CollectorCatalog.RoasFamily.Count);
         Assert.Single(CollectorCatalog.DogfoodFamily);
     }
 
@@ -121,8 +121,8 @@ public class CollectorRegistryCountTests
     [InlineData("NDV", AlwaysCount + 8)]
     [InlineData("ENDO", AlwaysCount + 8)]
     [InlineData("GWAS", AlwaysCount + 3)]
-    [InlineData("ROAS", AlwaysCount + 2)]
-    [InlineData("ROAS_GWAS", AlwaysCount + 3 + 2)]
+    [InlineData("ROAS", AlwaysCount + 3)]
+    [InlineData("ROAS_GWAS", AlwaysCount + 3 + 3)]
     [InlineData("DOGFOOD", AlwaysCount + 1)]
     [InlineData("dogfood", AlwaysCount + 1)]
     [InlineData("TARMSCREENING", AlwaysCount)]
@@ -137,7 +137,7 @@ public class CollectorRegistryCountTests
     [InlineData("LANGTID", FullyGatedWithoutOptionalObjects)]
     [InlineData("KORTTID", FullyGatedWithoutOptionalObjects)]
     [InlineData("NDV", AlwaysCount + 8)]
-    [InlineData("ROAS", AlwaysCount + 2)]
+    [InlineData("ROAS", AlwaysCount + 3)]
     [InlineData("TARMSCREENING", AlwaysCount)]
     public void StudyRegistersOneFewerWhenTheKnowledgeBaseIsMissing(string studyName, int expected) =>
         Assert.Equal(expected, CollectorTestContext.Build(studyName).Count);
@@ -210,9 +210,35 @@ public class CollectorRegistryCountTests
         AssertOrder(names, CollectorNames.DrugNorGeP, CollectorNames.NdvDiagnose);
         AssertOrder(names, CollectorNames.LabDiabetes, CollectorNames.RoasGwasBackground);
         AssertOrder(names, CollectorNames.RoasGwasAps1, CollectorNames.RoasPoiOrdinal);
-        AssertOrder(names, CollectorNames.RoasPoiQuantity, CollectorNames.DogfoodDatabaseVersion);
+        AssertOrder(names, CollectorNames.RoasBase, CollectorNames.DogfoodDatabaseVersion);
 
         Assert.Equal(CollectorNames.DogfoodDatabaseVersion, names[^1]);
+    }
+
+    [Fact]
+    public void RoasBaseIsRegisteredLastInItsBlock()
+    {
+        // QuickStat.Collectors.pas:478-480: after both POI collectors, and the last thing the ROAS
+        // block adds.
+        List<string> names = CollectorTestContext.Names(CollectorCatalog.RoasFamily);
+
+        Assert.Equal(
+            new[] { CollectorNames.RoasPoiOrdinal, CollectorNames.RoasPoiQuantity, CollectorNames.RoasBase },
+            names);
+    }
+
+    [Fact]
+    public void RoasBaseIsBehindTheRoasGateAndSoDoesNotMoveTheKorttidCount()
+    {
+        // The one restored collector that a KORTTID study never sees, which is why the acceptance
+        // target moves by four and not by five (PORT-PLAN.md §10.4).
+        Assert.DoesNotContain(
+            CollectorNames.RoasBase,
+            CollectorTestContext.Names(CollectorTestContext.BuildComplete("KORTTID")));
+
+        Assert.Contains(
+            CollectorNames.RoasBase,
+            CollectorTestContext.Names(CollectorTestContext.BuildComplete("ROAS")));
     }
 
     [Fact]
@@ -244,7 +270,7 @@ public class CollectorRegistryCountTests
         Assert.Contains(CollectorNames.DrugAntibioticRecommended, names);
         Assert.Contains(CollectorNames.DrugJ01Xx05, names);
 
-        Assert.DoesNotContain("ROAS.BASE", names);
+        Assert.Contains(CollectorNames.RoasBase, names);
         Assert.DoesNotContain("LAB.INTERLEUKINS", names);
     }
 

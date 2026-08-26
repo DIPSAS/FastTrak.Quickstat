@@ -439,6 +439,12 @@ public static class CollectorNames
     /// <summary><c>QS_ROAS_POI_QN</c>.</summary>
     public const string RoasPoiQuantity = "ROAS.POI.QN";
 
+    /// <summary>
+    /// <c>QS_ROAS_BASE</c> (<c>EPR.QA.Collector.Names.pas:466</c>) - a bare literal upstream too,
+    /// not a prefix concatenation.
+    /// </summary>
+    public const string RoasBase = "ROAS.BASE";
+
     /// <summary><c>QS_DOGFOOD_DATABASE_VERSION</c>.</summary>
     public const string DogfoodDatabaseVersion = "DOGFOOD.DATABASE.VERSION";
 }
