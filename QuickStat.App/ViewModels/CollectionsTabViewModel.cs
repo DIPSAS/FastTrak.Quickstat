@@ -69,24 +69,6 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     /// </summary>
     public const string LoadingCollectorsText = "Loading collectors";
 
-    /// <summary>
-    /// Shown instead of a second collect run against the same population.
-    /// </summary>
-    /// <remarks>
-    /// <b>A regression against the Delphi, forced by <see cref="PersonMatrix"/>.</b> There,
-    /// <c>ClearVariables</c> leaves <c>fLocked</c> alone and <c>AddData</c> never consults it
-    /// (<c>FastTrak/EPR.QA.Matrix.pas:205-215</c>), so clicking <c>Collect data</c> twice simply
-    /// re-collects. Here <see cref="PersonMatrix.AddColumns"/> and <see cref="PersonMatrix.Add"/>
-    /// both throw once <see cref="PersonMatrix.Lock"/> has been called, and only
-    /// <see cref="PersonMatrix.ClearPopulation"/> unlocks - which would throw the cohort away.
-    /// Saying so is better than the <see cref="InvalidOperationException"/> the run would otherwise
-    /// raise on the second click. Delete this constant and the guard in <c>CollectDataAsync</c> that
-    /// reads it as soon as Core allows a re-collect.
-    /// </remarks>
-    public const string AlreadyCollectedMessage =
-        "This dataset has already been collected.\n\n"
-        + "Load the population again before collecting a different set of data elements.";
-
     private readonly IShellWorkspace _workspace;
     private readonly IIdentificationPolicy _identification;
     private readonly ICollectorRegistry _registry;
@@ -420,16 +402,6 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     private async Task CollectDataAsync(CancellationToken cancellationToken)
     {
         PersonMatrix matrix = _workspace.Matrix;
-
-        if (matrix.IsLocked)
-        {
-            // See AlreadyCollectedMessage: a Core restriction the Delphi does not have.
-            _logger.LogWarning("A second collect run was refused because the matrix is already locked.");
-
-            await _notifier.InformAsync(AlreadyCollectedMessage).ConfigureAwait(true);
-
-            return;
-        }
 
         // A snapshot: the collection must not be enumerated while a collector is running, and the
         // cohort is fixed for the whole run.

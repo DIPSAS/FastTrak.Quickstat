@@ -167,6 +167,37 @@ public class PersonMatrixTests
     }
 
     [Fact]
+    public void ClearVariablesUnlocksSoTheSameCohortCanBeCollectedAgain()
+    {
+        // The second click of Collect data.  AddColumns and Add both refuse a locked matrix and Lock
+        // is the last thing a run does, so without this the only way back was ClearPopulation - which
+        // throws the cohort away and would have meant reloading the population to change which data
+        // elements are ticked.  The Delphi has no such restriction: fLocked appears three times in
+        // EPR.QA.Matrix.pas - cleared at :214, set at :332, read at :236 for the "(not ready)"
+        // placeholder - and never gates adding data.
+        PersonMatrix matrix = NewMatrix();
+
+        matrix.PreparePopulation([NewPatient(1)]);
+        matrix.AddColumns(NamesOf("AGE"));
+        Assert.True(matrix.Add("AGE", Row(1, "AGE", 97)));
+        matrix.Lock();
+
+        matrix.ClearVariables();
+
+        Assert.False(matrix.IsLocked);
+
+        // And the run that follows really can proceed - both guarded operations, not just the flag.
+        matrix.AddColumns(NamesOf("HEIGHT"));
+        Assert.True(matrix.Add("HEIGHT", Row(1, "HEIGHT", 182)));
+
+        matrix.Lock();
+
+        Assert.True(matrix.IsLocked);
+        Assert.Single(matrix.Rows);
+        Assert.Equal(["HEIGHT"], matrix.Columns.Select(column => column.VarName));
+    }
+
+    [Fact]
     public void ClearPopulationDropsTheRowsAndUnlocks()
     {
         PersonMatrix matrix = NewMatrix();

@@ -811,8 +811,13 @@ public class PackagesTabViewModelTests
         await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
 
         Assert.Equal(2, harness.Patients.Loaded.Count);
-        Assert.False(harness.Matrix.IsLocked);
         Assert.Empty(harness.Presenter.Notifications);
+
+        // Locked, because this harness now drives step 3.3's real collect run rather than the
+        // no-op stub this test was written against, and a run ends with Lock() so the dataset is
+        // exportable.  The point of the test is unchanged and is the line above plus this one: the
+        // second replay got all the way through instead of throwing out of AddColumns.
+        Assert.True(harness.Matrix.IsLocked);
     }
 
     [Fact]

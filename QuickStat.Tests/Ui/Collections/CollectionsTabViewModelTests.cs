@@ -613,12 +613,17 @@ public class CollectionsTabViewModelTests
     }
 
     [Fact]
-    public async Task ASecondRunIsRefusedRatherThanThrowing()
+    public async Task ASecondRunSimplyReCollects()
     {
-        // A regression against the Delphi that PersonMatrix forces; see AlreadyCollectedMessage.
+        // Clicking Collect data twice is ordinary use - tick a few more elements, run again - and the
+        // Delphi allows it: fLocked gates painting and export, never AddData
+        // (FastTrak/EPR.QA.Matrix.pas:214, :236, :332).  The port briefly did not, because
+        // PersonMatrix.ClearVariables did not lift the lock that Lock() had set at the end of the
+        // previous run, so the second click threw out of AddColumns.  This test is the reason
+        // ClearVariables now unlocks.
         using Harness harness = new();
 
-        harness.Registry.With("A", "Alfa");
+        harness.Registry.With("A", "Alfa").With("B", "Beta");
 
         await harness.LoginAsync();
         harness.LoadPopulation(8);
@@ -629,10 +634,15 @@ public class CollectionsTabViewModelTests
         Assert.True(harness.Matrix.IsLocked);
         Assert.Single(harness.Runner.Ran);
 
+        harness.Tick("B");
+
         await harness.ViewModel.CollectDataCommand.ExecuteAsync(null);
 
-        Assert.Single(harness.Runner.Ran);
-        Assert.Equal(["info: " + CollectionsTabViewModel.AlreadyCollectedMessage], harness.Notifier.Messages);
+        // Three collector invocations, not two: the second run collects everything still ticked, so
+        // Alfa runs again alongside Beta.  That is the Delphi's loop over the whole check list.
+        Assert.Equal(["A", "A", "B"], harness.Runner.Ran);
+        Assert.True(harness.Matrix.IsLocked);
+        Assert.Empty(harness.Notifier.Messages);
     }
 
     [Fact]

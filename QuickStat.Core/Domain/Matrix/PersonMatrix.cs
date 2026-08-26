@@ -169,8 +169,29 @@ public sealed class PersonMatrix : ICollectorResultSink
         IsLocked = false;
     }
 
-    /// <summary>Drops the columns and every datapoint, keeping the rows.</summary>
-    /// <remarks>Called at the start of every collect run.</remarks>
+    /// <summary>Drops the columns and every datapoint, keeping the rows, and unlocks.</summary>
+    /// <remarks>
+    /// <para>
+    /// Called at the start of every collect run.
+    /// </para>
+    /// <para>
+    /// It unlocks because <see cref="AddColumns"/> and <see cref="Add"/> both refuse to run against a
+    /// locked matrix, and <see cref="Lock"/> is the last thing a collect run does. Without this, the
+    /// second click of <i>Collect data</i> — the most prominent button on the Collections tab —
+    /// threw <see cref="InvalidOperationException"/>, and the only way back was to reload the
+    /// population and lose the cohort. Found during Phase 3 wave 2 by step 3.3, which had to guard
+    /// against it in the view-model.
+    /// </para>
+    /// <para>
+    /// The Delphi has no such restriction: <c>fLocked</c> appears in exactly three places in
+    /// <c>EPR.QA.Matrix.pas</c> — set false in <c>ClearPopulation</c> (:214), set true in
+    /// <c>StartPainting</c> (:332), and read by <c>GetCellText</c> (:236) for the <c>(not ready)</c>
+    /// placeholder. It gates painting and export, never the adding of data, so re-collecting is just
+    /// another run. The guards are a port-side addition worth keeping — they catch a genuine misuse,
+    /// adding data to a finished matrix without clearing it first — but clearing the variables
+    /// <i>is</i> that clearing, so it must lift the lock.
+    /// </para>
+    /// </remarks>
     public void ClearVariables()
     {
         _columns.Clear();
@@ -180,6 +201,8 @@ public sealed class PersonMatrix : ICollectorResultSink
         {
             row.ClearDataPoints();
         }
+
+        IsLocked = false;
     }
 
     /// <summary>Drops everything.</summary>
