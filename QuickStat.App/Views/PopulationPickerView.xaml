@@ -9,10 +9,57 @@
              d:DataContext="{d:DesignInstance Type=vm:PopulationPickerViewModel}">
 
     <!--
-        OWNER: step 3.2.  A layout skeleton written by step 3.1 so the shell lays out; the row
-        template, the filter, the SQL preview gate and the double-click command are all still to do.
-        See PopulationPickerViewModel for the list, and 05-ui-spec.md §B.1.1 for the detail.
+        OWNER: step 3.2.  05-ui-spec.md §B.1.1, the embedded TfrmPopulations frame.  The four English
+        captions are the ones TfrmQuickStat.FormCreate writes over the Norwegian .dfm ones at run
+        time (MainQuickStat.pas:289-292).
     -->
+
+    <UserControl.Resources>
+
+        <!--
+            The three text runs turn white together when the row is selected (§B.1.1).  Title and
+            help text need no rule: QsPopulationItem sets Foreground on the container, and its
+            selection triggers set TextElement.Foreground - the same dependency property - so both
+            inherit.  Only the two runs that carry an explicit colour of their own have to be told.
+        -->
+        <Style x:Key="PopulationCodeRun" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource QsCodeBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}"
+                             Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource QsOnAccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PopulationGroupRun" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource QsCategoryBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource QsSmallFontSize}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}"
+                             Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource QsOnAccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!--
+            Expansion, Emetra.VclComp.ListView.pas:752-755.  The second trigger comes after the first
+            on purpose: a row with no HelpText has nothing to expand, and the VCL adds no height for
+            an empty description either (MeasureItem, :551-561).
+        -->
+        <Style x:Key="PopulationHelpRun" TargetType="{x:Type TextBlock}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HelpText}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -26,9 +73,35 @@
 
         <TextBlock Grid.Row="0" Margin="0,0,0,2" Text="Filter / search text" />
 
-        <TextBox Grid.Row="1"
-                 Style="{StaticResource QsFlatTextBox}"
-                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+        <!--
+            edtPopFilter.  TextHint is EM_SETCUEBANNER, which Windows hides while the control has
+            focus, so the placeholder does the same.
+        -->
+        <Grid Grid.Row="1">
+            <TextBox x:Name="FilterBox"
+                     Style="{StaticResource QsFlatTextBox}"
+                     Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Margin="7,4"
+                       Foreground="{StaticResource QsMutedTextBrush}"
+                       IsHitTestVisible="False"
+                       Text="Type filter text here">
+                <TextBlock.Style>
+                    <Style TargetType="{x:Type TextBlock}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Text, ElementName=FilterBox}" Value="" />
+                                    <Condition Binding="{Binding IsKeyboardFocusWithin, ElementName=FilterBox}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
 
         <Grid Grid.Row="2" Height="28">
             <CheckBox VerticalAlignment="Center"
@@ -46,51 +119,121 @@
             </CheckBox>
         </Grid>
 
-        <ListBox Grid.Row="3"
-                 AlternationCount="2"
-                 BorderBrush="{StaticResource QsBorderBrush}"
-                 BorderThickness="1"
-                 HorizontalContentAlignment="Stretch"
-                 ItemContainerStyle="{StaticResource QsPopulationItem}"
-                 ItemsSource="{Binding Populations}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 SelectedItem="{Binding SelectedPopulation, Mode=TwoWay}">
-            <ListBox.ItemTemplate>
-                <DataTemplate DataType="{x:Type vm:PopulationViewModel}">
-                    <!-- TODO 3.2: three runs, expansion, ellipsis - §B.1.1. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" MinWidth="32" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+        <Grid Grid.Row="3">
+            <ListBox x:Name="PopulationList"
+                     AlternationCount="2"
+                     BorderBrush="{StaticResource QsBorderBrush}"
+                     BorderThickness="1"
+                     HorizontalContentAlignment="Stretch"
+                     ItemContainerStyle="{StaticResource QsPopulationItem}"
+                     ItemsSource="{Binding Populations}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     SelectedItem="{Binding SelectedPopulation, Mode=TwoWay}">
 
-                        <TextBlock Grid.Column="0"
-                                   Foreground="{StaticResource QsCodeBrush}"
-                                   Text="{Binding ProcId}" />
-                        <TextBlock Grid.Column="1"
-                                   Margin="6,0"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding Title}"
-                                   TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="2"
-                                   FontSize="{StaticResource QsSmallFontSize}"
-                                   Foreground="{StaticResource QsCategoryBrush}"
-                                   Text="{Binding Group}" />
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+                <!--
+                    Enter behaves like a double click (Emetra.VclComp.ListView.pas:762-766), and the
+                    double click itself is the whole point of the list (§B.1.1).  Both are guarded by
+                    the command's CanExecute, which is what the Delphi's
+                    TryGetHighlightedPopulation guard amounts to.
+                -->
+                <ListBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding PreparePopulationCommand}" />
+                    <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding PreparePopulationCommand}" />
+                </ListBox.InputBindings>
 
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:PopulationViewModel}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <!-- 24 + 2 x GapX, and it grows to fit the widest id. -->
+                                <ColumnDefinition Width="Auto" MinWidth="32" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="0"
+                                       Style="{StaticResource PopulationCodeRun}"
+                                       Text="{Binding ProcId}" />
+
+                            <!--
+                                ProcGroup is drawn INSIDE the title column, right-aligned, and the
+                                title is trimmed to whatever is left - PaintContents shortens the
+                                rectangle by the group's width before it draws the title
+                                (Emetra.VclComp.ListView.pas:665-683).
+                            -->
+                            <Grid Grid.Row="0" Grid.Column="1" Margin="4,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           FontWeight="Bold"
+                                           Text="{Binding Title}"
+                                           TextTrimming="CharacterEllipsis" />
+
+                                <TextBlock Grid.Column="1"
+                                           Margin="4,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Style="{StaticResource PopulationGroupRun}"
+                                           Text="{Binding Group}" />
+                            </Grid>
+
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="1"
+                                       Margin="4,0,0,0"
+                                       Style="{StaticResource PopulationHelpRun}"
+                                       Text="{Binding HelpText}"
+                                       TextWrapping="Wrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!--
+                §B.1.1: the VCL hides the whole grid when the filtered list is empty
+                (Emetra.VclComp.ListView.pas:524).  A message inside the same border says the same
+                thing without the rectangle vanishing.  Deliberate improvement, recorded on
+                PopulationPickerViewModel.NoPopulationsText.
+            -->
+            <TextBlock Margin="16"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource QsMutedTextBrush}"
+                       IsHitTestVisible="False"
+                       Text="{Binding EmptyStateText}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding IsEmpty, Converter={conv:BoolToVisibilityConverter}}" />
+        </Grid>
+
+        <!--
+            splitMain, SplitterWidth = 9, FixedPane = fpLowerRight: the list keeps the slack and the
+            preview keeps its height.  Both rows are Auto, so with the preview hidden - which is the
+            default, see SetSourceCodeAccess - the pair takes no space at all.  A drag turns the
+            preview's row into an absolute height, which is what makes it resizable at all.
+        -->
         <GridSplitter Grid.Row="4"
                       Height="9"
                       HorizontalAlignment="Stretch"
+                      VerticalAlignment="Center"
                       Background="{StaticResource QsPageBrush}"
-                      ResizeBehavior="PreviousAndNext" />
+                      ResizeBehavior="PreviousAndNext"
+                      ResizeDirection="Rows"
+                      Visibility="{Binding IsSqlPreviewVisible, Converter={conv:BoolToVisibilityConverter}}" />
 
+        <!--
+            memSourceCode: read-only, no word wrap, Consolas 8 pt, only visible to a user who holds
+            FUNC_POPULATION_SOURCE (§B.1.1 item 7, §I.9).
+        -->
         <TextBox Grid.Row="5"
-                 Height="120"
+                 MinHeight="104"
                  AcceptsReturn="True"
+                 Background="{StaticResource QsSurfaceBrush}"
                  BorderBrush="{StaticResource QsBorderBrush}"
                  BorderThickness="1"
                  FontFamily="{StaticResource QsCodeFontFamily}"

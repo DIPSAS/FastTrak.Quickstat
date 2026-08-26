@@ -273,9 +273,8 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
         _session.SessionChanged -= OnSessionChanged;
         Populations.CollectionChanged -= OnPopulationsChanged;
 
-        _catalogueLoad?.Cancel();
-        _catalogueLoad?.Dispose();
-        _catalogueLoad = null;
+        // Not disposed here: RunCatalogueLoadAsync owns it and will.
+        Interlocked.Exchange(ref _catalogueLoad, null)?.Cancel();
     }
 
     /// <summary>
@@ -555,16 +554,19 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
         });
     }
 
+    /// <summary>
+    /// Starts a catalogue load, abandoning whichever one was already running.
+    /// </summary>
+    /// <remarks>
+    /// Both triggers - a session change and the <c>Frequently used only</c> box - are events with
+    /// nowhere to return a task to, and each is a server round trip. Cancelling the previous one
+    /// keeps a fast series of clicks from racing an older answer into the list.
+    /// </remarks>
     private void BeginCatalogueLoad()
     {
         CancellationTokenSource started = new();
-        CancellationTokenSource? previous = Interlocked.Exchange(ref _catalogueLoad, started);
 
-        if (previous is not null)
-        {
-            previous.Cancel();
-            previous.Dispose();
-        }
+        Interlocked.Exchange(ref _catalogueLoad, started)?.Cancel();
 
         _ = RunCatalogueLoadAsync(started);
     }
@@ -577,10 +579,11 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
         }
         finally
         {
-            if (Interlocked.CompareExchange(ref _catalogueLoad, null, owner) == owner)
-            {
-                owner.Dispose();
-            }
+            // Each source is disposed exactly once, by the run that owns it, and only clears the
+            // field when it is still the current one.
+            Interlocked.CompareExchange(ref _catalogueLoad, null, owner);
+
+            owner.Dispose();
         }
     }
 
