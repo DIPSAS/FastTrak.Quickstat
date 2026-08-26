@@ -1,4 +1,5 @@
 using QuickStat.Diagnostics;
+using QuickStat.ViewModels;
 using QuickStat.Views.Dialogs;
 
 namespace QuickStat.Services;
@@ -40,7 +41,7 @@ public sealed class WpfNotificationPresenter : IUserNotificationPresenter
 {
     /// <summary>Caption used when a notification carries none.</summary>
     /// <remarks>Kept as the presenter's own constant so callers need not know about the view-model.</remarks>
-    public const string DefaultTitle = QuickStat.ViewModels.NotificationViewModel.DefaultTitle;
+    public const string DefaultTitle = NotificationViewModel.DefaultTitle;
 
     private readonly IUiDispatcher _dispatcher;
     private readonly Func<UserNotification, bool?> _show;
