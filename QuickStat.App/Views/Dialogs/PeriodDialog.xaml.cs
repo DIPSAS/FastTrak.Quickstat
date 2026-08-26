@@ -4,9 +4,17 @@ namespace QuickStat.Views.Dialogs;
 
 /// <summary>The <c>Angi periode</c> modal.</summary>
 /// <remarks>
-/// <b>OWNER: step 3.6.</b> Step 3.1 wrote the layout skeleton; nothing shows this window yet, because
-/// <see cref="QuickStat.Services.WpfPeriodPrompt"/> is still a stub that always cancels. See that
-/// class for the full list of what remains, and <c>05-ui-spec.md</c> §D.5 for the metrics.
+/// <para>
+/// <b>OWNER: step 3.6.</b> <c>05-ui-spec.md</c> §D.5 and <c>Emetra.VclForm.Period.dfm</c> for the
+/// metrics; <see cref="QuickStat.ViewModels.PeriodViewModel"/> for the strings and the validity
+/// rule. The service that shows it is <see cref="QuickStat.Services.WpfPeriodPrompt"/>, which is
+/// also what reads and writes the remembered range.
+/// </para>
+/// <para>
+/// The code-behind is one line, because there is one thing the view-model cannot do: close the
+/// window. <c>OK</c> is already disabled while the range is invalid
+/// (<see cref="QuickStat.ViewModels.PeriodViewModel.CanAccept"/>), so this cannot accept one.
+/// </para>
 /// </remarks>
 public partial class PeriodDialog : Window
 {

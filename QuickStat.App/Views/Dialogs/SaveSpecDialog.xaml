@@ -3,40 +3,81 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:theme="clr-namespace:QuickStat.Theme"
         xmlns:vm="clr-namespace:QuickStat.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:SaveSpecViewModel}"
         Title="{Binding Header}"
-        Width="388"
-        Height="288"
-        Background="{StaticResource QsFormFaceBrush}"
-        FontFamily="{StaticResource QsFontFamily}"
-        FontSize="{StaticResource QsFontSize}"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        SizeToContent="Manual"
+        SizeToContent="WidthAndHeight"
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True"
         WindowStartupLocation="CenterOwner">
 
     <!--
-        OWNER: step 3.6.  Layout skeleton by step 3.1; 05-ui-spec.md §E.
-        Only one header is ever used - "Save specification".  The second, "Save selection", belongs
-        to actSavePatientSelection, which PORT-PLAN.md §7.1 removes as unreachable; see
+        OWNER: step 3.6.  05-ui-spec.md §E, Emetra.VclForm.EditAndMemo.dfm.
+
+        ClientWidth 388 x ClientHeight 288; banner 41 with a 32 px icon 16 from the left and the
+        header beside it at 19 px; body with a 16 px border all round; button bar 48.  SizeToContent
+        rather than Width/Height because those are the outer frame in WPF and these are the client
+        area - NoResize still costs about 16 x 39, which here is most of the comment box.
+
+        SetHeader sets the title bar and the banner from one string, so both bind to Header.  Only
+        one header is ever used - "Save specification".  The second, "Save selection", belongs to
+        actSavePatientSelection, which PORT-PLAN.md §7.1 removes as unreachable; see
         SaveSpecViewModel for why §I.3 therefore does not arise.
+
+        The theme is merged here rather than inherited from Application.Resources so the window can
+        be loaded without one; Application.Current is null under test (07-ui-contracts.md §6).
     -->
 
-    <DockPanel>
-        <Border DockPanel.Dock="Top"
+    <Window.Resources>
+        <ResourceDictionary Source="/QuickStat;component/Theme/QuickStat.Styles.xaml" />
+    </Window.Resources>
+
+    <DockPanel Width="388"
+               Height="288"
+               Background="{StaticResource QsFormFaceBrush}"
+               TextElement.FontFamily="{StaticResource QsFontFamily}"
+               TextElement.FontSize="{StaticResource QsFontSize}"
+               TextElement.Foreground="{StaticResource QsTextBrush}"
+               FocusManager.FocusedElement="{Binding ElementName=TitleBox}">
+
+        <!--
+            Panel1: white, 41 tall, one-pixel bottom rule.  The .dfm has a 32 x 33 TImage here; step
+            3.1's decision (b) substitutes a Segoe MDL2 glyph for every image-list blob, and this
+            dialog packages a dataset, so it is the same parcel the grid menu uses.
+        -->
+        <Border x:Name="Banner"
+                DockPanel.Dock="Top"
                 Height="41"
                 Background="{StaticResource QsBannerBrush}"
                 BorderBrush="{StaticResource QsBorderBrush}"
                 BorderThickness="0,0,0,1">
-            <TextBlock Margin="16,0"
-                       VerticalAlignment="Center"
-                       FontSize="19"
-                       FontWeight="Bold"
-                       Text="{Binding Header}" />
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Width="32"
+                           Margin="16,0,3,0"
+                           Style="{StaticResource QsIconGlyph}"
+                           FontSize="22"
+                           Foreground="{StaticResource QsTealBrush}"
+                           Text="{x:Static theme:SegoeIcons.Package}" />
+
+                <TextBlock x:Name="HeaderText"
+                           VerticalAlignment="Center"
+                           FontSize="19"
+                           FontWeight="SemiBold"
+                           Text="{Binding Header}"
+                           TextTrimming="CharacterEllipsis" />
+            </StackPanel>
         </Border>
 
+        <!--
+            panButtons: 48 tall, one-pixel top rule.  OK is the rightmost of the two - btnSave.Left
+            is 280 against btnClose.Left 184 - which is the opposite of the usual Windows order but
+            is what the .dfm lays out, and what §E's "OK ... Margin R 16" / "Cancel ... Margin R 4"
+            already implies.  The gap between them is 4 + 4.
+        -->
         <Border DockPanel.Dock="Bottom"
                 Height="48"
                 BorderBrush="{StaticResource QsBorderBrush}"
@@ -44,36 +85,54 @@
             <StackPanel HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Orientation="Horizontal">
-                <Button Width="92"
+                <Button x:Name="CancelButton"
+                        Width="88"
                         Height="30"
                         Margin="0,0,4,0"
+                        Style="{StaticResource QsPrimaryButton}"
+                        Content="Cancel"
+                        IsCancel="True" />
+                <Button x:Name="OkButton"
+                        Width="92"
+                        Height="30"
+                        Margin="4,0,16,0"
+                        Style="{StaticResource QsPrimaryButton}"
                         Content="OK"
                         IsDefault="True"
                         IsEnabled="{Binding CanSave}"
                         Click="OnAccept" />
-                <Button Width="88"
-                        Height="30"
-                        Margin="0,0,16,0"
-                        Content="Cancel"
-                        IsCancel="True" />
             </StackPanel>
         </Border>
 
-        <StackPanel Margin="16">
-            <TextBlock Text="Unique name" />
-            <TextBox Height="21"
-                     Margin="0,2,0,0"
+        <!-- Panel2: BorderWidth = 16 on all four sides; the comment box takes what is left. -->
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Margin="0,0,0,1" Text="Unique name" />
+
+            <TextBox x:Name="TitleBox"
+                     Grid.Row="1"
+                     Height="21"
+                     Margin="0,0,0,1"
                      Style="{StaticResource QsFlatTextBox}"
+                     AutomationProperties.Name="Unique name"
                      Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
 
-            <TextBlock Margin="0,8,0,0" Text="Comments" />
-            <TextBox Height="90"
-                     Margin="0,2,0,0"
+            <TextBlock Grid.Row="2" Margin="0,4,0,1" Text="Comments" />
+
+            <TextBox x:Name="CommentBox"
+                     Grid.Row="3"
                      Style="{StaticResource QsFlatTextBox}"
                      AcceptsReturn="True"
+                     AutomationProperties.Name="Comments"
                      Text="{Binding Comment, UpdateSourceTrigger=PropertyChanged}"
                      TextWrapping="Wrap"
                      VerticalScrollBarVisibility="Auto" />
-        </StackPanel>
+        </Grid>
     </DockPanel>
 </Window>
