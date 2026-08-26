@@ -577,6 +577,8 @@ that is the colouring users actually see, and it is ported as-is.
 | Retry logic runs on the success path | Any `PRINT` output raises `EDatabaseCommandFailed` | Retry only on failure, reads only |
 | Period settings key is the entire SQL text, with arguments swapped | Never round-trips | Hash the SQL for the key |
 | Six collector name/title collisions | `QST_LAB_LOW` registered under `QST_LAB_MEDIUM`; `QS_GBD_SBP_2M` under `QS_GBD_WEIGHT_2M`; `QS_FORMAGE_GBD_MAREVAN` under `QS_GBD_FORM_MAREVAN`; FlackerKiely shares Stratify's title; dead `QST_LAB_DIABETESw` and `StrTitleLabsetDiabetes` | Fix the registrations; the golden files will pin the corrected titles |
+| A failed caption query calls `fTitles.Clear` (`EPR.QA.CaptionDictionary.pas:135-141`) | One database without `Report.LabClassName` discards the **twelve built-in captions as well**, and every column in the grid falls back to its raw variable name | Keep whatever is already loaded and log. Captions are cosmetic and must never fail a login |
+| One `TVarCaptions` survives every project switch, merged first-wins | After switching from database A to B, A's captions remain and **beat** B's | Reset to the built-in captions before each load |
 
 ### 7.3 Improvements
 
@@ -692,6 +694,17 @@ and it would give different answers — but `TObjectListView.AfterUpdate` reache
 (`TClinForm` and `TDatabaseUser` do, and list it explicitly). Porting `Match` instead of the
 `AsListBox` path would silently change the filter's case-folding direction and make an empty filter
 match nothing, since Delphi's `Pos('', s)` returns 0 and only the caller's explicit branch saves it.
+
+#### A Phase 2 gap closed while preparing Phase 3: nobody loaded the captions
+
+`CaptionDictionary`'s own documentation records that QuickStat runs exactly one caption query —
+`QueryLabCaptions` over `dbo.LabClass` — but **no production code ever called `AddRange`**; only
+tests did. Every lab column would therefore have fallen back to its own variable name with an empty
+description, so the grid's header tooltips would have been blank for precisely the columns that need
+them. `ICaptionRepository`, `ICaptionLoader` and `CaptionSql` close it, with the two Delphi bugs
+above fixed on the way. **Phase 3 must call `ICaptionLoader.LoadAsync` once a session is
+established**; the Delphi re-ran the query at the start of every collect run, which a reference
+table does not require.
 
 Also recorded, not decisions: `03-collectors.md` §B.7's kidney ordinals were one too high and are
 corrected (the Delphi enum member is `lFibrinogen`, not `ltFibrinogen`, so any `lt`-prefix filter
