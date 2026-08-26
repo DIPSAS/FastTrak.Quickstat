@@ -12,6 +12,10 @@
     <!--
         OWNER: step 3.4.  Layout skeleton by step 3.1; 05-ui-spec.md §B.3, §D.3.
         The teal header says "Packaged datasets", not "Packages" - that is only the tab caption.
+
+        The list binds to PackagesView, not to Packages: the filter is an ICollectionView over the
+        loaded rows, so filtering never touches the model and the selection survives a keystroke that
+        does not hide the selected row.
     -->
 
     <DockPanel Margin="4">
@@ -35,7 +39,7 @@
                  BorderThickness="1"
                  HorizontalContentAlignment="Stretch"
                  ItemContainerStyle="{StaticResource QsPackageItem}"
-                 ItemsSource="{Binding Packages}"
+                 ItemsSource="{Binding PackagesView}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  SelectedItem="{Binding SelectedPackage, Mode=TwoWay}">
             <ListBox.ContextMenu>
@@ -52,8 +56,21 @@
             </ListBox.ContextMenu>
 
             <ListBox.ItemTemplate>
+                <!--
+                    §B.3, the package row.  Two lines, variable height:
+
+                      41   | Diabetes basissett 2024                | Pop#257
+                      QsCodeBrush, QsTitleBrush bold + ellipsis, QsCategoryBrush right, one pt down
+                      ..................................................................
+                      Comment text, word-wrapped, QsTitleBrush
+
+                    The chrome - the 2 px horizontal padding, the absent vertical padding, the
+                    #F0F0F0 divider and the two selected colours - is QsPackageItem's, not this
+                    template's.  An empty comment collapses rather than reserving a blank line: the
+                    VCL measured the drawn text, so a package saved without one was a single-line
+                    row there too.
+                -->
                 <DataTemplate DataType="{x:Type vm:PackageViewModel}">
-                    <!-- TODO 3.4: two-line row, word-wrapped comment, divider - §B.3. -->
                     <StackPanel Margin="0,2">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -68,18 +85,29 @@
                             <TextBlock Grid.Column="1"
                                        Margin="6,0"
                                        FontWeight="SemiBold"
+                                       Foreground="{StaticResource QsTitleBrush}"
                                        Text="{Binding Title}"
-                                       TextTrimming="CharacterEllipsis" />
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Title}" />
                             <TextBlock Grid.Column="2"
+                                       VerticalAlignment="Center"
                                        FontSize="{StaticResource QsSmallFontSize}"
                                        Foreground="{StaticResource QsCategoryBrush}"
-                                       Text="{Binding PopulationLabel}" />
+                                       Text="{Binding PopulationLabel}"
+                                       TextAlignment="Right" />
                         </Grid>
 
-                        <TextBlock Foreground="{StaticResource QsTitleBrush}"
+                        <TextBlock x:Name="Comment"
+                                   Foreground="{StaticResource QsTitleBrush}"
                                    Text="{Binding Comment}"
                                    TextWrapping="Wrap" />
                     </StackPanel>
+
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Comment}" Value="">
+                            <Setter TargetName="Comment" Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
                 </DataTemplate>
             </ListBox.ItemTemplate>
 

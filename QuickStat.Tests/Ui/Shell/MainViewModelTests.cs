@@ -46,7 +46,7 @@ public class MainViewModelTests
                 new FakeApplicationInfo(),
                 new PopulationTabViewModel(new PopulationPickerViewModel()),
                 new CollectionsTabViewModel(Workspace, identification),
-                new PackagesTabViewModel(),
+                Packages.PackagesTabViewModelTests.NewViewModel(Workspace, Progress, Dataset),
                 Dataset);
         }
 
