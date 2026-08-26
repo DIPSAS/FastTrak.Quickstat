@@ -195,11 +195,13 @@ public class PopulationPickerViewModelTests
         using PopulationHarness harness = new();
 
         await harness.ConnectAsync(
-            PopulationTestDoubles.NewPopulation(11, "Aktive pasientar", group: "Prosess"),
-            PopulationTestDoubles.NewPopulation(12, "Avslutta", helpText: "Utmeldte pasientar"),
+            PopulationTestDoubles.NewPopulation(11, "Aktive brukarar", group: "Prosess"),
+            PopulationTestDoubles.NewPopulation(12, "Avslutta", helpText: "Utmeldte brukarar"),
             PopulationTestDoubles.NewPopulation(13, "Noko heilt anna", group: "Studier"));
 
-        harness.Picker.FilterText = "PASIENTAR";
+        // No dotted or dotless I anywhere in the filter: which of them a fold produces is the
+        // subject of TheCaseFoldIsTheCurrentCultureAndNotTheInvariantOne, not of this test.
+        harness.Picker.FilterText = "BRUKARAR";
 
         // Matched against ProcId ⇥ Title ⇥ HelpText ⇥ Group, so both the title and the help text hit.
         Assert.Equal([11, 12], VisibleIds(harness.Picker));
