@@ -241,6 +241,13 @@ packages/
 *.nuget.props
 *.nuget.targets
 
+# DO NOT REMOVE, AND DO NOT MOVE ABOVE "packages/".  Same class of accident as the "*.app" one
+# above: "packages/" matches QuickStat.Core/Domain/Packages/, the folder that owns packaged
+# selections (PORT-PLAN.md §5, step 2.3).  It compiles - MSBuild globs the file system - but git
+# never descends into an excluded directory, so the whole feature is invisible and would be lost on
+# commit.  A negation only works after the pattern it overrides, hence the position.
+!/QuickStat.Core/Domain/Packages/
+
 # Test and coverage output
 [Tt]est[Rr]esult*/
 *.trx

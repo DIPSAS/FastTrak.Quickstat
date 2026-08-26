@@ -1,13 +1,27 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phase 0 complete (`3b1f8c0`). Resume at Phase 1.**
+Status: **in implementation — Phases 0–1 complete. Resume at Phase 2 (seven parallel agents).**
 Branch: `feature/dotnet`
-Last updated: 2026-08-25
+Last updated: 2026-08-26
 
-> **Resume here.** Phase 0 landed and its exit criteria were verified independently: clean Debug and
-> Release builds with zero warnings, `dotnet test` 4/4 in both, `QuickStat.exe` at x64, launches with
-> a foreign working directory and exits 0, `LOGS\` created beside the exe. Next action is **Phase 1**
-> (one blocking agent, contracts only) using the file-ownership map in §5.
+> **Resume here.** Phase 0 (`3b1f8c0`) and Phase 1 (contracts) have both landed, each verified
+> independently rather than on the implementing agent's report: from-scratch Debug and Release builds
+> with zero warnings, `dotnet test` 4/4 in both, `QuickStat.exe` at x64, launches with a foreign
+> working directory and exits 0, `LOGS\` created beside the exe.
+>
+> **Phase 1 produced 79 contract files under `QuickStat.Core/`. Before writing anything, read
+> `Docs/Port/06-contracts.md`** — it maps every file to its single Phase 2 owner, and that map was
+> mechanically checked: 79 files on disk, 79 in the map, no file with two owners. A Phase 2 agent
+> changes a contract **only** in a file it owns; anything else is reported, not edited.
+>
+> Things established during Phase 1 that later steps depend on:
+> - Study-gate regexes are frozen verbatim in `Collectors/StudyGatePatterns.cs`, including `KORTTID`
+>   in **both** literals. Do not retype them.
+> - `ColumnOrder.FirstSeen` is `0`, so `default(ColumnOrder)` is insertion order.
+> - `DatasetExportOptions.Columns` is a computed property derived from `Identification` — display and
+>   export anonymity cannot diverge (§7.2).
+> - `.gitignore` needs `!/QuickStat.Core/Domain/Packages/`: the NuGet `packages/` rule matches that
+>   folder on case-insensitive Windows git, and the negation only works *after* the rule it overrides.
 >
 > Things established during Phase 0 that later steps depend on:
 > - Test stack is **xUnit v2 on VSTest**. Do not "upgrade" to xunit.v3 — it breaks `dotnet test` on
