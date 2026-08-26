@@ -659,7 +659,39 @@ customer could notice, so they are the ones worth a human decision.
 | f | xlsx shading for cells with no datapoint | **Not shaded.** Materialising `EmptyCell` for every hole would blow up a sparse matrix whose documented worst case is 1500 × 1000. The screen shades them; the workbook does not | — |
 | g | `ROW_NUMBER` tie-breaker on the **live** `SpSnapshotFormDataAll` | **Applied.** §F.3's diff only covered the dead `SpSnapshotFormDataNumeric`, but `ROW_NUMBER` without a tie-breaker is non-deterministic across ties, which would destabilise exports *and* Phase 5's golden files. Five characters of divergence from upstream text | One line |
 | h | Settings file location | `<exedir>\Settings\QuickStat.ini` **if it already exists**, else `%APPDATA%\DIPS\QuickStat\`. Portable mode cannot happen by accident | — |
-| i | `Population.Matches` culture (`nb-NO` vs invariant for `Ø`/`ø`) | **Deferred to Phase 3.2**, which owns the filter box | Open |
+| i | `Population.Matches` culture (`nb-NO` vs invariant for `Ø`/`ø`) | **Resolved** — read the Delphi rather than choosing. See below | One argument |
+
+#### 8.8 (i), resolved: the two list filters are not the same filter
+
+Both list boxes case-fold and then do an **ordinal** substring search — Delphi `Pos`, not a
+linguistic comparison — but they fold in opposite directions and disagree about trimming. Neither is
+a judgement call; both are read straight out of the library on the pinned ref.
+
+| | Population list | Packages list |
+|---|---|---|
+| Source | `Emetra.VclComp.ListView.pas:353-362, 482-518` | `Emetra.VclUtil.Spotlight.pas:143-146` |
+| Case fold | `AnsiLowercase` **both sides** | `AnsiUppercase` **both sides** |
+| Filter trimmed | **no** | **yes** (`Trim`) |
+| Empty filter | matches everything (explicit `FFilter = ''` branch) | matches everything (explicit `lookFor = EmptyStr` branch) |
+| Matched against | `AsListBox(false)` = `ProcId ⇥ Title ⇥ HelpText ⇥ Group` | `AsListbox(showSimple)`, and `showSimple` is `false` here because QuickStat passes no *Simplified* box |
+
+`AnsiUppercase`/`AnsiLowercase` are **locale-sensitive**, so `CultureInfo.CurrentCulture` is the
+faithful port and `ToLowerInvariant` is not. For Norwegian the two agree — `Ø`↔`ø`, `Æ`↔`æ`, `Å`↔`å`
+map identically — so the original worry was unfounded; the case where they diverge is a machine
+whose locale is Turkish or Azeri (`I`↔`ı`). Match with
+`ToLower(CultureInfo.CurrentCulture)` + `StringComparison.Ordinal`, **not**
+`StringComparison.CurrentCultureIgnoreCase`, which is a collation and would fold more than `Pos`
+does.
+
+`Population.SearchText` is confirmed correct against `CRF.Population.pas:94`
+(`fListBoxText := V + #9 + DN + #9 + Description + #9 + OT`), independently of the Phase 1 check.
+
+One trap for whoever reads that unit: **`TPopulation.Match` is dead code.** It exists, it uppercases,
+and it would give different answers — but `TObjectListView.AfterUpdate` reaches it only through
+`Supports(thisObject, IMatchable, …)`, and `TPopulation` does not implement `IMatchable`
+(`TClinForm` and `TDatabaseUser` do, and list it explicitly). Porting `Match` instead of the
+`AsListBox` path would silently change the filter's case-folding direction and make an empty filter
+match nothing, since Delphi's `Pos('', s)` returns 0 and only the caller's explicit branch saves it.
 
 Also recorded, not decisions: `03-collectors.md` §B.7's kidney ordinals were one too high and are
 corrected (the Delphi enum member is `lFibrinogen`, not `ltFibrinogen`, so any `lt`-prefix filter
