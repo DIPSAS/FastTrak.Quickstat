@@ -101,18 +101,26 @@ The canonical app references `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`, `AddNationa
 antibiotic collectors. Those symbols are absent from `develop`, `develop_old` and `master`, so
 **`develop_old` cannot build this application at all** — that part is verified, not inferred.
 
-**CI cannot build this application today — verified in `C:\work\FastTrak.BuildServer`.**
-`QuickStat.fbp8` sets `QuickStatDir = %Source%\App.QuickStat` and compiles with search path
-`..\FastTrak\EPR\QA` (it does **not** use the `$(FastTrakDir)` variable that other build projects
-use). So it builds against `%Source%\FastTrak` — which in FastTrakApps is a **git submodule**,
-pinned at `eb50824cf` (2025-10-14). That commit is on `develop`, `master` and `release/v2026`, i.e.
-mainline, and **all five collector symbols plus `TPatientList.AddNationalIds` are absent from it.**
+**CI cannot build this application — verified in `C:\work\FastTrak.BuildServer` at `HEAD`.**
+`QuickStat.fbp8` sets `QuickStatDir = %Source%\App.QuickStat`, then compiles with
+`searchpath = $(FastTrakDir)\Lib\Service;…;$(FastTrakDir)\EPR\QA;…`, behind an
+`action.continua.iscontinua` guard that rewrites `$(FastTrakDir)` → `%FastTrakDir%` in the `.dproj`.
+`FastTrakDir` is a Continua-supplied variable bound to the **`FastTrakDevelop` source** — a separate
+FastTrak checkout tracking `develop`. It is **not** the FastTrakApps `FastTrak` submodule.
 
-The timing explains itself: FastTrak only *became* a submodule on 2025-08-14 (`1b31f22`, "Overgang
-til FastTrak-modulen"). Before that, `%Source%\FastTrak` was whatever the build agent happened to
-have checked out — exactly the unenforced pairing described below. Pinning it to mainline is the
-moment QuickStat's CI build became impossible, and nobody noticed, because nobody had touched
-`App.QuickStat` since 2023.
+`develop` has never carried any of the four collector features, nor `TPatientList.AddNationalIds`
+(0 hits for `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`, `QS_DRUG_J01XX05` and
+`QS_DRUG_ANTIBIOTIC_INTERMEDIATE`). Meanwhile the app has referenced tarmscreening-only symbols
+since FastTrakApps' **initial commit** — `7b9409e` (2020-09-23) already registers
+`QS_DRUG_ANTIBIOTIC_INTERMEDIATE`; `QS_ROAS_BASE` follows in `c15d5c9` (2021-09-03) and interleukins
+in `abd4e44` (2022-12-13), each on the same day as its library half. So for as long as `FastTrakDir`
+has resolved to a `develop`-tracking source, this build could not have succeeded — and by
+2022-12-13 the app required the complete set. Nobody noticed because `App.QuickStat` then went
+untouched for three and a half years.
+
+The FastTrak **submodule** in FastTrakApps (introduced `1b31f22`, 2025-08-14; pinned `eb50824cf`,
+2025-10-14, on mainline) is likewise symbol-free, but it is *not* what `QuickStat.fbp8` compiles
+against and is not the cause. An earlier revision of this section said it was; that was wrong.
 
 "The tarmscreening lineage" is also **not one ref.** Two candidates carry the features, and they are
 siblings, not ancestor and descendant — they forked at `84d0c2b83` (2022-11-23) and diverged 5 / 64:
@@ -174,11 +182,14 @@ The Delphi source remains the final authority while it is still in the tree.
 - **The KORTTID fix has a twin.** `FastTrakApps/App.QuickStat` carries the identical change on
   `feature/739506_GBD_utvalet_i_Korttid`, which is that repo's currently checked-out branch. The two
   agree; see §10.4 for why the *totals* still differ between the trees.
-- **`App.QuickStat` had no functional change between 2023-01-05 and 2026-08-24.** The last
-  substantive work before that gap is the interleukin support and version bump of December 2022.
-  Anything describing "recent" QuickStat behaviour is describing a 2022 build.
+- **`App.QuickStat` had no code change between 2023-01-05 and 2026-08-24.** The only commit in that
+  window is `c3f84e3` (2023-02-04, "Testdatabase lagt til i config.") which touches configuration,
+  not code. The last substantive work is the interleukin support and version bump of December 2022,
+  so anything describing "recent" QuickStat behaviour is describing a 2022 build.
 - **Build definitions live in `C:\work\FastTrak.BuildServer`** (FinalBuilder, Continua CI).
-  `QuickStat.fbp8` is the QuickStat build; see R13 for why it cannot currently succeed.
+  `QuickStat.fbp8` is the QuickStat build; see R13 for why it cannot succeed.
+- **Both of those repos have uncommitted changes right now** — `QuickStat.fbp8` in the build server,
+  the `.dproj` in FastTrakApps. Quote them only via `git show HEAD:<path>`. See R14.
 
 ---
 
@@ -550,7 +561,8 @@ Not blocking; each has a working default so implementation can proceed.
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
-| R13 | **QuickStat has no working CI build.** `QuickStat.fbp8` compiles against `%Source%\FastTrak`, a submodule pinned to mainline (`eb50824cf`), where all five symbols are absent — verified, not inferred | Out of scope for the port, but it means *no automated build validates the Delphi reference app*, so "does the Delphi build still work" is never a usable check during parity work. Phase 5's parity pass must run against the **existing deployed exe**, not a freshly built one. Worth fixing on the Delphi side independently |
+| R13 | **QuickStat has no working CI build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`, a Continua variable bound to the `FastTrakDevelop` source, which tracks `develop` — where none of the four features nor `AddNationalIds` has ever existed. Verified against the build definition at `HEAD` | Out of scope for the port, but it means *no automated build validates the Delphi reference app*, so "does the Delphi build still work" is never a usable check during parity work. Phase 5's parity pass must run against the **existing deployed exe**, not a freshly built one. Worth fixing on the Delphi side independently |
+| R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos |
 
 ---
 
