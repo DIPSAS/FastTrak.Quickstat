@@ -1168,29 +1168,54 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
         base.OnKeyDown(e);
 
-        if (e.Handled || Matrix is null || _layout.RowCount == 0)
+        if (e.Handled)
         {
             return;
         }
 
+        bool control = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+
+        e.Handled = MoveCaret(e.Key, control);
+    }
+
+    /// <summary>Moves the caret for one navigation key.</summary>
+    /// <param name="key">The key pressed.</param>
+    /// <param name="control">Whether <c>Ctrl</c> is held.</param>
+    /// <returns><see langword="true"/> when the key was a navigation key and the caret moved.</returns>
+    /// <remarks>
+    /// Split out of <see cref="OnKeyDown"/> for the same reason as <see cref="PressAt"/>: a
+    /// synthesised <see cref="KeyEventArgs"/> needs a live <see cref="PresentationSource"/>, and
+    /// <see cref="Keyboard.Modifiers"/> reads the real keyboard. Note that it does <b>not</b> raise
+    /// <see cref="CellActivated"/> - the floating hint moves on click and on nothing else (§G.2).
+    /// </remarks>
+    internal bool MoveCaret(Key key, bool control)
+    {
+        if (Matrix is null || _layout.RowCount == 0)
+        {
+            return false;
+        }
+
         int rows = _layout.RowCount;
         int columns = _layout.DataColumnCount;
-        int row = Math.Clamp(CurrentRowIndex == NoIndex ? 0 : CurrentRowIndex, 0, rows - 1);
-        int column = columns == 0
-            ? NoIndex
-            : Math.Clamp(CurrentColumnIndex == NoIndex ? 0 : CurrentColumnIndex, 0, columns - 1);
+        bool hadRow = CurrentRowIndex != NoIndex;
+        bool hadColumn = CurrentColumnIndex != NoIndex;
+        int row = hadRow ? Math.Clamp(CurrentRowIndex, 0, rows - 1) : 0;
+        int column = columns == 0 ? NoIndex : hadColumn ? Math.Clamp(CurrentColumnIndex, 0, columns - 1) : 0;
 
-        bool control = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-        int page = Math.Max(1, (int)(ViewportHeight / _layout.RowHeight));
+        // A grid with no caret yet has its first keystroke land on the first cell rather than
+        // stepping past it, so the step is zero until there is something to step from.
+        int rowStep = hadRow ? 1 : 0;
+        int columnStep = hadColumn ? 1 : 0;
+        int page = hadRow ? Math.Max(1, (int)(ViewportHeight / _layout.RowHeight)) : 0;
 
-        switch (e.Key)
+        switch (key)
         {
-            case Key.Up: row = Math.Max(0, row - 1); break;
-            case Key.Down: row = Math.Min(rows - 1, row + 1); break;
+            case Key.Up: row = Math.Max(0, row - rowStep); break;
+            case Key.Down: row = Math.Min(rows - 1, row + rowStep); break;
             case Key.PageUp: row = Math.Max(0, row - page); break;
             case Key.PageDown: row = Math.Min(rows - 1, row + page); break;
-            case Key.Left when column != NoIndex: column = Math.Max(0, column - 1); break;
-            case Key.Right when column != NoIndex: column = Math.Min(columns - 1, column + 1); break;
+            case Key.Left when column != NoIndex: column = Math.Max(0, column - columnStep); break;
+            case Key.Right when column != NoIndex: column = Math.Min(columns - 1, column + columnStep); break;
 
             case Key.Home:
                 column = columns == 0 ? NoIndex : 0;
@@ -1210,12 +1235,12 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
                 break;
 
-            default: return;
+            default: return false;
         }
 
         SetCurrentCell(row, column);
 
-        e.Handled = true;
+        return true;
     }
 
     /// <summary>Raises <see cref="CellActivated"/>.</summary>
