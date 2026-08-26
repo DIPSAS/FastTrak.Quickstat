@@ -1,13 +1,26 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0, 1 and 2 complete. Phase 3 in progress (two waves; see §5).**
+Status: **in implementation — Phases 0–2 and Phase 3 wave 1 complete. Resume at Phase 3 wave 2 (steps 3.2, 3.3, 3.4, 3.6).**
 Branch: `feature/dotnet`
 Last updated: 2026-08-26
 
-> **Resume here.** Phases 0, 1 and 2 have all landed, each verified independently rather than on the
-> implementing agent's report: from-scratch Debug and Release builds with zero warnings,
-> **1566 tests passing**, `QuickStat.exe` at x64, launches from a foreign working directory with the
-> full DI graph and exits 0 through the real `OnExit`, `LOGS\` created beside the exe.
+> **Resume here.** Phases 0, 1 and 2 and **Phase 3 wave 1** have all landed, each verified
+> independently rather than on the implementing agent's report: from-scratch Debug and Release
+> builds with zero warnings, **1901 tests passing**, `QuickStat.exe` at x64, launches from a foreign
+> working directory with the full DI graph and the real shell, and exits 0 through the real
+> `OnExit`, `LOGS\` created beside the exe.
+>
+> **Wave 2 must read `Docs/Port/07-ui-contracts.md` first.** Step 3.1 wrote it as the UI ownership
+> map: which files each of 3.2, 3.3, 3.4 and 3.6 owns, the shared surface they consume
+> (`IShellWorkspace`, `IShellProgress`, `IConnectionCoordinator`, `IUiDispatcher`, and the rest), the
+> fourteen decisions 3.1 took that constrain them, and the build and test traps it actually hit.
+> Every wave-2 view and view-model already exists as a compiling, DI-registered stub with its owner
+> named in a header comment.
+>
+> Two things wave 2 must not reinvent: **`QuickStat.Tests/Ui/StaTestRunner.cs`**,
+> **`DependencyPropertyRegistrationTests.cs`** and **`DatasetGridThemeTests.cs`** are shared and
+> read-only — extend, do not copy. And **`Controls/Dataset/**` is finished**; bind to `MatrixGrid`,
+> never edit it.
 >
 > **`QuickStat.Core` is now functionally complete.** All seven Phase 2 steps are merged. The
 > composition root in `QuickStat.App/App.xaml.cs` calls the seven `AddQuickStat*` extension methods;
@@ -720,6 +733,38 @@ drops it and shifts every later ordinal); `01-data-access.md` §3.1 lists nine S
 numbers where the Delphi has seven; `04-matrix-export.md` §5.2 describes `develop_old` — a non-empty
 `DataPoint.Caption` exports as text, in full, on **both** tarmscreening refs (`8486b3d09`), so that
 behaviour does not depend on R12.
+
+### 8.9 Surfaced during Phase 3 wave 1 — two of these need a human
+
+| # | Question | Status |
+|---|---|---|
+| a | **Three palette colours in `05-ui-spec.md` §F.1 describe `develop_old`, not the parity baseline** | **Needs a decision.** See below |
+| b | **No `<Version>` is set**, so the banner reads `1.0.0.0` | **Needs a decision.** The shipped Delphi build is `22.12.21.547`, a date-derived FinalBuilder number. Not for an agent to invent; it is a packaging choice |
+| c | §H.2 lists two cross-tab items; there is a **third**, `ExportTimestamps` — owned by the Collections tab, read by the Dataset tab's export commands | Resolved: it lives on `IShellWorkspace`. Recorded in `07-ui-contracts.md` |
+| d | §C.3 is wrong in three places — fixed-column header alignment, missing horizontal grid lines, and a two-header-row tooltip rule for a grid with `FixedRows = 1` | Resolved toward the `.pas` in each case, with evidence. Recorded in the step 3.5 report and `07-ui-contracts.md` |
+| e | §F.4 says the splitter is 8 px; §A.2 and the `.dfm` say 9 | Resolved: 9 |
+
+**(a) in full, because it is the R11 failure mode landing again.** Step 3.1 found it while transcribing
+§F.4 and it was verified independently:
+
+| Constant | §F.1 / this repo's `FastTrak\` (`develop_old`) | `origin/tarmscreening/develop` (the pinned baseline) |
+|---|---|---|
+| `clCodeColor` — population/package id column | `$00A4294B` → **`#4B29A4`** purple | `$00888888` → **`#888888`** grey |
+| `clStatusTextColor` — `ProcGroup` / `Pop#n` | `$00822EB8` → **`#B82E82`** fuchsia | `clMandatoryGeometryFill` = `$00054689` → **`#894605`** brown |
+| `clFocusedSelectionColor` — grid current cell | `$00D4FBFF` → **`#FFFBD4`** pale yellow | `clSelectedBk` = `$00E9D9C8` → **`#C8D9E9`** pale blue |
+
+Commit **`98f493bbc`** (2022-09-29, "Mindre retninger") made the change. It is on **both** tarmscreening
+refs and predates the shipped `v22.12.21.547` by nearly three months, so by the same dated-chain
+argument that settled R12 in §2.1, the binary customers actually run shows the **right-hand** column.
+§F.1's pixel checks are against screenshots of build **19.8.14.477** from 2019, which predate the
+change — so the screenshots and `develop_old` agree with each other and both describe the old
+palette.
+
+The theme currently ships the **left-hand** column, because §F.4 was transcribed as written and step
+3.1 was right not to change a spec unilaterally. Reversal cost is three hex values in
+`Theme/QuickStat.Brushes.xaml` plus the inventory test. **R13 applies: settle it by looking at the
+deployed exe**, not by reasoning further — this is precisely the kind of "what ships today" claim
+R11 warns is unverified in `01`–`02` and `04`–`05`.
 
 ---
 
