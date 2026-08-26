@@ -44,7 +44,7 @@ public class MainViewModelTests
                 Workspace,
                 WindowState,
                 new FakeApplicationInfo(),
-                new PopulationTabViewModel(new PopulationPickerViewModel()),
+                QuickStat.Tests.Ui.Populations.PopulationTestDoubles.NewTabViewModel(),
                 new CollectionsTabViewModel(Workspace, identification),
                 Packages.PackagesTabViewModelTests.NewViewModel(Workspace, Progress, Dataset),
                 Dataset);

@@ -4,11 +4,17 @@ namespace QuickStat.Views;
 
 /// <summary>The embedded population picker.</summary>
 /// <remarks>
-/// <b>OWNER: step 3.2.</b> Step 3.1 wrote the layout skeleton so the shell lays out and the two
-/// steps never open the same file. Left to do: the row template and its expansion, the live filter
-/// (<c>ICollectionView</c>, semantics in <c>Docs/Port/07-ui-contracts.md</c>), the empty-state
-/// message, double click and <c>Enter</c> as <c>PreparePopulation</c>, and the
-/// <c>FUNC_POPULATION_SOURCE</c> gate on the SQL preview.
+/// <para>
+/// <b>OWNER: step 3.2.</b> Delphi <c>TfrmPopulations</c>
+/// (<c>EPR.VclFrame.Populations.pas</c> / <c>.dfm</c>), <c>05-ui-spec.md</c> §B.1.1.
+/// </para>
+/// <para>
+/// No code-behind beyond the constructor, on purpose. The two gestures the frame has - double click
+/// and <c>Enter</c>, which <c>TObjectListView.DoKeyPress</c> turns into a double click
+/// (<c>Emetra.VclComp.ListView.pas:762-766</c>) - are <c>InputBindings</c> on the list, and the
+/// expansion rule lives on <see cref="QuickStat.ViewModels.PopulationPickerViewModel"/> where it can
+/// be tested without a window.
+/// </para>
 /// </remarks>
 public partial class PopulationPickerView : UserControl
 {
