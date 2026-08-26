@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using QuickStat.Domain.DataPoints;
 using QuickStat.Domain.Patients;
 
@@ -41,13 +42,20 @@ public sealed class MatrixRow
 
     /// <summary>The person's datapoints, keyed by column name.</summary>
     /// <remarks>Ordinal comparison, matching the Delphi's case-sensitive row dictionary.</remarks>
-    public IReadOnlyDictionary<string, DataPoint> DataPoints => throw new NotImplementedException();
+    public IReadOnlyDictionary<string, DataPoint> DataPoints => _dataPoints;
+
+    private readonly Dictionary<string, DataPoint> _dataPoints = new(StringComparer.Ordinal);
 
     /// <summary>Looks a datapoint up by column name.</summary>
     /// <param name="varName">Column name, prefix included.</param>
     /// <param name="dataPoint">The datapoint.</param>
     /// <returns><see langword="true"/> when the cell has a value.</returns>
-    public bool TryGetDataPoint(string varName, out DataPoint? dataPoint) => throw new NotImplementedException();
+    public bool TryGetDataPoint(string varName, [NotNullWhen(true)] out DataPoint? dataPoint)
+    {
+        ArgumentNullException.ThrowIfNull(varName);
+
+        return _dataPoints.TryGetValue(varName, out dataPoint);
+    }
 
     /// <summary>Adds a datapoint if the cell is empty.</summary>
     /// <param name="dataPoint">The datapoint; <see cref="DataPoint.VarName"/> is the key.</param>
@@ -56,5 +64,30 @@ public sealed class MatrixRow
     /// is updated instead - matching <c>TPersonGridRow.AddDatapoint</c>
     /// (<c>EPR.QA.Matrix.Row.pas:135-152</c>), where the loser was freed by the collector.
     /// </returns>
-    public bool TryAddDataPoint(DataPoint dataPoint) => throw new NotImplementedException();
+    public bool TryAddDataPoint(DataPoint dataPoint)
+    {
+        ArgumentNullException.ThrowIfNull(dataPoint);
+
+        if (_dataPoints.TryGetValue(dataPoint.VarName, out DataPoint? existing))
+        {
+            // The incoming point loses, but its value is folded into the survivor - note this keeps
+            // the *last* row read, not the newest by timestamp.  Only the non-factory path
+            // (TPersonGridRow.AddData) compares timestamps, and no collector uses it.
+            existing.Update(dataPoint.Value, dataPoint.Timestamp, dataPoint.RowId);
+
+            return false;
+        }
+
+        _dataPoints.Add(dataPoint.VarName, dataPoint);
+
+        return true;
+    }
+
+    /// <summary>Drops every datapoint, keeping the person.</summary>
+    /// <remarks>
+    /// Used by <see cref="PersonMatrix.ClearVariables"/>. The Delphi left the datapoints in place and
+    /// only cleared the column list, so values from a previous collect run survived invisibly until
+    /// the row itself was freed.
+    /// </remarks>
+    internal void ClearDataPoints() => _dataPoints.Clear();
 }

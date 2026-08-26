@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace QuickStat.Domain.DataPoints;
 
 /// <summary>One value in one cell of the matrix.</summary>
@@ -49,7 +52,13 @@ public sealed class DataPoint
     /// <param name="value">The value.</param>
     /// <param name="timestamp">Observation time.</param>
     /// <param name="rowId">Source row identity.</param>
-    public void Update(double value, DateTime timestamp, int rowId) => throw new NotImplementedException();
+    public void Update(double value, DateTime timestamp, int rowId)
+    {
+        Value = value;
+        Timestamp = timestamp;
+        RowId = rowId;
+        UpdateCount++;
+    }
 
     /// <summary>The multi-line text the floating hint panel shows for this cell.</summary>
     /// <returns>
@@ -62,5 +71,47 @@ public sealed class DataPoint
     /// nb-NO the hint reads <c>3,5</c> and <c>14.08.2019</c> - unlike the timestamp columns in the
     /// export, which are ISO.
     /// </remarks>
-    public string Describe() => throw new NotImplementedException();
+    public string Describe() => Describe(null);
+
+    /// <summary>The multi-line text the floating hint panel shows for this cell.</summary>
+    /// <param name="formatProvider">
+    /// Supplies the decimal separator and the short date pattern; <see langword="null"/> means
+    /// <see cref="CultureInfo.CurrentCulture"/>, which is what the Delphi's global
+    /// <c>FormatSettings</c> amount to.
+    /// </param>
+    /// <returns>The hint text.</returns>
+    /// <remarks>
+    /// Line breaks are bare <c>LF</c>, not <c>CRLF</c>: the Delphi builds the string with <c>#10</c>.
+    /// </remarks>
+    public string Describe(IFormatProvider? formatProvider)
+    {
+        CultureInfo culture = formatProvider as CultureInfo ?? CultureInfo.CurrentCulture;
+
+        StringBuilder text = new();
+
+        text.Append(VarName)
+            .Append(" = ")
+            .Append(NumericFormat.G(Value, culture))
+            .Append('\n')
+            .Append("TimeStamp = ")
+            .Append(Timestamp.ToString("d", culture))
+            .Append('\n')
+            .Append("RowId = ")
+            .Append(RowId.ToString(culture))
+            .Append('\n')
+            .Append("Updates = ")
+            .Append(UpdateCount.ToString(culture));
+
+        if (ItemId > 0)
+        {
+            text.Append('\n').Append("ItemId = ").Append(ItemId.ToString(culture));
+        }
+
+        if (!string.IsNullOrEmpty(Caption))
+        {
+            text.Append('\n').Append("Caption =\"").Append(Caption).Append('"');
+        }
+
+        return text.ToString();
+    }
 }
