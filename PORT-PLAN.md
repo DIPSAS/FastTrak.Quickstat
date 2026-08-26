@@ -1,6 +1,6 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0–2 and Phase 3 wave 1 complete. Resume at Phase 3 wave 2 (steps 3.2, 3.3, 3.4, 3.6).**
+Status: **in implementation — Phases 0–2 and Phase 3 wave 1 complete; Phase 3 wave 2 (steps 3.2, 3.3, 3.4, 3.6) in flight on branches `agent-3-2`/`-3-3`/`-3-4`/`-3-6`.**
 Branch: `feature/dotnet`
 Last updated: 2026-08-26
 
@@ -766,6 +766,27 @@ The theme currently ships the **left-hand** column, because §F.4 was transcribe
 deployed exe**, not by reasoning further — this is precisely the kind of "what ships today" claim
 R11 warns is unverified in `01`–`02` and `04`–`05`.
 
+**The deployed exe is on this machine, and it cannot be inspected statically.** Four copies exist —
+`C:\Users\chs\Downloads\QuickStat.exe`, `…\Downloads\FastTrakUpgrade.v22011\bin\`,
+`C:\work\Test\TempArea\bin\` and `C:\work\Medikamentutdelingsapplikasjon\ELDOK-TEST\bin\` — all
+**byte-identical at 1 951 936 bytes**, all reporting file version **22.12.21.547**, product `22.12`.
+So there is exactly one shipped binary to compare against and it needs no Delphi build, which
+removes R13's obstacle for Phase 5.
+
+But it is **UPX-packed** (sections `UPX0` 5 029 888 virtual / `UPX1` 1 892 352 raw / `.rsrc`), so the
+code and data are compressed and only the resource directory is readable — which is why the version
+resource reads fine. Two searches were run and both are **inconclusive, not negative**:
+
+| Attempt | Result |
+|---|---|
+| The six disputed `TColor` values as little-endian dwords | 0 hits — but so were 5 of the 7 *undisputed* control values from §F.1, so absence proves nothing |
+| Collector names and titles as ANSI/UTF-16 (`QST_LAB_INTERLEUKINS`, `Autommunitet`, `J01XX05`, …) | 0 hits — and so were the controls `J01FF` and `LabClassName`, which are certainly in any build |
+
+No UPX binary is installed, and unpacking to read a colour constant would be disproportionate.
+**Therefore R13's "check the deployed exe" means run it and look**, which is a human step and belongs
+to Phase 5's parity pass. Do it against the population list (id and category columns) and a populated
+grid (current cell) — three colours, one screen each.
+
 ---
 
 ## 9. Risk register
@@ -784,7 +805,7 @@ R11 warns is unverified in `01`–`02` and `04`–`05`.
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
-| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | Regardless of how the Continua half resolves, do not rely on a Delphi build as a check — nobody has demonstrated one succeeding. Phase 5's parity pass runs against the **existing deployed exe**, not a freshly built one. To settle R13 properly, someone with Continua access should read the `FastTrakDevelop` source definition; it is a five-minute check and it would either confirm this row or overturn it |
+| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | Regardless of how the Continua half resolves, do not rely on a Delphi build as a check — nobody has demonstrated one succeeding. Phase 5's parity pass runs against the **existing deployed exe**, not a freshly built one. **That exe is already on this machine** — four byte-identical copies of `22.12.21.547`, listed in §8.9(a) — so this row no longer blocks Phase 5. It is UPX-packed, so it must be *run*, not read. To settle R13 properly, someone with Continua access should read the `FastTrakDevelop` source definition; it is a five-minute check and it would either confirm this row or overturn it |
 | R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos |
 
 ---
