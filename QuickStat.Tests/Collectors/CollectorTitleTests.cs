@@ -53,6 +53,24 @@ public class CollectorTitleTests
     }
 
     [Fact]
+    public void RoasBaseCarriesTheLastSuffixExactlyOnce()
+    {
+        // The bug commit 8a9954c13 shipped and 08e35bd8d fixed: the literal was registered as
+        // 'Autommunitet (siste)' while TVarSetCollector appends ' (siste)' itself, so the list read
+        // "Autommunitet (siste) (siste)". Asserting the occurrence count, not just the string, is
+        // what makes that specific mistake impossible to reintroduce.
+        string displayed = CollectorTestContext
+            .ByName(CollectorCatalog.All, CollectorNames.RoasBase)
+            .Descriptor.Title;
+
+        Assert.Equal("Autommunitet (siste)", displayed);
+
+        // Registered short, displayed long, and the suffix appears once - not twice.
+        Assert.Equal("Autommunitet", CollectorTitles.RoasBase);
+        Assert.Equal(1, displayed.Split(CollectorTitle.LastSuffix).Length - 1);
+    }
+
+    [Fact]
     public void RegisteredMaxTitlesCarryTheHoyesteSuffix()
     {
         AssertTitle(CollectorNames.RoasGwasAutoAntibody, "GWAS Autoantistoffer (høyeste)");
@@ -67,6 +85,9 @@ public class CollectorTitleTests
         AssertTitle(CollectorNames.LabHeartFailure, "Labdata: Hjertesviktrelaterte labdata (siste)");
         AssertTitle(CollectorNames.LabDiabetes, "Labdata: Diabetes (siste)");
 
+        // 'Interleukiner' has no colon, so TLabSetCollector wraps it (Docs/Port §E.4).
+        AssertTitle(CollectorNames.LabInterleukins, "Labdata: Interleukiner (siste)");
+
         // Already has a colon, so it is left alone rather than becoming "Labdata: GBD: … (siste)".
         AssertTitle(CollectorNames.LabGeriatric, "GBD: Sentrale labdata (siste)");
     }
@@ -79,6 +100,18 @@ public class CollectorTitleTests
         AssertTitle(CollectorNames.GbdLowBp, "GBD: Blodtrykk < 120 (siste)");
         AssertTitle(CollectorNames.LabHighTrust, "Labdata: Alle med høy konfidens");
         AssertTitle(CollectorNames.FormFrequency, "Skjema: Antall totalt per type");
+    }
+
+    [Fact]
+    public void TheAntibioticTitlesReadAsOneFamily()
+    {
+        // Docs/Port/03-collectors.md §E.1 and §E.2. TCustomDataCollector appends nothing, so these
+        // are the registered resourcestrings verbatim - including the missing "s" in
+        // "Resistendrivende", which is upstream (PORT-PLAN.md §8.4).
+        AssertTitle(CollectorNames.DrugAntibioticResistance, "Antibiotika: Resistendrivende");
+        AssertTitle(CollectorNames.DrugAntibioticIntermediate, "Antibiotika: Intermediære");
+        AssertTitle(CollectorNames.DrugAntibioticRecommended, "Antibiotika: Anbefalte");
+        AssertTitle(CollectorNames.DrugJ01Xx05, "Antibiotika: Metenamin / Hiprex");
     }
 
     [Fact]

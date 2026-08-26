@@ -134,7 +134,17 @@ public class DynamicFormCollectorTests
     public void FormCollectorsAddTwoPerFormOnTopOfTheStaticCount()
     {
         // Docs/Port/03-collectors.md §D.2: "plus 2 x N dynamic form collectors in every case".
-        Assert.Equal(36 + 4, CollectorTestContext.Build("TARMSCREENING", Barthel, Lmg).Count);
-        Assert.Equal(120 + 4, CollectorTestContext.Build("KORTTID", Barthel, Lmg).Count);
+        // The static half depends on the probe outcome; the dynamic half never does.
+        Assert.Equal(
+            CollectorTestContext.AlwaysCount + 4,
+            CollectorTestContext.BuildComplete("TARMSCREENING", Barthel, Lmg).Count);
+
+        Assert.Equal(
+            CollectorTestContext.FullyGatedCount + 4,
+            CollectorTestContext.BuildComplete("KORTTID", Barthel, Lmg).Count);
+
+        Assert.Equal(
+            CollectorTestContext.FullyGatedWithoutOptionalObjects + 4,
+            CollectorTestContext.Build("KORTTID", Barthel, Lmg).Count);
     }
 }

@@ -93,7 +93,7 @@ public class CollectorSqlTests
     [Fact]
     public void MostWholeCohortCollectorsCarryNoPersonIdFragmentAtAll()
     {
-        // PORT-PLAN.md R10: preserved for parity, recorded as a performance follow-up. The four
+        // PORT-PLAN.md R10: preserved for parity, recorded as a performance follow-up. The
         // exceptions are the drug-set collectors built on SQL_WHERE_PERSON_LIST.
         List<string> wholeCohortWithIdList =
         [
@@ -111,6 +111,8 @@ public class CollectorSqlTests
                 CollectorNames.DrugAnticholinergicN05,
                 CollectorNames.DrugAnticholinergicAb,
                 CollectorNames.DrugAntibioticResistance,
+                CollectorNames.DrugAntibioticIntermediate,
+                CollectorNames.DrugAntibioticRecommended,
             },
             wholeCohortWithIdList);
     }
@@ -175,6 +177,74 @@ public class CollectorSqlTests
     }
 
     [Fact]
+    public void IntermediateAntibioticStatementDelegatesItsSelectionToTheKnowledgeBase() =>
+        // Docs/Port/03-collectors.md §E.1, resolved verbatim. Note the order - the KB join goes
+        // between the ATC-index join and the WHERE - and the trailing space, both upstream.
+        AssertSql(
+            CollectorNames.DrugAntibioticIntermediate,
+            "SELECT PersonId, 'INTERMEDIATE_AB' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "JOIN KB.AntibioticResistance2 r2 ON r2.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) ");
+
+    [Fact]
+    public void RecommendedAntibioticStatementListsNineExactCodesWithNoCollation()
+    {
+        // Docs/Port/03-collectors.md §E.2, resolved verbatim. The plain IN is the point: every other
+        // drug query wraps its comparison in COLLATE Latin1_General_CI_AI and this one does not.
+        AssertSql(
+            CollectorNames.DrugAntibioticRecommended,
+            "SELECT PersonId, 'RECOMMENDED_AB' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) " +
+            "AND ( ot.ATC IN ( 'J01CE01', 'J01CE02', 'J01CF01', 'J01CF02', 'J01CA08', 'J01CA11', 'J01EA01', 'J01EE01', 'J01XE01' ) )");
+
+        Assert.Equal(
+            new[] { "J01CE01", "J01CE02", "J01CF01", "J01CF02", "J01CA08", "J01CA11", "J01EA01", "J01EE01", "J01XE01" },
+            DrugSql.RecommendedAntibioticAtcCodes);
+
+        Assert.DoesNotContain(
+            QaSql.Collation,
+            CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.DrugAntibioticRecommended).BuildSql(Context),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetenamineStatementEmitsTheLiteralOneAndMatchesOneExactCode()
+    {
+        // Docs/Port/03-collectors.md §E.2.2. TDrugCollector.CreateBasic, so the value column is the
+        // literal 1 rather than a drug-name checksum, and the pattern carries no % - an exact match
+        // written with LIKE so the collation behaviour is identical to every other drug query.
+        AssertSql(
+            CollectorNames.DrugJ01Xx05,
+            "SELECT ot.PersonId, CONCAT('J01XX05','.',ot.TreatType) AS VarName, 1 AS DpValue, ot.StartAt, ot.TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) " +
+            "AND ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01XX05' COLLATE Latin1_General_CI_AI ");
+
+        Assert.Equal("J01XX05", AtcPatterns.J01Xx05);
+        Assert.Equal("DRUG.J01XX05", CollectorNames.DrugPrefix + SqlLiteral.AtcPatternToVariableName(AtcPatterns.J01Xx05));
+    }
+
+    [Fact]
+    public void OnlyTheIntermediateAntibioticStatementTouchesTheKbSchema()
+    {
+        // The KB schema is the one non-dbo dependency in the whole subsystem, and it is the reason
+        // CollectorAvailability exists. A second one appearing silently would be a regression.
+        List<string> withKb =
+        [
+            .. CollectorCatalog.All
+                .Where(collector => collector.BuildSql(Context).Contains("KB.", StringComparison.Ordinal))
+                .Select(collector => collector.Descriptor.Name),
+        ];
+
+        Assert.Equal([CollectorNames.DrugAntibioticIntermediate], withKb);
+    }
+
+    [Fact]
     public void LabCountStatementNamesItsOwnWindow() =>
         AssertSql(
             CollectorNames.LabCount24M,
@@ -191,6 +261,79 @@ public class CollectorSqlTests
         // by LABCLASSES_KIDNEY and by the eGFR colour registrations in QuickStat.Collectors.pas.
         Assert.Equal(new[] { 3, 4, 5, 6, 7, 49, 50, 53, 54, 90, 91 }, LabClassSets.Kidney);
         AssertContains(CollectorNames.LabKidney, "la.LabClassId IN (3, 4, 5, 6, 7, 49, 50, 53, 54, 90, 91)");
+    }
+
+    [Fact]
+    public void InterleukinLabSetStatementIsVerbatim()
+    {
+        // Docs/Port/03-collectors.md §E.4, resolved verbatim. Eleven consecutive lab classes, and
+        // the only thing that distinguishes this statement from the other lab sets is that list.
+        Assert.Equal(new[] { 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104 }, LabClassSets.Interleukins);
+        Assert.Equal(11, LabClassSets.Interleukins.Count);
+        Assert.Equal(
+            LabClassSets.Interleukins,
+            Enumerable.Range(1094, 11));
+
+        AssertSql(
+            CollectorNames.LabInterleukins,
+            "SELECT agg.* FROM " +
+            "( " +
+            "  SELECT ld.PersonId, ISNULL(la.NLK, Report.LabClassName(lc.LabClassId)) AS VarName, ld.NumResult, ld.LabDate, ld.ResultId, " +
+            "  RANK() OVER ( PARTITION BY ld.PersonId,lc.LabClassId ORDER BY ld.LabDate DESC ) AS OrderBy " +
+            "  FROM dbo.LabData ld " +
+            "  JOIN dbo.LabCode lc ON lc.LabCodeId = ld.LabCodeId " +
+            "  JOIN dbo.LabClass la ON la.LabClassId = lc.LabClassId " +
+            "  WHERE ( ld.PersonId IN (/*PIDS*/) ) AND ( la.LabClassId IN (1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104) AND ( ld.NumResult >= 0 ) ) " +
+            " ) agg " +
+            " WHERE agg.OrderBy = 1 ORDER BY agg.PersonId, agg.VarName");
+
+        // A data dependency, not a schema one: absent lab classes return no rows, so unlike
+        // DRUG.INTERMEDIATE this collector carries no availability gate (§E.4).
+        Assert.Same(
+            CollectorAvailability.Always,
+            CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.LabInterleukins).Descriptor.Availability);
+    }
+
+    [Fact]
+    public void RoasBaseCarriesAll68ItemIdsInTheDelphiOrder()
+    {
+        // Docs/Port/03-collectors.md §E.3, count-verified against EPR.QA.Definitions.pas:103-105.
+        // Order is observable in the generated IN ( … ) list, so it is asserted rather than the set.
+        Assert.Equal(68, ItemSets.RoasBase.Count);
+        Assert.Equal(ItemSets.RoasBase.Count, ItemSets.RoasBase.Distinct().Count());
+
+        Assert.Equal(
+            new[]
+            {
+                4255, 6314, 3486, 6312, 6323, 6313, 6324, 6299, 6089, 6090,
+                6321, 6332, 3410, 6328, 6317, 6327, 6316, 6326, 8594, 8595,
+                6318, 6334, 6329, 3411, 6330, 6320, 6331, 6322, 6333, 8543,
+                8544, 6669, 6670, 6671, 6607, 5069, 3982, 6633, 6634, 6635,
+                6636, 6637, 6638, 6639, 6640, 6808, 6641, 5170, 9996, 3983,
+                7135, 4002, 6682, 3985, 8797, 6605, 2143, 9477, 10643, 3846,
+                3981, 6804, 6805, 6802, 6803, 7977, 7979, 6807,
+            },
+            ItemSets.RoasBase);
+
+        // TVarSetCollector.CreateForNumeric: SpSnapshotVarset( itNumeric, … ), prefix '', batch 100.
+        ICollector roasBase = CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.RoasBase);
+
+        Assert.Equal(string.Empty, roasBase.Descriptor.VarPrefix);
+        Assert.Equal(CollectorKind.VarSet, roasBase.Descriptor.Kind);
+        Assert.Equal(100, roasBase.Descriptor.BatchSize);
+
+        AssertContains(CollectorNames.RoasBase, "cdp.Quantity AS DpValue");
+        AssertContains(CollectorNames.RoasBase, "ISNULL(cdp.Quantity,-1) <> -1");
+        AssertContains(
+            CollectorNames.RoasBase,
+            "AND ( cdp.ItemId IN ( " +
+            "4255, 6314, 3486, 6312, 6323, 6313, 6324, 6299, 6089, 6090, " +
+            "6321, 6332, 3410, 6328, 6317, 6327, 6316, 6326, 8594, 8595, " +
+            "6318, 6334, 6329, 3411, 6330, 6320, 6331, 6322, 6333, 8543, " +
+            "8544, 6669, 6670, 6671, 6607, 5069, 3982, 6633, 6634, 6635, " +
+            "6636, 6637, 6638, 6639, 6640, 6808, 6641, 5170, 9996, 3983, " +
+            "7135, 4002, 6682, 3985, 8797, 6605, 2143, 9477, 10643, 3846, " +
+            "3981, 6804, 6805, 6802, 6803, 7977, 7979, 6807 ) )");
     }
 
     [Fact]

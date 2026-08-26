@@ -14,7 +14,7 @@ namespace QuickStat.Collectors;
 /// <para>
 /// This is <c>TDataCollector.RunBatch</c> plus the loop that drives it in
 /// <c>TPersonGridData.AddData</c>, and it owns exactly what those owned - nothing about the shape
-/// of the read varies between the 126 collectors, which is the strongest argument that the Delphi
+/// of the read varies between the 131 collectors, which is the strongest argument that the Delphi
 /// class hierarchy should not survive the port.
 /// </para>
 /// <para>

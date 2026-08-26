@@ -59,6 +59,16 @@ public static class AtcPatterns
     /// <summary><c>ATC_C0x23789</c> - antihypertensives, broadly defined.</summary>
     public const string C0X23789 = "C0[23789]%";
 
+    /// <summary>
+    /// <c>ATC_J01XX05</c> - methenamine (Hiprex). Exact match, and deliberately so.
+    /// </summary>
+    /// <remarks>
+    /// No <c>%</c>: methenamine has no sub-codes (<c>EPR.QA.Collector.Drug.pas:68</c>). The query
+    /// still uses <c>LIKE</c> rather than <c>=</c>, so the collation behaviour is identical to every
+    /// other drug pattern (<c>Docs/Port/03-collectors.md</c> §E.2.2).
+    /// </remarks>
+    public const string J01Xx05 = "J01XX05";
+
     /// <summary><c>ATC_M01A</c> - NSAIDs.</summary>
     public const string M01A = "M01A%";
 

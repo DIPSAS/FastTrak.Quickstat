@@ -15,7 +15,7 @@ namespace QuickStat.Tests.Ui.Collections;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A user with 126 data elements scrolled to the bottom of the list notices immediately when a run
+/// A user with 131 data elements scrolled to the bottom of the list notices immediately when a run
 /// dumps them back at the top, which is why the Delphi saves <c>TopIndex</c> before the loop and
 /// restores it afterwards (<c>MainQuickStat.pas:651-676</c>).
 /// </para>

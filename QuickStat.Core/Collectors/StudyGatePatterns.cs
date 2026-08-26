@@ -30,8 +30,10 @@ namespace QuickStat.Collectors;
 /// </list>
 /// <para>
 /// The acceptance target is 124 registered collectors for a <c>KORTTID</c> study out of 131 distinct
-/// names, counted against the canonical application (PORT-PLAN.md §10.3-§10.4). The 120/126 figures
-/// in <c>Docs/Port/03-collectors.md</c> §D.2 describe this repository's reduced copy.
+/// names, counted against the canonical application (PORT-PLAN.md §10.3-§10.4), and Phase 4 reached
+/// it. On a database where <c>KB.AntibioticResistance2</c> does not resolve the same study registers
+/// 123, because <c>DRUG.INTERMEDIATE</c> is behind the availability gate (R7). The 120/126 figures
+/// in <c>Docs/Port/03-collectors.md</c> §D.2 describe this repository's reduced Delphi copy.
 /// </para>
 /// </remarks>
 public static class StudyGatePatterns

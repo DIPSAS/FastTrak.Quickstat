@@ -173,7 +173,8 @@ function ConvertArrayToList( const AIdentifiers: array of integer ): string;
 **Counts.** The factory knows **126** distinct collector names. `PrepareStudy` can register at most
 **126 static** collectors (87 via the factory + 39 constructed directly), plus **2 × N dynamic**
 form collectors, where N = number of non-anonymous form classes in the study. Restoring the four
-lost features raises the static maximum to **131**.
+lost features raises the static maximum to **131**, which Phase 4 did — see the status box at the
+head of §E.
 
 Per study-name gate:
 
@@ -188,7 +189,8 @@ Per study-name gate:
 
 Legend for the *Gate* column: **A** = always, **G** = `GBD|LANGTID|KORTTID`,
 **N** = `NDV|ENDO|LANGTID|GBD|KORTTID`, **W** = `GWAS`, **R** = `ROAS`, **D** = `DOGFOOD`,
-**[recover]** = currently commented out, see §E.
+**[recover]** = commented out in this repository's Delphi, see §E. All five have been restored in
+the .NET port; the marker records why the Delphi row carries no number.
 
 Rows are in registration order (= order in the checkbox list).
 
@@ -1161,8 +1163,12 @@ SELECT PersonId, 'NOATC', COUNT(*) AS DpValue, MAX(StartAt) AS LastDate, MAX(Tre
 > Position 1 is still the literal `'NOATC'`, so `RunBatch` works. In C# give it an alias
 > (`AS VarName`) — that is safe and does not change behaviour.
 
+> ⚠ The next block is the **`develop_old`** wording, kept for comparison. It is *not* what the port
+> emits: `PORT-PLAN.md` §8.4 dropped `J01FF%` and took the `Antibiotika: Resistendrivende` caption,
+> so `DrugSql.DrugSetAntibioticResistance()` has three groups, not four. See §E.2.1.
+
 ```sql
--- SpDrugsetAntibiotic (current, pre-recovery), prefix 'DRUG_'
+-- SpDrugsetAntibiotic (develop_old, pre-recovery), prefix 'DRUG_'
 SELECT PersonId, 'RESISTANCE_DRIVING' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption FROM dbo.OngoingTreatment ot LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC WHERE ( PersonId IN {IdList} ) AND (   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01CR%' COLLATE Latin1_General_CI_AI ) OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01D[CDH]%' COLLATE Latin1_General_CI_AI ) OR   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01FF%' COLLATE Latin1_General_CI_AI ) OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01MA%' COLLATE Latin1_General_CI_AI ) )
 ```
 
@@ -1352,7 +1358,8 @@ Procedures: `Report.GetFormClasses`, `Report.GetFormData`, `Report.GetFormInstan
 `Report.AddSelectionMember`, `Report.AddQuickStat`, `QuickStat.DeletePackage`,
 `dbo.GetPopulations`.
 
-Plus, **only after recovery**: `KB.AntibioticResistance2` (§E.1).
+Plus, since §E.1 was recovered: `KB.AntibioticResistance2` — the one object the port probes for
+before registering its collector, rather than depending on unconditionally.
 
 ---
 
@@ -1574,8 +1581,14 @@ static readonly Regex DogfoodGate = new(@"DOGFOOD",  RegexOptions.Compiled | Reg
 > registers five more (37 always / 79 G / 8 N = **124** for `GBD`, `LANGTID` and `KORTTID`; 131
 > distinct names). The +4 on a gated study are the three antibiotic collectors — inside
 > `AddCollectorsDrug`, which the **G** block calls — plus interleukins, which is always-on.
-> `QS_ROAS_BASE` is `ROAS`-gated and does not move these numbers. The port targets **124**; see
-> `PORT-PLAN.md` §10.4.
+> `QS_ROAS_BASE` is `ROAS`-gated and does not move these numbers, but it does take a `ROAS` study
+> from 38 to **40** (37 always + 3).
+>
+> **The .NET port reaches the canonical numbers**: Phase 4 restored all five, so the catalog holds
+> **131** and a `KORTTID` study registers **124**. One caveat the Delphi has no equivalent for —
+> `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` is registered only when `KB.AntibioticResistance2` resolves
+> (§E.1, `PORT-PLAN.md` R7), so on a database without the `KB` schema the same study registers
+> **123**. See `PORT-PLAN.md` §10.4.
 | `ROAS` | always, R | 36 + 2 = **38** |
 | `ROAS_GWAS` | always, W, R | 36 + 3 + 2 = **41** |
 | `DOGFOOD` / `dogfood` | always, D | 36 + 1 = **37** |
@@ -1626,6 +1639,14 @@ public void StudyGates(string studyName, bool gbd, bool ndv) { … }
 ---
 
 ## E. Recovering the four lost features
+
+> **Status: done.** Phase 4 restored all five registrations. `DRUG.INTERMEDIATE`, `DRUG.RECOMMENDED`
+> and `DRUG.J01XX05` are in `CollectorCatalog.Drug.cs`, `ROAS.BASE` in `.Protocol.cs`,
+> `LAB.INTERLEUKINS` in `.LabData.cs`; the SQL is in `DrugSql`, the sets in `ItemSets.RoasBase` and
+> `LabClassSets.Interleukins`. The registry holds **131** distinct names and a `KORTTID` study
+> registers **124**, or **123** where `KB.AntibioticResistance2` does not resolve. Everything below
+> is the derivation, kept because it is the evidence for each number; the two paragraphs marked
+> *superseded* (§E.2.1's Recommendation) are the only places it disagrees with what shipped.
 
 All four exist only on the **tarmscreening lineage** of `C:\work\FastTrak`
 (`origin/tarmscreening/develop`, head `249ac2d16` 2023-09-01). `git branch --contains` confirms
@@ -1739,9 +1760,17 @@ The fix in `4c96c3c3b` was:
 > Required handling in the port:
 > 1. Probe at registry-build time — `SELECT OBJECT_ID('KB.AntibioticResistance2')` — and only
 >    register the collector when it resolves. There is no existing "optional collector" concept, so
->    add one: `CollectorDescriptor.RequiresObject`.
-> 2. Log at info level when it is skipped, so support can tell "missing" from "empty".
+>    add one. **Done**, as `CollectorDescriptor.Availability` / `CollectorAvailability`; the probe
+>    is `CollectorRegistry.ProbeDatabaseObjectsAsync`, one round trip for the whole catalog.
+> 2. Log at info level when it is skipped, so support can tell "missing" from "empty". **Done**, via
+>    the `onUnavailable` callback `CollectorRegistryBuilder.Build` takes.
 > 3. Confirm with the DB owner which spelling actually exists before enabling it anywhere.
+>    **Still open** — a support question, not a code one. The gate makes a wrong spelling degrade to
+>    "collector not offered" instead of "query failed", which is the whole point of it.
+>
+> **This is the only collector that needs the gate.** `SpDrugsetAntibioticRecommended`
+> (`EPR.QA.SQL.pas:431`) writes its nine ATC codes into the statement and joins no `KB` object, so it
+> is registered unconditionally; gating it too would hide a working collector.
 
 ### E.2 `QS_DRUG_ANTIBIOTIC_RECOMMENDED` and `QS_DRUG_J01XX05` — commit `9f4a5ed4f`
 
@@ -1849,12 +1878,18 @@ The `VarName` emitted is unchanged (`RESISTANCE_DRIVING`), so the **column name 
 (`TCaptionRecord.Create('DRUG.RESISTANCE_DRIVING', 'Resist', 'Resistance-driving antibiotics')`)
 also keeps working.
 
-**Recommendation:** this is a *clinical definition change*, not a bug fix, and it never reached
-mainline. Port the recovered collectors (Recommended, Intermediate, J01XX05) but keep the
-**existing** `J01FF%` clause and the existing caption unless the clinical owner of the GBD protocol
-confirms otherwise. Record it as an open question. If it is confirmed, apply the whole tarmscreening
-version — function name, caption and clause together — so the three antibiotic captions read as a
-consistent `Antibiotika: …` family.
+**Recommendation — superseded; see `PORT-PLAN.md` §8.4.** This paragraph originally said to keep the
+**existing** `J01FF%` clause and caption. That was written before the question was re-checked
+against every ref capable of building the application: `J01FF` is absent from **all nine** of them
+and survives only on mainline, which cannot build QuickStat at all. §8.4 therefore decided
+*"drop `J01FF%`, take the new caption"*, and applied the whole tarmscreening version together —
+function name, caption and clause — so the four antibiotic captions read as a consistent
+`Antibiotika: …` family. Phase 2 implemented that and Phase 4 did not revisit it.
+
+It is nonetheless still a *clinical definition change*, and §8.4 keeps it **release-blocking for
+this collector only**: a protocol owner must confirm which antibiotics count as resistance-driving
+before release. Reversing it is one line in `DrugSql.ResistanceDrivingAtcPatterns` plus a
+regenerated golden file, which is why the list is a named array.
 
 #### E.2.2 `QS_DRUG_J01XX05` details
 
@@ -2034,7 +2069,7 @@ Everything the four features need that is **not** present today, with its defini
 | `StrTitleDrugAntibioticIntermediate` | `EPR.QA.Collector.Names.pas` | `'Antibiotika: Intermediære'` |
 | `StrTitleDrugAntibioticRecommended` | `EPR.QA.Collector.Names.pas` | `'Antibiotika: Anbefalte'` |
 | `StrTitleDrugAntibioticMetenamine` | `EPR.QA.Collector.Names.pas` | `'Antibiotika: Metenamin / Hiprex'` |
-| `StrTitleDrugAntibioticResistance` | `EPR.QA.Collector.Names.pas` | `'Antibiotika: Resistendrivende'` — **only if** the §E.2.1 rename is accepted; otherwise keep `StrTitleDrugRestistanceAntibiotic` |
+| `StrTitleDrugAntibioticResistance` | `EPR.QA.Collector.Names.pas` | `'Antibiotika: Resistendrivende'` — the §E.2.1 rename **was** accepted, by `PORT-PLAN.md` §8.4, and Phase 2 applied it |
 | `StrTitleLabsetInterleukins` | `EPR.QA.Collector.Names.pas` | `'Interleukiner'` |
 | `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` | `EPR.QA.Collector.Names.pas` | `PREFIX_DRUG_COLLECTOR + 'INTERMEDIATE'` |
 | `QS_DRUG_ANTIBIOTIC_RECOMMENDED` | `EPR.QA.Collector.Names.pas` | `PREFIX_DRUG_COLLECTOR + 'RECOMMENDED'` |
@@ -2592,8 +2627,9 @@ public interface ICollectorRunner
   `Unknown patients found, n = …` log — it is a real diagnostic),
 * accumulate distinct column names into an `OrderedSet<string>` (§F.2).
 
-Everything about the shape of the read is identical for all 126 collectors, which is the strongest
-argument that the class hierarchy should not survive the port.
+Everything about the shape of the read is identical for all 126 collectors — 131 once §E's four
+features are restored — which is the strongest argument that the class hierarchy should not survive
+the port.
 
 Use `Microsoft.Data.SqlClient` with `CommandBehavior.SequentialAccess` and async reads. Do **not**
 reuse a single `SqlCommand` across collectors the way `TSimpleDatabase` reuses one `TADOQuery` —

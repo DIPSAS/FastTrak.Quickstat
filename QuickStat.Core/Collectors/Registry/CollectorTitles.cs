@@ -115,6 +115,12 @@ public static class CollectorTitles
     /// <summary><c>StrTitleLabsetHeartFailure</c>.</summary>
     public const string LabSetHeartFailure = "Hjertesviktrelaterte labdata";
 
+    /// <summary>
+    /// <c>StrTitleLabsetInterleukins</c> (<c>EPR.QA.Collector.Names.pas:133</c>). No colon, so
+    /// <see cref="CollectorTitle.ForLabSet"/> wraps it into <c>Labdata: Interleukiner (siste)</c>.
+    /// </summary>
+    public const string LabSetInterleukins = "Interleukiner";
+
     /// <summary><c>StrTitleLabsetCrp</c>.</summary>
     public const string LabSetCrp = "CRP";
 
@@ -411,6 +417,22 @@ public static class CollectorTitles
     /// </remarks>
     public const string DrugAntibioticResistance = "Antibiotika: Resistendrivende";
 
+    /// <summary>
+    /// <c>StrTitleDrugAntibioticIntermediate</c> (<c>EPR.QA.Collector.Names.pas:190</c>).
+    /// </summary>
+    public const string DrugAntibioticIntermediate = "Antibiotika: Intermediære";
+
+    /// <summary>
+    /// <c>StrTitleDrugAntibioticRecommended</c> (<c>EPR.QA.Collector.Names.pas:191</c>).
+    /// </summary>
+    public const string DrugAntibioticRecommended = "Antibiotika: Anbefalte";
+
+    /// <summary>
+    /// <c>StrTitleDrugAntibioticMetenamine</c> (<c>EPR.QA.Collector.Names.pas:192</c>). The spaces
+    /// around the slash are upstream.
+    /// </summary>
+    public const string DrugAntibioticMetenamine = "Antibiotika: Metenamin / Hiprex";
+
     /// <summary><c>StrTitleDrugNorGeP</c>.</summary>
     public const string DrugNorGeP = "Medisin: NorGeP avvik";
 
@@ -456,6 +478,25 @@ public static class CollectorTitles
 
     /// <summary><c>EPR.QA.Collector.Factory.pas:319</c>.</summary>
     public const string RoasPoiQuantity = "POI Diagnoseår";
+
+    /// <summary>
+    /// <c>EPR.QA.Collector.Factory.pas:321</c>. Registered <b>without</b> <c>' (siste)'</c>, and the
+    /// <c>Autommunitet</c> misspelling is deliberate.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Commit <c>8a9954c13</c> registered the literal <c>'Autommunitet (siste)'</c> and
+    /// <c>08e35bd8d</c> had to strip the suffix back off, because <c>TVarSetCollector</c> appends it
+    /// in its own constructor. <see cref="Make.VarSetNumeric"/> does the same, so the displayed
+    /// title is <c>Autommunitet (siste)</c> with the suffix appearing exactly once - which is what
+    /// <c>CollectorTitleTests</c> asserts.
+    /// </para>
+    /// <para>
+    /// Correct Norwegian would be <c>Autoimmunitet</c>. Preserved because it is what users see on
+    /// the shipping build and what a saved package title would match (PORT-PLAN.md §8.3).
+    /// </para>
+    /// </remarks>
+    public const string RoasBase = "Autommunitet";
 
     /// <summary><c>EPR.QA.Collector.Factory.pas:323</c>.</summary>
     public const string DogfoodDatabaseVersion = "Dogfood: Databaseversjoner";

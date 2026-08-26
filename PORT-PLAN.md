@@ -1,6 +1,7 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0–3 complete. Resume at Phase 4 (restore the lost functionality).**
+Status: **in implementation — Phases 0–3 complete; Phase 4's collector half complete (126 → 131).
+Resume at Phase 4's remaining item, the national-ID export.**
 Branch: `feature/dotnet`
 Last updated: 2026-08-26
 
@@ -495,6 +496,12 @@ main accessibility cost of a custom control, and it must not be skipped.
 
 ### Phase 4 — Restore the lost functionality  *(one agent; after 2.4)*
 
+> **The collector half is done.** All five registrations are in the catalog, the registry is at
+> **131** distinct names, and a `KORTTID` study registers **124** — **123** on a database where
+> `KB.AntibioticResistance2` does not resolve, because `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` is the one
+> collector behind the availability gate. `QS_ROAS_BASE` is behind the `ROAS` gate and so does not
+> move the `KORTTID` count. **The national-ID export below is still outstanding.**
+
 This phase is **not archaeology** — see §2.1. The canonical application already registers all four
 collectors and already calls `AddNationalIds`; only *this* repository has them commented out. The
 work is to make sure the port does not reproduce the extraction damage, and to bring across the
@@ -523,10 +530,23 @@ Notes carried from analysis — read `Docs/Port/03-collectors.md` §E before wri
   from many customer databases. This requires a concept that does not exist today: an *optional
   collector*, gated at registration on `OBJECT_ID(...) IS NOT NULL`. Build that gate as part of this
   step — it is the only genuinely new machinery the four features need.
-- **Do not take the `J01FF%` removal.** Commit `9f4a5ed4f` also drops `J01FF%` (lincosamides /
-  clindamycin) from the *existing* resistance-driving set and renames its caption. That is a
-  clinical-definition change to a collector already in production, not part of adding the new ones.
-  Add the new collectors; leave `QS_DRUG_ANTIBIOTIC_RESISTANCE` exactly as it ships. See §8.
+- **Exactly one collector needs that gate: `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`.** `JOIN
+  KB.AntibioticResistance2` occurs once in the whole library, at `EPR.QA.SQL.pas:453`, inside
+  `SpDrugsetAntibioticIntermediate` — which has no ATC clause at all and delegates its entire
+  selection to that table. `SpDrugsetAntibioticRecommended` (`EPR.QA.SQL.pas:431`) is a plain
+  `ot.ATC IN ( … nine codes … )` and touches no `KB` object, so
+  `QS_DRUG_ANTIBIOTIC_RECOMMENDED` is registered unconditionally. Gating it as well would make a
+  perfectly working collector vanish on every database without the knowledge-base schema — a
+  functional regression, not a safety measure.
+- **The `J01FF%` question is settled in §8.4 — read that, not an earlier revision of this bullet.**
+  Commit `9f4a5ed4f` also drops `J01FF%` (lincosamides / clindamycin) from the *existing*
+  resistance-driving set and renames its caption. An earlier revision of this bullet said "do not
+  take the removal"; that was written before the question was re-checked across all nine refs
+  capable of building the application, every one of which lacks `J01FF%`. §8.4 supersedes it and
+  Phase 2 implemented §8.4, so `DrugSql.ResistanceDrivingAtcPatterns` is `J01CR%`, `J01D[CDH]%`,
+  `J01MA%` and the caption is `Antibiotika: Resistendrivende`. **It stays release-blocking for this
+  one collector** until a protocol owner signs off on the clinical definition; Phase 4 did not
+  touch it.
 - `9f4a5ed4f` is a **rebase commit** — its apparent deletions (BDR block, NEWS2, encoding mangling)
   are artefacts of the rebase, not intent. Do not reproduce them.
 - `SET_ROAS_BASE` is 68 IDs (count-verified) and `LABCLASSES_INTERLEUKINS` is exactly `[1094…1104]`,
@@ -585,10 +605,12 @@ These are observable and must match the Delphi build exactly.
   §5 all said ordinal, "which is what keeps the `^ `-prefixed demographic collectors first". That is
   exactly backwards, and step 3.3 caught it. `'^'` is U+005E, which sits **above** `'Z'` (U+005A) and
   below `'a'`, and every other title begins with a capital — so an ordinal sort puts all eleven
-  demographic elements **last**. Sorted both ways against the real 120-collector KORTTID registry:
-  ordinal leads with `Antibiotika: Resistendrivende` and trails with the `^ ` group; any linguistic
-  ignore-case comparer reproduces `Docs/Screenshots/QuickStat bilde 2.png` exactly — `^ Alder … ^
-  Statuskode`, then `Antropometri`, `Diabetes:`, `Labdata:`, `NDV:`.
+  demographic elements **last**. Sorted both ways against the real KORTTID registry (120 collectors
+  when step 3.3 ran the experiment, 124 since Phase 4): ordinal leads with an `Antibiotika:` title
+  and trails with the `^ ` group; any linguistic ignore-case comparer reproduces
+  `Docs/Screenshots/QuickStat bilde 2.png` exactly — `^ Alder … ^ Statuskode`, then `Antropometri`,
+  `Diabetes:`, `Labdata:`, `NDV:`. The conclusion does not depend on the count — the test re-runs it
+  against whatever the registry currently holds.
 
   The mechanism is `LBS_SORT` on a Win32 list box, whose default comparison is `CompareStringW` with
   `LOCALE_USER_DEFAULT` and `NORM_IGNORECASE` — culture-sensitive by construction, exactly like
@@ -855,7 +877,7 @@ grid (current cell) — three colours, one screen each.
 | R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | Byte-comparison tests against fixtures from the Delphi build |
 | R5 | Custom grid control is the largest single piece of UI work | Time-boxed; `DataGrid` fallback documented with a ~150-column ceiling |
 | R6 | Privacy regressions around anonymisation | Dedicated tests; treated as release-blocking |
-| R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL` |
+| R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
 | R10 | Most `maxint`-batch collectors carry **no `{IdList}` at all** and scan the whole database, discarding non-cohort rows client-side | Pre-existing behaviour, preserved for parity; recorded as a separate performance follow-up, not fixed during the port |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
@@ -873,7 +895,9 @@ grid (current cell) — three colours, one screen each.
 3. Every collector in the `03-collectors.md` inventory appears in the list with its exact title,
    including class-applied suffixes, and the five restored registrations are present (126 → **131**
    distinct names, from four features). 131 assumes the ref pinned in §2.1; it is 130 if R12 is
-   re-decided toward `release/tarmscreening`.
+   re-decided toward `release/tarmscreening`. **Met by Phase 4** — `CollectorCatalog.All` holds 131,
+   pinned by `CollectorRegistryCountTests`. The one thing still to prove is that the *titles* match a
+   running build, which is Phase 5's parity pass.
 4. Study gating is exact: a `KORTTID` study registers the same static collectors as `GBD` and
    `LANGTID`. This is commit `5502b72`, and it lives in *two* near-identical regex literals — the
    single easiest thing to lose in transcription. Gate matching is case-**sensitive** except
@@ -885,12 +909,23 @@ grid (current cell) — three colours, one screen each.
    |---|---|---|---|---|---|
    | This repo (reduced) | 36 | 76 | 8 | **120** | 126 |
    | FastTrakApps (canonical) | 37 | 79 | 8 | **124** | 131 |
+   | **The .NET port**, `KB` present | 37 | 79 | 8 | **124** | 131 |
+   | **The .NET port**, `KB` absent | 37 | 78 | 8 | **123** | 131 |
 
    The `120` quoted in earlier revisions of this plan and in `Docs/Port/03-collectors.md` §D.2 is
    *this repo's* number and therefore describes the reduced build. The +4 are the three antibiotic
    collectors (inside `AddCollectorsDrug`, which the **G** block calls) plus interleukins
    (always-on). `QS_ROAS_BASE` is `ROAS`-gated and so does not move the `KORTTID` count. If R12 is
    ever re-decided toward `release/tarmscreening`, this becomes 123 / 130.
+
+   **The port has two `KORTTID` totals, not one**, and that is the only place it departs from the
+   canonical count. `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` is registered only where
+   `KB.AntibioticResistance2` resolves (R7), so a customer without the knowledge-base schema sees
+   **123**. The Delphi has no equivalent, because it registers the collector unconditionally and
+   then fails the query. The distinct-name count is 131 either way: `CollectorCatalog.All` is the
+   catalog, and availability is applied when a session's registry is built. Both outcomes are
+   asserted, and the difference between them is pinned to the set of gated collectors rather than to
+   a literal, so a second optional collector cannot slip in unnoticed.
 
    Note `5502b72` has a twin: the identical fix also sits on
    `feature/739506_GBD_utvalet_i_Korttid` in `FastTrakApps/App.QuickStat` (its current branch). The

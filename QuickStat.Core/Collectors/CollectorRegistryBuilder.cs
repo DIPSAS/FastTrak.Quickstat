@@ -27,9 +27,10 @@ public static partial class CollectorRegistryBuilder
     /// for the single availability probe.
     /// </summary>
     /// <remarks>
-    /// Empty today. Phase 4 adds <c>KB.AntibioticResistance2</c> when it restores the two
-    /// antibiotic collectors that inner-join it (R7). The probe machinery is in place now so that
-    /// Phase 4 only has to add rows.
+    /// Exactly one entry: <c>KB.AntibioticResistance2</c>, for the single collector that inner-joins
+    /// it, <see cref="Registry.CollectorNames.DrugAntibioticIntermediate"/> (R7). Its neighbour
+    /// <c>DRUG.RECOMMENDED</c> writes its nine ATC codes out in the statement and needs nothing
+    /// (<c>EPR.QA.SQL.pas:431-443</c>).
     /// </remarks>
     public static IReadOnlyList<string> RequiredDatabaseObjects { get; } =
     [

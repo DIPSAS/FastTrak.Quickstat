@@ -205,6 +205,12 @@ public static class CollectorNames
     /// <summary><c>QST_LAB_HEART_FAILURE</c>.</summary>
     public const string LabHeartFailure = LabPrefix + "HEART_FAILURE";
 
+    /// <summary>
+    /// <c>QST_LAB_INTERLEUKINS</c> = <c>PREFIX_LAB_COLLECTOR + LAB_INTERLEUKINS</c>
+    /// (<c>EPR.QA.Collector.Names.pas:283,309</c>).
+    /// </summary>
+    public const string LabInterleukins = LabPrefix + "INTERLEUKINS";
+
     /// <summary><c>QST_LAB_CRP</c>.</summary>
     public const string LabCrp = LabPrefix + "CRP";
 
@@ -380,6 +386,22 @@ public static class CollectorNames
     /// <summary><c>QS_DRUG_ANTIBIOTIC_RESISTANCE</c>.</summary>
     public const string DrugAntibioticResistance = DrugPrefix + "RESISTANCE_DRIVING";
 
+    /// <summary><c>QS_DRUG_ANTIBIOTIC_INTERMEDIATE</c> (<c>EPR.QA.Collector.Names.pas:345</c>).</summary>
+    public const string DrugAntibioticIntermediate = DrugPrefix + "INTERMEDIATE";
+
+    /// <summary><c>QS_DRUG_ANTIBIOTIC_RECOMMENDED</c> (<c>EPR.QA.Collector.Names.pas:346</c>).</summary>
+    public const string DrugAntibioticRecommended = DrugPrefix + "RECOMMENDED";
+
+    /// <summary>
+    /// <c>QS_DRUG_J01XX05</c> (<c>EPR.QA.Collector.Names.pas:331</c>).
+    /// </summary>
+    /// <remarks>
+    /// The only one of the three restored antibiotic collectors whose name the Delphi also derives
+    /// from its ATC pattern: <c>PREFIX_DRUG_COLLECTOR + ConvertAtcPatternToVariableName('J01XX05')</c>
+    /// gives the same string. Spelled out here because it is the name a saved package stores.
+    /// </remarks>
+    public const string DrugJ01Xx05 = DrugPrefix + "J01XX05";
+
     /// <summary><c>QS_DRUG_NorGeP</c> - note the mixed case, which is part of the stored name.</summary>
     public const string DrugNorGeP = DrugPrefix + "NorGEP";
 
@@ -422,6 +444,12 @@ public static class CollectorNames
 
     /// <summary><c>QS_ROAS_POI_QN</c>.</summary>
     public const string RoasPoiQuantity = "ROAS.POI.QN";
+
+    /// <summary>
+    /// <c>QS_ROAS_BASE</c> (<c>EPR.QA.Collector.Names.pas:466</c>) - a bare literal upstream too,
+    /// not a prefix concatenation.
+    /// </summary>
+    public const string RoasBase = "ROAS.BASE";
 
     /// <summary><c>QS_DOGFOOD_DATABASE_VERSION</c>.</summary>
     public const string DogfoodDatabaseVersion = "DOGFOOD.DATABASE.VERSION";

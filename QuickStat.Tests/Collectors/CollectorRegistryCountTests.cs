@@ -1,5 +1,6 @@
 using QuickStat.Collectors;
 using QuickStat.Collectors.Registry;
+using QuickStat.Collectors.Sql;
 using Xunit;
 
 namespace QuickStat.Tests.Collectors;
@@ -9,23 +10,62 @@ namespace QuickStat.Tests.Collectors;
 /// nice-to-haves.
 /// </summary>
 /// <remarks>
-/// The numbers describe <b>this</b> repository, which is the reduced copy: 126 distinct names and
-/// 120 for a <c>KORTTID</c> study. Phase 4 restores the five commented-out registrations and takes
-/// them to 131 / 124.
+/// <para>
+/// The target is 131 distinct names and 124 for a <c>KORTTID</c> study, counted against the
+/// canonical application, and Phase 4 reached it by restoring the five registrations this
+/// repository has commented out. The constants live in <see cref="CollectorTestContext"/> so that
+/// the two files that count collectors cannot drift apart.
+/// </para>
+/// <para>
+/// A <c>KORTTID</c> count is only meaningful together with a probe outcome, because
+/// <c>DRUG.INTERMEDIATE</c> is registered only when <c>KB.AntibioticResistance2</c> resolves. Both
+/// outcomes are asserted, and their difference is pinned to the optional collectors themselves
+/// rather than to a literal.
+/// </para>
 /// </remarks>
 public class CollectorRegistryCountTests
 {
-    /// <summary>Distinct collector names in the catalog. PORT-PLAN.md §10.3.</summary>
-    private const int DistinctNameCount = 126;
+    /// <inheritdoc cref="CollectorTestContext.DistinctNameCount"/>
+    private const int DistinctNameCount = CollectorTestContext.DistinctNameCount;
 
-    /// <summary>Static collectors a fully gated study registers. PORT-PLAN.md §10.4.</summary>
-    private const int FullyGatedCount = 120;
+    /// <inheritdoc cref="CollectorTestContext.FullyGatedCount"/>
+    private const int FullyGatedCount = CollectorTestContext.FullyGatedCount;
 
-    /// <summary>Always-on static collectors.</summary>
-    private const int AlwaysCount = 36;
+    /// <inheritdoc cref="CollectorTestContext.FullyGatedWithoutOptionalObjects"/>
+    private const int FullyGatedWithoutOptionalObjects = CollectorTestContext.FullyGatedWithoutOptionalObjects;
+
+    /// <inheritdoc cref="CollectorTestContext.AlwaysCount"/>
+    private const int AlwaysCount = CollectorTestContext.AlwaysCount;
 
     [Fact]
-    public void CatalogHas126Collectors() => Assert.Equal(DistinctNameCount, CollectorCatalog.All.Count);
+    public void CatalogHasTheExpectedNumberOfCollectors() => Assert.Equal(DistinctNameCount, CollectorCatalog.All.Count);
+
+    [Fact]
+    public void TheOnlyOptionalCollectorIsTheOneThatJoinsTheKnowledgeBase()
+    {
+        // This is what makes every KORTTID count above derivable rather than guessed: the gap
+        // between the two probe outcomes is exactly this list. PORT-PLAN.md R7.
+        Assert.Equal(
+            new[] { CollectorNames.DrugAntibioticIntermediate },
+            CollectorCatalog.All
+                .Where(collector => collector.Descriptor.Availability != CollectorAvailability.Always)
+                .Select(collector => collector.Descriptor.Name));
+
+        Assert.Equal(
+            new[] { DrugSql.AntibioticResistanceKnowledgeBase },
+            CollectorRegistryBuilder.RequiredDatabaseObjects);
+    }
+
+    [Fact]
+    public void TheOptionalCollectorIsTheOnlyDifferenceBetweenTheTwoProbeOutcomes()
+    {
+        List<string> complete = CollectorTestContext.Names(CollectorTestContext.BuildComplete("KORTTID"));
+        List<string> degraded = CollectorTestContext.Names(CollectorTestContext.Build("KORTTID"));
+
+        Assert.Equal(FullyGatedCount, complete.Count);
+        Assert.Equal(FullyGatedWithoutOptionalObjects, degraded.Count);
+        Assert.Equal(new[] { CollectorNames.DrugAntibioticIntermediate }, complete.Except(degraded));
+    }
 
     [Fact]
     public void CatalogNamesAreDistinct()
@@ -62,33 +102,45 @@ public class CollectorRegistryCountTests
     [Fact]
     public void FamilySizesMatchTheDelphiBlocks()
     {
-        // 36 always-on = 1 form-frequency + 15 basic + 19 lab data + 1 'SIZE'.
-        Assert.Equal(35, CollectorCatalog.AlwaysBeforeFormCollectors.Count);
+        // 37 always-on = 1 form-frequency + 15 basic + 20 lab data + 1 'SIZE'.
+        Assert.Equal(36, CollectorCatalog.AlwaysBeforeFormCollectors.Count);
         Assert.Single(CollectorCatalog.AlwaysAfterFormCollectors);
 
-        // 76 = 24 GBD var-sets + 17 diagnoses + 35 drugs.
-        Assert.Equal(76, CollectorCatalog.GbdFamily.Count);
+        // 79 = 24 GBD var-sets + 17 diagnoses + 38 drugs.
+        Assert.Equal(79, CollectorCatalog.GbdFamily.Count);
         Assert.Equal(8, CollectorCatalog.NdvFamily.Count);
         Assert.Equal(3, CollectorCatalog.GwasFamily.Count);
-        Assert.Equal(2, CollectorCatalog.RoasFamily.Count);
+        Assert.Equal(3, CollectorCatalog.RoasFamily.Count);
         Assert.Single(CollectorCatalog.DogfoodFamily);
     }
 
     [Theory]
-    // Docs/Port/03-collectors.md §D.2, counted against this repository.
+    // Docs/Port/03-collectors.md §D.2 and PORT-PLAN.md §10.4, on a fully provisioned database.
     [InlineData("GBD", FullyGatedCount)]
     [InlineData("LANGTID", FullyGatedCount)]
     [InlineData("KORTTID", FullyGatedCount)]
     [InlineData("NDV", AlwaysCount + 8)]
     [InlineData("ENDO", AlwaysCount + 8)]
     [InlineData("GWAS", AlwaysCount + 3)]
-    [InlineData("ROAS", AlwaysCount + 2)]
-    [InlineData("ROAS_GWAS", AlwaysCount + 3 + 2)]
+    [InlineData("ROAS", AlwaysCount + 3)]
+    [InlineData("ROAS_GWAS", AlwaysCount + 3 + 3)]
     [InlineData("DOGFOOD", AlwaysCount + 1)]
     [InlineData("dogfood", AlwaysCount + 1)]
     [InlineData("TARMSCREENING", AlwaysCount)]
     [InlineData("korttid", AlwaysCount)]
     public void StudyRegistersTheExpectedNumberOfCollectors(string studyName, int expected) =>
+        Assert.Equal(expected, CollectorTestContext.BuildComplete(studyName).Count);
+
+    [Theory]
+    // The same studies on a database with no KB schema. Only the three gates that admit the drug
+    // family move, and each moves by exactly one.
+    [InlineData("GBD", FullyGatedWithoutOptionalObjects)]
+    [InlineData("LANGTID", FullyGatedWithoutOptionalObjects)]
+    [InlineData("KORTTID", FullyGatedWithoutOptionalObjects)]
+    [InlineData("NDV", AlwaysCount + 8)]
+    [InlineData("ROAS", AlwaysCount + 3)]
+    [InlineData("TARMSCREENING", AlwaysCount)]
+    public void StudyRegistersOneFewerWhenTheKnowledgeBaseIsMissing(string studyName, int expected) =>
         Assert.Equal(expected, CollectorTestContext.Build(studyName).Count);
 
     [Fact]
@@ -97,11 +149,11 @@ public class CollectorRegistryCountTests
         // PORT-PLAN.md §10.4, the single easiest thing to lose in transcription: KORTTID must be in
         // BOTH regex literals. Comparing the ordered name lists catches "present in one of them",
         // which a bare count would not - a KORTTID study missing only the NDV block would still
-        // differ from GBD by 8, but a study missing only the GBD block by 76, and either mistake is
+        // differ from GBD by 8, but a study missing only the GBD block by 79, and either mistake is
         // silent at runtime.
-        IReadOnlyList<string> gbd = CollectorTestContext.Names(CollectorTestContext.Build("GBD"));
-        IReadOnlyList<string> langtid = CollectorTestContext.Names(CollectorTestContext.Build("LANGTID"));
-        IReadOnlyList<string> korttid = CollectorTestContext.Names(CollectorTestContext.Build("KORTTID"));
+        IReadOnlyList<string> gbd = CollectorTestContext.Names(CollectorTestContext.BuildComplete("GBD"));
+        IReadOnlyList<string> langtid = CollectorTestContext.Names(CollectorTestContext.BuildComplete("LANGTID"));
+        IReadOnlyList<string> korttid = CollectorTestContext.Names(CollectorTestContext.BuildComplete("KORTTID"));
 
         Assert.Equal(gbd, langtid);
         Assert.Equal(gbd, korttid);
@@ -111,7 +163,7 @@ public class CollectorRegistryCountTests
     [Fact]
     public void KorttidGetsBothTheGbdAndTheNdvBlock()
     {
-        IReadOnlyList<ICollector> korttid = CollectorTestContext.Build("KORTTID");
+        IReadOnlyList<ICollector> korttid = CollectorTestContext.BuildComplete("KORTTID");
         HashSet<string> names = [.. CollectorTestContext.Names(korttid)];
 
         // One representative of each of the three families the GBD gate admits ...
@@ -141,7 +193,7 @@ public class CollectorRegistryCountTests
     [Fact]
     public void RegistrationOrderFollowsTheDelphiProcedures()
     {
-        List<string> names = CollectorTestContext.Names(CollectorTestContext.Build("GBD_GWAS_ROAS_DOGFOOD"));
+        List<string> names = CollectorTestContext.Names(CollectorTestContext.BuildComplete("GBD_GWAS_ROAS_DOGFOOD"));
 
         // PrepareStudy registers the form-frequency collector before calling anything else.
         Assert.Equal(CollectorNames.FormFrequency, names[0]);
@@ -150,7 +202,7 @@ public class CollectorRegistryCountTests
         // AddCollectorsHardCoded's ungated 'SIZE'.
         Assert.Equal(CollectorNames.PatientAge, names[1]);
         Assert.Equal(CollectorNames.LabKidney, names[16]);
-        Assert.Equal(CollectorNames.Size, names[35]);
+        Assert.Equal(CollectorNames.Size, names[36]);
 
         // Then the gated blocks, in source order: GBD (with diagnoses and drugs inside it), NDV,
         // GWAS, ROAS, DOGFOOD.
@@ -159,24 +211,88 @@ public class CollectorRegistryCountTests
         AssertOrder(names, CollectorNames.DrugNorGeP, CollectorNames.NdvDiagnose);
         AssertOrder(names, CollectorNames.LabDiabetes, CollectorNames.RoasGwasBackground);
         AssertOrder(names, CollectorNames.RoasGwasAps1, CollectorNames.RoasPoiOrdinal);
-        AssertOrder(names, CollectorNames.RoasPoiQuantity, CollectorNames.DogfoodDatabaseVersion);
+        AssertOrder(names, CollectorNames.RoasBase, CollectorNames.DogfoodDatabaseVersion);
 
         Assert.Equal(CollectorNames.DogfoodDatabaseVersion, names[^1]);
     }
 
     [Fact]
-    public void TheFiveCollectorsPhase4RestoresAreAbsent()
+    public void RoasBaseIsRegisteredLastInItsBlock()
     {
-        // Deliberately not registered here: they also need library-side implementations brought
-        // across from the pinned ref, which is Phase 4's job. Recorded as a test so that adding them
-        // is a conscious act.
+        // QuickStat.Collectors.pas:478-480: after both POI collectors, and the last thing the ROAS
+        // block adds.
+        List<string> names = CollectorTestContext.Names(CollectorCatalog.RoasFamily);
+
+        Assert.Equal(
+            new[] { CollectorNames.RoasPoiOrdinal, CollectorNames.RoasPoiQuantity, CollectorNames.RoasBase },
+            names);
+    }
+
+    [Fact]
+    public void RoasBaseIsBehindTheRoasGateAndSoDoesNotMoveTheKorttidCount()
+    {
+        // The one restored collector that a KORTTID study never sees, which is why the acceptance
+        // target moves by four and not by five (PORT-PLAN.md §10.4).
+        Assert.DoesNotContain(
+            CollectorNames.RoasBase,
+            CollectorTestContext.Names(CollectorTestContext.BuildComplete("KORTTID")));
+
+        Assert.Contains(
+            CollectorNames.RoasBase,
+            CollectorTestContext.Names(CollectorTestContext.BuildComplete("ROAS")));
+    }
+
+    [Fact]
+    public void TheAntibioticCollectorsSitWhereTheDelphiPutsThem()
+    {
+        // Position is part of the contract: it is the column order of every export. The restored
+        // registrations go where the commented-out lines sit, immediately after the resistance
+        // collector and before NorGeP (QuickStat.Collectors.pas:379-384).
+        List<string> names = CollectorTestContext.Names(CollectorTestContext.BuildComplete("KORTTID"));
+
+        int resistance = names.IndexOf(CollectorNames.DrugAntibioticResistance);
+
+        Assert.True(resistance >= 0, "The resistance collector is not registered.");
+        Assert.Equal(names.IndexOf(CollectorNames.DrugAnticholinergicAb) + 1, resistance);
+        Assert.Equal(resistance + 1, names.IndexOf(CollectorNames.DrugAntibioticIntermediate));
+        Assert.Equal(resistance + 2, names.IndexOf(CollectorNames.DrugAntibioticRecommended));
+        Assert.Equal(resistance + 3, names.IndexOf(CollectorNames.DrugJ01Xx05));
+        Assert.Equal(resistance + 4, names.IndexOf(CollectorNames.DrugNorGeP));
+    }
+
+    [Fact]
+    public void AllFivePhase4CollectorsAreRestored()
+    {
+        // The five that are commented out in this repository's QuickStat.Collectors.pas and whose
+        // library-side implementations exist only on the pinned ref (PORT-PLAN.md §5). Pinned by
+        // literal name rather than by constant, because the name is the persistence format: a saved
+        // package stores it, so a typo here would be a silent data-compatibility break.
         HashSet<string> names = [.. CollectorTestContext.Names(CollectorCatalog.All)];
 
-        Assert.DoesNotContain("DRUG.INTERMEDIATE", names);
-        Assert.DoesNotContain("DRUG.RECOMMENDED", names);
-        Assert.DoesNotContain("DRUG.J01XX05", names);
-        Assert.DoesNotContain("ROAS.BASE", names);
-        Assert.DoesNotContain("LAB.INTERLEUKINS", names);
+        Assert.Contains("DRUG.INTERMEDIATE", names);
+        Assert.Contains("DRUG.RECOMMENDED", names);
+        Assert.Contains("DRUG.J01XX05", names);
+        Assert.Contains("ROAS.BASE", names);
+        Assert.Contains("LAB.INTERLEUKINS", names);
+
+        Assert.Equal(CollectorNames.DrugAntibioticIntermediate, "DRUG.INTERMEDIATE");
+        Assert.Equal(CollectorNames.DrugAntibioticRecommended, "DRUG.RECOMMENDED");
+        Assert.Equal(CollectorNames.DrugJ01Xx05, "DRUG.J01XX05");
+        Assert.Equal(CollectorNames.RoasBase, "ROAS.BASE");
+        Assert.Equal(CollectorNames.LabInterleukins, "LAB.INTERLEUKINS");
+    }
+
+    [Fact]
+    public void InterleukinsSitsBetweenHeartFailureAndCrp()
+    {
+        // QuickStat.Collectors.pas:296-298. Always-on, so an ungated study shows it too.
+        List<string> names = CollectorTestContext.Names(CollectorTestContext.Build("TARMSCREENING"));
+
+        int heartFailure = names.IndexOf(CollectorNames.LabHeartFailure);
+
+        Assert.True(heartFailure >= 0, "The heart-failure lab set is not registered.");
+        Assert.Equal(heartFailure + 1, names.IndexOf(CollectorNames.LabInterleukins));
+        Assert.Equal(heartFailure + 2, names.IndexOf(CollectorNames.LabCrp));
     }
 
     private static void AssertOrder(List<string> names, string first, string second)
