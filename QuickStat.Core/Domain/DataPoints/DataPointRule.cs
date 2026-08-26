@@ -20,6 +20,15 @@ namespace QuickStat.Domain.DataPoints;
 public sealed record DataPointRule
 {
     /// <summary>
+    /// Characters of <see cref="DataPoint.Caption"/> a cell shows when no rule says otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Six, from <c>Copy(fCaption, 1, 6)</c> in <c>TDataPoint.CellText</c>. It is a display
+    /// truncation only; the exported value is unaffected.
+    /// </remarks>
+    public const int DefaultCaptionLength = 6;
+
+    /// <summary>
     /// Display text override, or <see langword="null"/> for the default <c>%g</c> rendering.
     /// </summary>
     /// <remarks>
@@ -43,4 +52,37 @@ public sealed record DataPointRule
     /// <summary>Whether a datapoint carrying a caption is drawn left-aligned.</summary>
     /// <remarks>Delphi: <c>TDataPoint.AlignLeft</c> is simply <c>fCaption &lt;&gt; ''</c>.</remarks>
     public bool AlignLeftWhenCaptioned { get; init; } = true;
+
+    /// <summary>
+    /// Whether <see cref="DataPoint.Caption"/> is shown in preference to
+    /// <see cref="FormatValue"/> when both are available.
+    /// </summary>
+    /// <remarks>
+    /// False for every value-only override - BMI, pulse quality and the two version variables all
+    /// ignore the caption outright. True only for the drug rule, whose <c>CellText</c> tests the
+    /// caption first and falls back to <c>Ja</c>/<c>Nei</c>
+    /// (<c>EPR.QA.DataPoint.Pharmacology.pas:62-70</c>). With no rule at all the caption also wins,
+    /// which is the base class's behaviour.
+    /// </remarks>
+    public bool CaptionTakesPrecedence { get; init; }
+
+    /// <summary>
+    /// Characters of the caption to show. Defaults to <see cref="DefaultCaptionLength"/>.
+    /// </summary>
+    /// <remarks>The drug rule uses eight rather than six.</remarks>
+    public int CaptionLength { get; init; } = DefaultCaptionLength;
+
+    /// <summary>
+    /// Whether the rule's text is a label, so the cell is drawn left-aligned even though the
+    /// datapoint carries no caption of its own.
+    /// </summary>
+    /// <remarks>
+    /// This models a side effect rather than a declaration. <c>TPulseQualityDatapoint.CellText</c>
+    /// ends with <c>Caption := Result</c> (<c>EPR.QA.DataPoint.HeartFailure.pas:61</c>), and the
+    /// grid evaluates <c>AlignLeft</c> immediately afterwards, so the cell is left-aligned from the
+    /// very first paint. Reproducing the assignment itself would be worse than modelling it: on the
+    /// pinned library tip the CSV writer reads <see cref="DataPoint.Caption"/> too, so a painted
+    /// cell would export differently from an unpainted one.
+    /// </remarks>
+    public bool SetsCaptionFromText { get; init; }
 }

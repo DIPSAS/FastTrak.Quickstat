@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace QuickStat.Domain.DataPoints;
 
 /// <summary>A 24-bit colour, with no dependency on any UI framework.</summary>
@@ -23,9 +25,18 @@ public readonly record struct Rgb(byte R, byte G, byte B)
     /// <summary>Converts a Delphi <c>TColor</c> literal.</summary>
     /// <param name="bbggrr">The <c>$00BBGGRR</c> value, e.g. <c>0x008080FF</c>.</param>
     /// <returns>The colour.</returns>
-    public static Rgb FromDelphi(int bbggrr) => throw new NotImplementedException();
+    /// <remarks>
+    /// The low byte is red and the high byte of the low three is blue, which is the reverse of every
+    /// HTML literal. The top byte carries the VCL's system-colour flag and is discarded: no colour
+    /// reaching this method is a system colour, because the palette constants are all plain
+    /// <c>$00…</c> literals.
+    /// </remarks>
+    public static Rgb FromDelphi(int bbggrr) => new(
+        (byte)(bbggrr & 0xFF),
+        (byte)((bbggrr >> 8) & 0xFF),
+        (byte)((bbggrr >> 16) & 0xFF));
 
     /// <summary>Renders as <c>#RRGGBB</c>, culture-invariantly.</summary>
     /// <returns>Seven characters, uppercase hex.</returns>
-    public string ToHex() => throw new NotImplementedException();
+    public string ToHex() => string.Create(CultureInfo.InvariantCulture, $"#{R:X2}{G:X2}{B:X2}");
 }
