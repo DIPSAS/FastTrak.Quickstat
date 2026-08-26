@@ -14,10 +14,9 @@
     <!--
         OWNER: step 3.3.  Layout skeleton by step 3.1; 05-ui-spec.md §B.2.
 
-        The radio group and the timestamp box are wired to their real, shared homes already -
+        The radio group and the timestamp box are wired to their real, shared homes -
         IIdentificationPolicy and IShellWorkspace - because a second copy of either is a privacy or
-        a data-format defect rather than a layout detail.  Everything else is still to do; see
-        CollectionsTabViewModel.
+        a data-format defect rather than a layout detail.
     -->
 
     <DockPanel Margin="4">
@@ -66,7 +65,8 @@
             </StackPanel>
         </Button>
 
-        <ListBox Margin="3,0,3,3"
+        <ListBox x:Name="ElementsList"
+                 Margin="3,0,3,3"
                  BorderBrush="{StaticResource QsBorderBrush}"
                  BorderThickness="1"
                  HorizontalContentAlignment="Stretch"
@@ -76,10 +76,27 @@
             <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:DataElementViewModel}">
                     <!--
-                        TODO 3.3: highlight DataElementViewModel.IsCollecting during a run (§G.4),
-                        without moving SelectedItem, and restore the scroll offset afterwards.
+                        §G.4.  The Delphi sets ItemIndex := n for the element it is collecting, so
+                        the run reads as a highlight travelling down the list; the port marks
+                        IsCollecting instead and leaves SelectedItem where the user left it.  The
+                        colours are the theme's selection pair, which is what the highlight looks
+                        like in Docs/Screenshots/QuickStat bilde 2.png.
                     -->
-                    <CheckBox Content="{Binding Title}" IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                    <Border x:Name="CollectingHighlight" Background="Transparent" Padding="2,0">
+                        <CheckBox x:Name="ElementBox"
+                                  Content="{Binding Title}"
+                                  IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                    </Border>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsCollecting}" Value="True">
+                            <Setter TargetName="CollectingHighlight"
+                                    Property="Background"
+                                    Value="{StaticResource QsTealBrush}" />
+                            <Setter TargetName="ElementBox"
+                                    Property="Foreground"
+                                    Value="{StaticResource QsOnAccentBrush}" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
