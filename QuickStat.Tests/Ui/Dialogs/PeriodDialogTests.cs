@@ -1,15 +1,17 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using QuickStat.ViewModels;
 using QuickStat.Views.Dialogs;
 using Xunit;
+using Calendar = System.Windows.Controls.Calendar;
 
 namespace QuickStat.Tests.Ui.Dialogs;
 
 /// <summary>
 /// The <c>Angi periode</c> window: it loads without an <see cref="Application"/>, it carries the
-/// §D.5 metrics, and its two calendars are configured the same way regardless of the machine's
-/// culture.
+/// §D.5 metrics, and its two calendars are configured the same way whatever the machine's culture.
 /// </summary>
 /// <remarks>
 /// Constructing the window at all is the point of the first test. Every <c>StaticResource</c> in a
@@ -38,7 +40,7 @@ public class PeriodDialogTests
     public void TheClientAreaIsTheDelphiClientArea() => StaTestRunner.Run(() =>
     {
         // Emetra.VclForm.Period.dfm:5-6, ClientWidth 527 x ClientHeight 374.  SizeToContent means
-        // the window frame is added around this rather than subtracted from it.
+        // the frame is added around this rather than subtracted from it.
         PeriodDialog dialog = new();
         FrameworkElement root = (FrameworkElement)dialog.Content;
 
@@ -46,24 +48,32 @@ public class PeriodDialogTests
         Assert.Equal(374d, root.Height);
     });
 
-    [Fact]
-    public void BothCalendarsStartInNineteenHundredAndOnAMonday() => StaTestRunner.Run(() =>
-    {
-        PeriodDialog dialog = new() { DataContext = new PeriodViewModel() };
-
-        dialog.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-
-        foreach (Calendar calendar in new[] { dialog.StartCalendar, dialog.StopCalendar })
+    [Theory]
+    [InlineData("nb-NO")]
+    [InlineData("en-US")]
+    [InlineData("tr-TR")]
+    public void BothCalendarsStartInNineteenHundredAndOnAMondayInEveryCulture(string culture) =>
+        StaTestRunner.Run(() =>
         {
-            // FirstDayOfWeek defaults to the current culture's, so nb-NO and en-US would disagree;
-            // the .dfm says dwMonday for both (Emetra.VclForm.Period.dfm:249, 283).
-            Assert.Equal(DayOfWeek.Monday, calendar.FirstDayOfWeek);
-            Assert.Equal(PeriodViewModel.FirstDate, calendar.DisplayDateStart);
-            Assert.False(calendar.IsTodayHighlighted);
-            Assert.Equal(CalendarSelectionMode.SingleDate, calendar.SelectionMode);
-            Assert.Equal(241d, calendar.Width);
-        }
-    });
+            // Inside the body, not around it: StaTestRunner starts a thread, and since .NET Core a
+            // new thread takes the operating system's culture rather than the creator's.
+            using CultureScope scope = new(culture);
+
+            RealisedWindow.Run(new PeriodDialog { DataContext = new PeriodViewModel() }, dialog =>
+            {
+                foreach (Calendar calendar in new[] { dialog.StartCalendar, dialog.StopCalendar })
+                {
+                    // FirstDayOfWeek defaults to the current culture's, so nb-NO and en-US disagree
+                    // unless it is pinned; the .dfm says dwMonday for both
+                    // (Emetra.VclForm.Period.dfm:249, 283).
+                    Assert.Equal(DayOfWeek.Monday, calendar.FirstDayOfWeek);
+                    Assert.Equal(PeriodViewModel.FirstDate, calendar.DisplayDateStart);
+                    Assert.False(calendar.IsTodayHighlighted);
+                    Assert.Equal(CalendarSelectionMode.SingleDate, calendar.SelectionMode);
+                    Assert.Equal(241d, calendar.Width);
+                }
+            });
+        });
 
     [Fact]
     public void TheCalendarsShowTheViewModelsDates() => StaTestRunner.Run(() =>
@@ -74,12 +84,21 @@ public class PeriodDialogTests
             Stop = new DateTime(2019, 3, 18, 0, 0, 0, DateTimeKind.Unspecified),
         };
 
-        PeriodDialog dialog = new() { DataContext = model };
+        RealisedWindow.Run(new PeriodDialog { DataContext = model }, dialog =>
+        {
+            Assert.Equal(model.Start, dialog.StartCalendar.SelectedDate);
+            Assert.Equal(model.Stop, dialog.StopCalendar.SelectedDate);
 
-        dialog.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            // Picking a date writes back; clearing the selection - Calendar allows it, TCalendarView
+            // does not - leaves the period alone rather than producing one the domain cannot hold.
+            dialog.StopCalendar.SelectedDate = new DateTime(2019, 4, 1, 0, 0, 0, DateTimeKind.Unspecified);
 
-        Assert.Equal(model.Start, dialog.StartCalendar.SelectedDate);
-        Assert.Equal(model.Stop, dialog.StopCalendar.SelectedDate);
+            Assert.Equal(new DateTime(2019, 4, 1, 0, 0, 0, DateTimeKind.Unspecified), model.Stop);
+
+            dialog.StopCalendar.SelectedDate = null;
+
+            Assert.Equal(new DateTime(2019, 4, 1, 0, 0, 0, DateTimeKind.Unspecified), model.Stop);
+        });
     });
 
     [Fact]
@@ -92,33 +111,64 @@ public class PeriodDialogTests
             Stop = new DateTime(2019, 3, 18, 0, 0, 0, DateTimeKind.Unspecified),
         };
 
-        PeriodDialog dialog = new() { DataContext = model };
+        RealisedWindow.Run(new PeriodDialog { DataContext = model }, dialog =>
+        {
+            Assert.False(dialog.OkButton.IsEnabled);
+            Assert.Equal(PeriodViewModel.InvalidText, dialog.BottomInfo.Text);
 
-        dialog.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            model.Stop = model.Start.AddDays(1);
 
-        Assert.False(dialog.OkButton.IsEnabled);
-        Assert.Equal(PeriodViewModel.InvalidText, dialog.BottomInfo.Text);
-
-        model.Stop = model.Start.AddDays(1);
-
-        Assert.True(dialog.OkButton.IsEnabled);
-        Assert.Equal(PeriodViewModel.ValidText, dialog.BottomInfo.Text);
+            Assert.True(dialog.OkButton.IsEnabled);
+            Assert.Equal(PeriodViewModel.ValidText, dialog.BottomInfo.Text);
+        });
     });
 
     [Fact]
     public void TheBannerCarriesTheRunTimeSubHeader() => StaTestRunner.Run(() =>
     {
         PeriodViewModel model = new() { SubHeaderText = "Noe helt annet." };
-        PeriodDialog dialog = new() { DataContext = model };
 
-        dialog.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        RealisedWindow.Run(new PeriodDialog { DataContext = model }, dialog =>
+        {
+            // Emetra.VclForm.Period.dfm:36 - panWhiteTop is 45 tall, not the save modal's 41.
+            Assert.Equal(45d, dialog.Banner.Height);
 
-        // Emetra.VclForm.Period.dfm:36 - panWhiteTop is 45 tall, not the save modal's 41.
-        Assert.Equal(45d, dialog.Banner.Height);
+            StackPanel lines = (StackPanel)dialog.Banner.Child;
 
-        StackPanel lines = (StackPanel)dialog.Banner.Child;
-
-        Assert.Equal(PeriodViewModel.DialogHeader, ((TextBlock)lines.Children[0]).Text);
-        Assert.Equal("Noe helt annet.", ((TextBlock)lines.Children[1]).Text);
+            Assert.Equal(PeriodViewModel.DialogHeader, ((TextBlock)lines.Children[0]).Text);
+            Assert.Equal("Noe helt annet.", ((TextBlock)lines.Children[1]).Text);
+        });
     });
+
+    [Fact]
+    public void PressingOkAcceptsAndPressingEscapeDoesNot() => StaTestRunner.Run(() =>
+    {
+        PeriodViewModel model = new()
+        {
+            Start = new DateTime(2019, 3, 4, 0, 0, 0, DateTimeKind.Unspecified),
+            Stop = new DateTime(2019, 3, 18, 0, 0, 0, DateTimeKind.Unspecified),
+        };
+
+        bool? accepted = RealisedWindow.ShowModal(
+            new PeriodDialog { DataContext = model },
+            dialog => dialog.OkButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)));
+
+        Assert.True(accepted);
+
+        // Closing without pressing OK is a cancel however it happens; WpfPeriodPrompt turns
+        // anything that is not exactly true into null.
+        bool? closed = RealisedWindow.ShowModal(new PeriodDialog { DataContext = model }, dialog => dialog.Close());
+
+        Assert.NotEqual(true, closed);
+    });
+
+    /// <summary>Forces a culture for the duration of a test.</summary>
+    private sealed class CultureScope : IDisposable
+    {
+        private readonly CultureInfo _previous = CultureInfo.CurrentCulture;
+
+        internal CultureScope(string name) => CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
+
+        public void Dispose() => CultureInfo.CurrentCulture = _previous;
+    }
 }

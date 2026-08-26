@@ -1,4 +1,3 @@
-using System.Windows;
 using Microsoft.Extensions.Logging;
 using QuickStat.Configuration.Settings;
 using QuickStat.Domain.Populations;
@@ -46,6 +45,7 @@ public sealed class WpfPeriodPrompt : IPeriodPrompt
     private readonly IUiDispatcher _dispatcher;
     private readonly ISettingsStore _settings;
     private readonly ILogger<WpfPeriodPrompt> _logger;
+    private readonly Func<PeriodViewModel, bool> _show;
 
     /// <summary>Creates the prompt.</summary>
     /// <param name="dispatcher">Marshals to the user-interface thread; a modal needs one.</param>
@@ -53,14 +53,40 @@ public sealed class WpfPeriodPrompt : IPeriodPrompt
     /// <param name="logger">Log.</param>
     /// <exception cref="ArgumentNullException">Any argument is <see langword="null"/>.</exception>
     public WpfPeriodPrompt(IUiDispatcher dispatcher, ISettingsStore settings, ILogger<WpfPeriodPrompt> logger)
+        : this(dispatcher, settings, logger, ShowDialog)
+    {
+    }
+
+    /// <summary>Creates the prompt over a substitute for the modal. For tests only.</summary>
+    /// <param name="dispatcher">Marshals to the user-interface thread.</param>
+    /// <param name="settings">Where the last range for this query is remembered.</param>
+    /// <param name="logger">Log.</param>
+    /// <param name="show">
+    /// Stands in for the modal: it is handed the pre-filled view-model and returns whether the user
+    /// accepted, exactly as <c>ShowDialog() == true</c> does.
+    /// </param>
+    /// <exception cref="ArgumentNullException">Any argument is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Internal, so the container never sees it; <c>QuickStat.App</c> grants
+    /// <c>InternalsVisibleTo</c> to the test assembly. The read-show-write sequence and the settings
+    /// key are the whole of this class's behaviour and neither can be checked while a modal window
+    /// is blocking the thread the assertion would run on.
+    /// </remarks>
+    internal WpfPeriodPrompt(
+        IUiDispatcher dispatcher,
+        ISettingsStore settings,
+        ILogger<WpfPeriodPrompt> logger,
+        Func<PeriodViewModel, bool> show)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(show);
 
         _dispatcher = dispatcher;
         _settings = settings;
         _logger = logger;
+        _show = show;
     }
 
     /// <summary>The range a query gets when nothing has been remembered for it.</summary>
@@ -92,7 +118,7 @@ public sealed class WpfPeriodPrompt : IPeriodPrompt
 
         HalfOpenPeriod? chosen = null;
 
-        await _dispatcher.InvokeAsync(() => chosen = Show(start, stop, caption)).ConfigureAwait(true);
+        await _dispatcher.InvokeAsync(() => chosen = Ask(start, stop, caption)).ConfigureAwait(true);
 
         if (chosen is not { } period)
         {
@@ -111,7 +137,17 @@ public sealed class WpfPeriodPrompt : IPeriodPrompt
         return period;
     }
 
-    private static HalfOpenPeriod? Show(DateTime start, DateTime stop, string caption)
+    /// <summary>Shows the real modal.</summary>
+    private static bool ShowDialog(PeriodViewModel model)
+    {
+        PeriodDialog dialog = new() { DataContext = model };
+
+        DialogOwner.Attach(dialog);
+
+        return dialog.ShowDialog() == true;
+    }
+
+    private HalfOpenPeriod? Ask(DateTime start, DateTime stop, string caption)
     {
         PeriodViewModel model = new()
         {
@@ -123,23 +159,11 @@ public sealed class WpfPeriodPrompt : IPeriodPrompt
             SubHeaderText = string.IsNullOrWhiteSpace(caption) ? PeriodViewModel.SubHeader : caption,
         };
 
-        // Application.Current is null under test and Owner does not accept one, so the owner is
-        // chosen rather than passed through.  Without it the modal is not centred on the shell and
-        // can end up behind it.
-        Window? owner = Application.Current?.MainWindow;
-
-        PeriodDialog dialog = new() { DataContext = model };
-
-        if (owner is not null && !ReferenceEquals(owner, dialog))
-        {
-            dialog.Owner = owner;
-        }
-
         // Emetra.VclForm.Period.pas:52 checks the range again after ShowModal, because VerifyInput
         // is only wired to OnChange and an untouched dialog never runs it.  Here CanAccept is bound
         // and correct from the first frame, so this is belt and braces - and it stays, because the
         // one thing that must not happen is an invalid period reaching the query.
-        return dialog.ShowDialog() == true && model.CanAccept ? model.Period : null;
+        return _show(model) && model.CanAccept ? model.Period : null;
     }
 
     private (DateTime Start, DateTime Stop) Remembered(string key)

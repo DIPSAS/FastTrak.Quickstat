@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Windows;
 
 namespace QuickStat.Tests.Ui.Dialogs;
@@ -58,6 +59,75 @@ internal static class RealisedWindow
         finally
         {
             window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Shows <paramref name="window"/> as a modal, presses something in it, and returns the answer.
+    /// </summary>
+    /// <typeparam name="TWindow">The window type.</typeparam>
+    /// <param name="window">The modal.</param>
+    /// <param name="interact">
+    /// Run once the window has rendered, from inside the modal's own message pump. Whatever it does
+    /// has to end the dialog - set <see cref="Window.DialogResult"/>, or raise a click on a button
+    /// that does.
+    /// </param>
+    /// <returns>Whatever <see cref="Window.ShowDialog"/> returned.</returns>
+    /// <exception cref="ArgumentNullException">Either argument is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The window is closed and any failure inside <paramref name="interact"/> is rethrown after the
+    /// dialog has come down, so a wrong assertion fails the test instead of leaving a modal window
+    /// blocking the apartment until <see cref="StaTestRunner.DefaultTimeout"/> expires.
+    /// </remarks>
+    internal static bool? ShowModal<TWindow>(TWindow window, Action<TWindow> interact)
+        where TWindow : Window
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(interact);
+
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.ShowInTaskbar = false;
+        window.ShowActivated = false;
+        window.Left = OffScreen;
+        window.Top = OffScreen;
+
+        ExceptionDispatchInfo? failure = null;
+
+        window.ContentRendered += OnRendered;
+
+        try
+        {
+            return window.ShowDialog();
+        }
+        finally
+        {
+            window.ContentRendered -= OnRendered;
+
+            if (window.IsVisible)
+            {
+                window.Close();
+            }
+
+            failure?.Throw();
+        }
+
+        void OnRendered(object? sender, EventArgs e)
+        {
+            try
+            {
+                interact(window);
+            }
+            catch (Exception exception)
+            {
+                failure = ExceptionDispatchInfo.Capture(exception);
+            }
+            finally
+            {
+                if (window.IsVisible)
+                {
+                    window.Close();
+                }
+            }
         }
     }
 
