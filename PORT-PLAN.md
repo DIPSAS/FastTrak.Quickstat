@@ -335,8 +335,10 @@ A packaged selection is stored **server-side** (`Report.QuickStat`, written by `
 and removed by `QuickStat.DeletePackage`), not in a local settings file — which is why it is a
 repository under 2.3 and not part of the settings store in 2.7.
 
-Step 2.4 is by far the largest: **126 distinct collector names** (87 built through the factory, 39
-constructed directly) plus `2 × N` dynamic per-form collectors. Split it by collector family —
+Step 2.4 is by far the largest: **131 distinct collector names** in the canonical registry, plus
+`2 × N` dynamic per-form collectors. (126 of those are in *this* reduced repo — 87 built through the
+factory, 39 constructed directly; the remaining five arrive with Phase 4. See §10.3.) Split it by
+collector family —
 demographics + forms (36 always-on) / labdata / drugs (35) / diagnoses (17) / GBD varsets (24) —
 each family owning its own registry file behind a common partial registration entry point.
 
