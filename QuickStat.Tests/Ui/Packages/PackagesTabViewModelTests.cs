@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Windows.Threading;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuickStat.Diagnostics;
 using QuickStat.Domain.Anonymisation;
@@ -37,7 +38,7 @@ public class PackagesTabViewModelTests
     /// <summary>Everything one case needs, wired the way the container wires it.</summary>
     private sealed class Harness : IDisposable
     {
-        internal Harness(bool answerConfirmations = true)
+        internal Harness(bool answerConfirmations = true, IUiDispatcher? uiDispatcher = null)
         {
             Matrix = ShellWorkspaceTests.NewMatrix();
             Workspace = new ShellWorkspace(Matrix);
@@ -67,7 +68,7 @@ public class PackagesTabViewModelTests
             ViewModel = new PackagesTabViewModel(
                 Workspace,
                 Progress,
-                new InlineUiDispatcher(),
+                uiDispatcher ?? new InlineUiDispatcher(),
                 Session,
                 Repository,
                 Patients,
@@ -999,5 +1000,89 @@ public class PackagesTabViewModelTests
     {
         Assert.Equal("Packaged datasets", PackagesTabViewModel.PackagesHeader);
         Assert.Equal("Delete this package", PackagesTabViewModel.DeletePackageCaption);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    //  Under the real thing: an STA thread with a running dispatcher.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheFilteredViewWorksUnderARunningDispatcher()
+    {
+        // The cases above run on the plain MTA test thread, where the ListCollectionView happens to
+        // behave.  Shipping configuration is an STA thread with a pumped dispatcher, and a collection
+        // view is affine to the one that created it - so the whole load-filter-select cycle is worth
+        // one pass through the real arrangement.
+        StaTestRunner.RunWithDispatcher(async () =>
+        {
+            using CultureScope scope = new("en-US");
+            using Harness harness = new();
+
+            harness.Repository.Stored.Add(NewPackage(41, "Diabetes basissett 2024"));
+            harness.Repository.Stored.Add(NewPackage(42, "Antropometri"));
+
+            await harness.ViewModel.ReloadAsync();
+
+            Assert.Equal(2, VisibleTitles(harness.ViewModel).Count);
+
+            harness.ViewModel.FilterText = "antro";
+
+            Assert.Equal(["Antropometri"], VisibleTitles(harness.ViewModel));
+
+            harness.ViewModel.SelectedPackage = harness.ViewModel.Packages[1];
+
+            Assert.True(harness.ViewModel.DeletePackageCommand.CanExecute(null));
+
+            await harness.ViewModel.DeletePackageCommand.ExecuteAsync(null);
+
+            Assert.Equal(["Diabetes basissett 2024"], harness.ViewModel.Packages.Select(p => p.Title));
+        });
+    }
+
+    [Fact]
+    public void ALoginAnnouncedOffTheUiThreadStillFillsTheList()
+    {
+        // ISessionService.SessionChanged is raised wherever the login pipeline happens to be, and
+        // Packages is bound - so the handler has to marshal.  With a real dispatcher in place, a
+        // direct call from the thread pool would throw rather than merely race.
+        StaTestRunner.RunWithDispatcher(async () =>
+        {
+            using Harness harness = new(uiDispatcher: new WpfUiDispatcher(Dispatcher.CurrentDispatcher));
+
+            harness.Repository.Stored.Add(NewPackage(41, "Diabetes basissett 2024"));
+
+            await Task.Run(() => harness.Session.Announce(FakeSession.ForStudy(931)));
+
+            // Let the posted reload run: BeginInvoke queues at Normal, this resumes below it.
+            await Dispatcher.Yield(DispatcherPriority.Background);
+
+            Assert.Equal([931], harness.Repository.LoadedStudyIds);
+            Assert.Equal(["Diabetes basissett 2024"], harness.ViewModel.Packages.Select(p => p.Title));
+        });
+    }
+
+    [Fact]
+    public void TheReplayWorksUnderARunningDispatcher()
+    {
+        StaTestRunner.RunWithDispatcher(async () =>
+        {
+            using Harness harness = new();
+
+            harness.Connect();
+            harness.AddPopulation(257, "Aktive diabetikere");
+            harness.Patients.Cohort.Add(ShellWorkspaceTests.NewPatient(52));
+
+            DataElementViewModel element = harness.AddElement("QS_HBA1C", "Labdata: HbA1c (siste)");
+
+            harness.Repository.Stored.Add(NewPackage(41, "Diabetes basissett 2024", "", 257, "QS_HBA1C"));
+
+            await harness.SelectAsync("Diabetes basissett 2024");
+            await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+            Assert.True(element.IsChecked);
+            Assert.Equal(257, harness.Workspace.Population?.ProcId);
+            Assert.Equal("Diabetes basissett 2024", harness.Dataset.CaptionText);
+            Assert.False(harness.Progress.IsBusy);
+        });
     }
 }
