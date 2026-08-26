@@ -50,6 +50,12 @@ public sealed class MatrixGridLayout
     public const double ResizeGripWidth = 4;
 
     /// <summary>
+    /// Slack for comparing a scroll offset against a column boundary, so a click on a scroll arrow
+    /// at a boundary steps a whole column instead of moving by a rounding error.
+    /// </summary>
+    private const double BoundaryEpsilon = 0.5;
+
+    /// <summary>
     /// Default widths of the four identity columns, by
     /// <see cref="FixedColumns"/> ordinal: 44 / 64 / 84 / 128.
     /// </summary>
@@ -605,6 +611,53 @@ public sealed class MatrixGridLayout
         }
 
         return horizontalOffset;
+    }
+
+    /// <summary>The next data-column boundary strictly to the right of an offset.</summary>
+    /// <param name="horizontalOffset">The current offset into the scrollable band.</param>
+    /// <returns>The offset of the next boundary, or <see cref="DataWidth"/> when there is none.</returns>
+    /// <remarks>
+    /// A scroll-bar arrow moves the view by one column, not by a fixed pixel count - otherwise a
+    /// grid whose columns have been dragged to different widths drifts a little on every click.
+    /// </remarks>
+    public double NextColumnBoundary(double horizontalOffset)
+    {
+        double[] offsets = Offsets;
+        double frozen = offsets[FixedColumnCount];
+        int index = FindColumnAt(offsets, frozen + Math.Max(0, horizontalOffset), FixedColumnCount);
+
+        // The column under the offset always ends to the right of it, because FindColumnAt returns
+        // the column whose half-open span contains the point.
+        return index == MatrixGrid.NoIndex ? DataWidth : offsets[index + 1] - frozen;
+    }
+
+    /// <summary>The previous data-column boundary strictly to the left of an offset.</summary>
+    /// <param name="horizontalOffset">The current offset into the scrollable band.</param>
+    /// <returns>The offset of the previous boundary, or zero when there is none.</returns>
+    public double PreviousColumnBoundary(double horizontalOffset)
+    {
+        if (horizontalOffset <= 0 || DataColumnCount == 0)
+        {
+            return 0;
+        }
+
+        double[] offsets = Offsets;
+        double frozen = offsets[FixedColumnCount];
+        int index = FindColumnAt(offsets, frozen + horizontalOffset, FixedColumnCount);
+
+        if (index == MatrixGrid.NoIndex)
+        {
+            index = DisplayColumnCount - 1;
+        }
+
+        double left = offsets[index] - frozen;
+
+        if (left < horizontalOffset - BoundaryEpsilon)
+        {
+            return left;
+        }
+
+        return index > FixedColumnCount ? offsets[index - 1] - frozen : 0;
     }
 
     /// <summary>The vertical scroll offset that brings a row fully into view.</summary>
