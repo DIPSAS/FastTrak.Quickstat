@@ -1,6 +1,7 @@
 using System.Globalization;
 using ClosedXML.Excel;
 using QuickStat.Domain.Anonymisation;
+using QuickStat.Domain.DataPoints;
 using QuickStat.Domain.Matrix;
 
 namespace QuickStat.Export;
@@ -24,8 +25,12 @@ namespace QuickStat.Export;
 /// an omitted column is omitted here too. There is no second privacy path.
 /// </para>
 /// <para>
-/// Cells are not shaded. Colour comes from <see cref="PersonMatrix.GetCell"/>, which belongs to step
-/// 2.5; adding fills is a small follow-up once that lands.
+/// Cells are shaded from the same <see cref="MatrixCell"/> the screen uses, so the fourteen
+/// hardcoded threshold ladders reach the workbook. Two fills are skipped, both deliberately:
+/// <see cref="RiskPalette.NoRisk"/>, which is pure white and therefore indistinguishable from
+/// Excel's default, and cells with no datapoint, which are not written at all - shading them
+/// <see cref="RiskPalette.EmptyCell"/> as the grid does would mean materialising every hole in a
+/// sparse matrix, and a realistic worst case is 1 500 columns by 1 000 rows.
 /// </para>
 /// </remarks>
 public static class XlsxMatrixWriter
@@ -113,24 +118,10 @@ public static class XlsxMatrixWriter
     {
         int column = 1;
 
-        if (columns.IncludesPersonId)
+        // The same derivation the CSV writer and the grid use.
+        foreach (string header in FixedColumns.HeadersFor(columns))
         {
-            sheet.Cell(1, column++).Value = FixedColumns.PersonIdHeader;
-        }
-
-        if (columns.IncludesDateOfBirth)
-        {
-            sheet.Cell(1, column++).Value = FixedColumns.DateOfBirthHeader;
-        }
-
-        if (columns.IncludesNationalId)
-        {
-            sheet.Cell(1, column++).Value = FixedColumns.NationalIdHeader;
-        }
-
-        if (columns.IncludesName)
-        {
-            sheet.Cell(1, column++).Value = FixedColumns.NameHeader;
+            sheet.Cell(1, column++).Value = header;
         }
 
         int identityColumnCount = column - 1;
@@ -171,39 +162,38 @@ public static class XlsxMatrixWriter
     {
         int column = 1;
 
-        if (columns.UsesPseudonyms)
-        {
-            sheet.Cell(sheetRow, column++).Value = anonymiser!.GetPseudonym(row.PersonId);
-        }
-        else if (columns.IncludesPersonId)
-        {
-            sheet.Cell(sheetRow, column++).Value = row.PersonId;
-        }
-
-        if (columns.IncludesDateOfBirth)
+        foreach (int ordinal in FixedColumns.VisibleOrdinals(columns))
         {
             IXLCell cell = sheet.Cell(sheetRow, column++);
 
-            if (row.DateOfBirth is { } dateOfBirth)
+            switch (ordinal)
             {
-                cell.Value = dateOfBirth;
-                cell.Style.DateFormat.Format = DateNumberFormat;
+                case FixedColumns.PersonId:
+                    cell.Value = columns.UsesPseudonyms
+                        ? anonymiser!.GetPseudonym(row.PersonId)
+                        : row.PersonId;
+                    break;
+
+                case FixedColumns.DateOfBirth:
+                    if (row.DateOfBirth is { } dateOfBirth)
+                    {
+                        cell.Value = dateOfBirth;
+                        cell.Style.DateFormat.Format = DateNumberFormat;
+                    }
+
+                    break;
+
+                case FixedColumns.NationalId:
+                    // Text, and marked as text: a Norwegian national id starting with a zero must
+                    // not be re-read as a number by Excel.
+                    cell.Style.NumberFormat.Format = TextNumberFormat;
+                    cell.Value = row.NationalId ?? string.Empty;
+                    break;
+
+                default:
+                    cell.Value = row.FullName;
+                    break;
             }
-        }
-
-        if (columns.IncludesNationalId)
-        {
-            IXLCell cell = sheet.Cell(sheetRow, column++);
-
-            // Text, and marked as text: a Norwegian national id starting with a zero must not be
-            // re-read as a number by Excel.
-            cell.Style.NumberFormat.Format = TextNumberFormat;
-            cell.Value = row.NationalId ?? string.Empty;
-        }
-
-        if (columns.IncludesName)
-        {
-            sheet.Cell(sheetRow, column++).Value = row.FullName;
         }
 
         for (int columnIndex = 0; columnIndex < dataset.Columns.Count; columnIndex++)
@@ -219,9 +209,12 @@ public static class XlsxMatrixWriter
                 }
                 else
                 {
-                    // Free text from a form, which the CSV also writes in place of the number.
+                    // Free text from a form, which the CSV also writes in place of the number - in
+                    // full, unlike the grid's six-character truncation.
                     cell.Value = source.Caption;
                 }
+
+                ApplyAppearance(cell, source);
             }
 
             if (!options.IncludeTimestamps)
@@ -238,6 +231,36 @@ public static class XlsxMatrixWriter
             }
         }
     }
+
+    /// <summary>
+    /// Paints one data cell the way the grid paints it.
+    /// </summary>
+    /// <remarks>
+    /// A white background is left unset: <see cref="RiskPalette.NoRisk"/> is what every unruled cell
+    /// gets, which is nearly all of them, and an explicit white fill is indistinguishable from
+    /// Excel's default while costing a style reference per cell.
+    /// </remarks>
+    private static void ApplyAppearance(IXLCell cell, ExportCell source)
+    {
+        if (source.Background is { } background && background != RiskPalette.NoRisk)
+        {
+            cell.Style.Fill.BackgroundColor = ToXLColor(background);
+        }
+
+        if (source.Foreground is { } foreground)
+        {
+            cell.Style.Font.FontColor = ToXLColor(foreground);
+        }
+
+        cell.Style.Alignment.Horizontal = source.AlignLeft
+            ? XLAlignmentHorizontalValues.Left
+            : XLAlignmentHorizontalValues.Right;
+    }
+
+    /// <summary>Converts a domain colour, which is what keeps WPF out of <c>QuickStat.Core</c>.</summary>
+    /// <param name="colour">The colour.</param>
+    /// <returns>The ClosedXML colour.</returns>
+    public static XLColor ToXLColor(Rgb colour) => XLColor.FromArgb(colour.R, colour.G, colour.B);
 
     /// <summary>
     /// Renders one value the way the CSV would, for callers that want the two to agree.

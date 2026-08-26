@@ -23,6 +23,29 @@ internal static class ExportFixtures
     internal static Encoding Cp1252 => CsvMatrixWriter.LegacyEncoding;
 
     /// <summary>
+    /// Makes <see cref="CultureInfo.CurrentCulture"/> Norwegian for the scope of a test.
+    /// </summary>
+    /// <returns>A scope that restores the previous culture.</returns>
+    /// <remarks>
+    /// Needed wherever a test reads something the <em>grid</em> formatted rather than the exporter:
+    /// several <c>DataPointRule.FormatValue</c> overrides - BMI's <c>F1</c>, for one - format against
+    /// the ambient culture, exactly as Delphi's global <c>FormatSettings</c> does. A test that
+    /// asserted a literal <c>23,5</c> without this would pass on a Norwegian workstation and fail on
+    /// an English build agent. The setter is async-local, so it does not disturb tests running in
+    /// parallel.
+    /// </remarks>
+    internal static IDisposable UseNorwegianCulture() => new CultureScope(Norwegian);
+
+    private sealed class CultureScope : IDisposable
+    {
+        private readonly CultureInfo _previous = CultureInfo.CurrentCulture;
+
+        internal CultureScope(CultureInfo culture) => CultureInfo.CurrentCulture = culture;
+
+        public void Dispose() => CultureInfo.CurrentCulture = _previous;
+    }
+
+    /// <summary>
     /// The §5.2 worked example: person 8, born 1922-03-12, fnr 12032212345, "Hansen, Ola",
     /// AGE 97 and YOB 1922, both observed 2019-08-14.
     /// </summary>
