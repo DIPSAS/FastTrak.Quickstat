@@ -36,14 +36,23 @@ namespace QuickStat.Services;
 /// this order:
 /// </para>
 /// <code>
-/// matrix.SortBy = MatrixSortOrder.PersonId;   // before Prepare; it throws once locked
+/// matrix.Clear();                             // FIRST: SortBy throws while the matrix is locked
+/// matrix.SortBy = MatrixSortOrder.PersonId;
 /// matrix.PreparePopulation(patients);
 /// workspace.SetPopulation(population);        // now Rows.Count is right, so HasPopulation is too
-/// workspace.RequestCollectionsTab();          // only on the double-click path - see the method
+/// workspace.RequestCollectionsTab();          // both entry points - see the method
 /// </code>
 /// <para>
 /// And a collect run must end with <see cref="NotifyDataChanged"/>, after
 /// <see cref="PersonMatrix.Lock"/>.
+/// </para>
+/// <para>
+/// The clear has to come first, and an earlier version of this block left it out.
+/// <see cref="PersonMatrix.SortBy"/> throws when the matrix is locked, and the check runs before the
+/// "already that value" short-circuit, so even a no-op assignment throws.
+/// <see cref="PersonMatrix.PreparePopulation"/> does clear, but only after you have already assigned
+/// <c>SortBy</c>. Without the leading <c>Clear</c> the sequence works once and throws the second
+/// time: load a population, collect, load another.
 /// </para>
 /// </remarks>
 public interface IShellWorkspace : INotifyPropertyChanged
@@ -133,11 +142,20 @@ public interface IShellWorkspace : INotifyPropertyChanged
 
     /// <summary>Asks the shell to show the <c>Collections</c> tab.</summary>
     /// <remarks>
-    /// Only the population double-click path does this. <c>AfterPopulationSelect</c> sets
-    /// <c>pgSelections.ActivePage := tbsDataElements</c> (<c>MainQuickStat.pas:540</c>); the package
-    /// replay calls <c>LoadPopulationIntoGrid</c> directly and deliberately leaves the user on the
-    /// <c>Packages</c> tab. Folding this into <see cref="SetPopulation"/> would move the user's
-    /// focus during a replay.
+    /// <b>Both</b> paths that load a cohort do this: the population double-click and the package
+    /// replay. <c>AfterPopulationSelect</c> ends with
+    /// <c>pgSelections.ActivePage := tbsDataElements</c> (<c>MainQuickStat.pas:541</c>), and the
+    /// replay reaches that same handler — <c>PreparePackagedSelection</c> calls
+    /// <c>TrySelect(procId, ALoadIt := true, …)</c> (<c>:789</c>), which calls
+    /// <c>PopulationRequested</c>, which notifies every <c>IPopulationObserver</c>, of which
+    /// <c>TfrmQuickStat</c> is one (<c>:288</c>).
+    /// </remarks>
+    /// <remarks>
+    /// An earlier version of this comment, and of <c>Docs/Port/07-ui-contracts.md</c> §3.1, claimed
+    /// the replay stayed on the <c>Packages</c> tab. Steps 3.2 and 3.4 independently traced the call
+    /// chain above and found otherwise. It is kept as a separate call rather than folded into
+    /// <see cref="SetPopulation"/> because the two are genuinely different concerns and a future
+    /// caller may want one without the other.
     /// </remarks>
     void RequestCollectionsTab();
 }

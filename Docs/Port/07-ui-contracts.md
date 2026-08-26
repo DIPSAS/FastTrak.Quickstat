@@ -173,18 +173,35 @@ The identification mode is deliberately **not** here: it already has one home,
 is a plain mutable object with no change notification, so the workspace cannot observe it:
 
 ```csharp
-matrix.SortBy = MatrixSortOrder.PersonId;   // before Prepare; it throws once locked
+matrix.Clear();                             // or ClearPopulation(); see below - it must come FIRST
+matrix.SortBy = MatrixSortOrder.PersonId;   // throws while the matrix is locked
 matrix.PreparePopulation(patients);
 workspace.SetPopulation(population);        // now Rows.Count is right
-workspace.RequestCollectionsTab();          // ONLY on the population double-click path
+workspace.RequestCollectionsTab();          // both entry points - see below
 ```
 
 and a collect run ends with `matrix.Lock(); workspace.NotifyDataChanged();`.
 
-`RequestCollectionsTab` is separate from `SetPopulation` on purpose. `AfterPopulationSelect` sets
-`pgSelections.ActivePage := tbsDataElements` (`MainQuickStat.pas:540`); the **package replay does
-not** — it calls `LoadPopulationIntoGrid` directly and leaves the user on the Packages tab. Step 3.4
-must not call it.
+**Two corrections, both found during wave 2 and both from agents that were handed the wrong version
+of this block. Trust the code above, not any copy of it you have already read.**
+
+**(1) The clear has to come first, and this snippet used to omit it.** `SortBy`'s setter throws
+`InvalidOperationException` when `IsLocked`, and the check sits *before* the `_sortBy == value`
+short-circuit, so even a no-op assignment throws. A collect run locks. `PreparePopulation` does
+unlock — via `Clear()` — but only *after* you have assigned `SortBy`, so it does not save you. As
+written before, the sequence worked once and threw the second time: load a population, collect, load
+another. Both steps 3.2 and 3.4 hit it and added regression tests.
+
+**(2) The package replay *does* switch to the Collections tab.** This section previously said it did
+not, and both 3.2 and 3.4 independently traced the opposite. `PreparePackagedSelection` calls
+`frmPopulations.TrySelect(procId, ALoadIt := true, …)` (`MainQuickStat.pas:789`); with `ALoadIt`
+true, `TrySelect` calls `PopulationRequested` (`EPR.VclFrame.Populations.pas:195`); that walks
+`fObservers` calling `AfterPopulationSelect` (`:217-218`); `TfrmQuickStat` registered itself as one
+(`MainQuickStat.pas:288`); and `AfterPopulationSelect` ends with
+`pgSelections.ActivePage := tbsDataElements` (`:541`). Control then returns to
+`PreparePackagedSelection`, which calls `LoadPopulationIntoGrid` **a second time** — so the Delphi
+also loads the cohort twice. The port switches the tab (parity) and loads once (the double load is a
+plain waste, not a behaviour anyone can see).
 
 ### 3.2 `IShellProgress` — the Progress block and the busy flag
 
@@ -364,8 +381,19 @@ implement.
 **"Collector order" means the check list's order, which is alphabetical by title** (PORT-PLAN.md
 §6). `cbDataCollector.Sorted := true` is set in `FormShow` before `AfterLogin` fills the list, and
 the collect loop walks `Items` from index 0 — so that walk *is* the column order of every export.
-Sort with `StringComparer.Ordinal`, which is what keeps the `^ `-prefixed demographic collectors
-first. Registry order decides which collectors exist, not where their columns land.
+Sort with **`StringComparer.CurrentCultureIgnoreCase`**. Registry order decides which collectors
+exist, not where their columns land.
+
+> **Corrected after this document was written.** It originally said `StringComparer.Ordinal`, "which
+> is what keeps the `^ `-prefixed demographic collectors first". Ordinal does the opposite: `'^'` is
+> U+005E, above `'Z'` and below `'a'`, and every other title begins with a capital, so it sorts all
+> eleven `^ ` elements **last**. `Sorted := true` is `LBS_SORT`, i.e.
+> `CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE)` — linguistic and case-insensitive. Step 3.3
+> caught this and pinned it in `Ui/Collections/CollectorOrderTests.cs`. See PORT-PLAN.md §6.
+>
+> Note this is the opposite of the two **list filters** above, which really are ordinal: those model
+> Delphi's `Pos`, a byte scan, while this models a Win32 list box's locale collation. Same file, two
+> different mechanisms; do not unify them.
 
 ---
 

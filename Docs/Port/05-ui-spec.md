@@ -908,10 +908,17 @@ screenshot 2/3 you can see the residual selection on `^ Kjønn`.
 ### G.5 Sorting
 
 * `cbDataCollector.Sorted := true` (set in `FormShow`) — the data-element list is sorted
-  **alphabetically by title**, ordinal/ANSI. This is why the `^ `-prefixed demographic
-  collectors float to the top. Use `StringComparer.Ordinal` (not culture-aware) to keep the
-  `^` group first; Norwegian `æ ø å` then sort at the end, which matches the screenshots
-  (`Antropometri…` before `Diabetes…` before `Labdata…` before `NDV…`).
+  **alphabetically by title**. This is why the `^ `-prefixed demographic collectors float to the top.
+
+  **Corrected during Phase 3 wave 2 (step 3.3): use `StringComparer.CurrentCultureIgnoreCase`, not
+  `StringComparer.Ordinal`.** This bullet previously said ordinal, "to keep the `^` group first". It
+  does the opposite: `'^'` is U+005E, above `'Z'` and below `'a'`, and every other title starts with
+  a capital, so ordinal sorts all eleven `^ ` elements **last**. Sorted against the real
+  120-collector KORTTID registry, only a linguistic ignore-case comparer reproduces screenshot 2
+  (`^ Alder … ^ Statuskode`, then `Antropometri…`, `Diabetes…`, `Labdata…`, `NDV…`). `Sorted := true`
+  is `LBS_SORT`, whose default comparison is `CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE)` —
+  culture-sensitive, which is what `CurrentCultureIgnoreCase` means. See PORT-PLAN.md §6; this is a
+  parity item, and getting it wrong reorders every exported CSV.
 * `cbProject.Sorted := true` (set in `FormShow`) — the database drop-down is sorted by display
   name, and no item is preselected.
 * Populations are **not** sorted by the client — they arrive in stored-procedure order

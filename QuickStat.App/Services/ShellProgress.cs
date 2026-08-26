@@ -59,12 +59,16 @@ public sealed class ShellProgress : IShellProgress
     /// <inheritdoc />
     public void Report(OperationProgress value) => _dispatcher.Invoke(() =>
     {
-        // Only a non-empty header wins: see IShellProgress.Header.
-        if (!string.IsNullOrEmpty(value.Header))
-        {
-            Set(ref _header, value.Header, nameof(Header));
-        }
-
+        // value.Header is deliberately ignored.  Core's login pipeline reports "Connecting" and
+        // CollectorRunner reports "Collecting data", and letting either win left the banner reading
+        // "Collecting data" for the rest of the session - the label never went back.
+        //
+        // The Delphi's header is a static caption.  TfrmQuickStat implements IProgress.SetHeader
+        // (MainQuickStat.pas:433, assigning lblProgress.Caption) and *nothing in the application
+        // ever calls it*, which is what 05-ui-spec.md §G.6 records. The operation's name belongs on
+        // the status line underneath, which is exactly where Info puts it.
+        //
+        // Found by step 3.3 during Phase 3 wave 2, and verified against the Delphi source.
         Set(ref _info, value.Info ?? "", nameof(Info));
         Set(ref _isError, false, nameof(IsError));
 

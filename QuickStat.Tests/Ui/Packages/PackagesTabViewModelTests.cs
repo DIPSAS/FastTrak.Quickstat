@@ -627,9 +627,14 @@ public class PackagesTabViewModelTests
     }
 
     [Fact]
-    public async Task ReplayingDoesNotSwitchToTheCollectionsTab()
+    public async Task ReplayingSwitchesToTheCollectionsTabExactlyOnce()
     {
-        // 07-ui-contracts.md §3.1: AfterPopulationSelect switches the left pane, the replay does not.
+        // The reverse of what this test used to assert.  07-ui-contracts.md §3.1 claimed the replay
+        // stayed on the Packages tab; the call chain says otherwise and has been checked against the
+        // source: PreparePackagedSelection calls TrySelect(procId, ALoadIt := true, ...)
+        // (MainQuickStat.pas:789) -> PopulationRequested (EPR.VclFrame.Populations.pas:195) -> every
+        // observer's AfterPopulationSelect (:217-218) -> pgSelections.ActivePage := tbsDataElements
+        // (MainQuickStat.pas:541).  Once, not twice, even though the Delphi loads the cohort twice.
         using Harness harness = new();
 
         int requests = 0;
@@ -644,7 +649,29 @@ public class PackagesTabViewModelTests
         await harness.SelectAsync("Alfa");
         await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
 
+        Assert.Equal(1, requests);
+    }
+
+    [Fact]
+    public async Task AReplayThatCannotLoadThePopulationDoesNotSwitchTabs()
+    {
+        // The switch happens inside AfterPopulationSelect, which TrySelect only reaches once the
+        // population has been found and loaded.  A replay that gives up earlier leaves the user
+        // looking at the package list, which is where the problem is.
+        using Harness harness = new();
+
+        int requests = 0;
+
+        harness.Workspace.CollectionsTabRequested += (_, _) => requests++;
+
+        harness.Connect();
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
         Assert.Equal(0, requests);
+        Assert.NotEmpty(harness.Presenter.Notifications);
     }
 
     [Fact]

@@ -263,9 +263,22 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// - the Delphi says so in as many words: <c>The data collection will be incomplete.</c>
     /// </para>
     /// <para>
-    /// <b>It must not switch tabs.</b> <see cref="IShellWorkspace.RequestCollectionsTab"/> belongs to
-    /// the population double-click path; the replay loads the population directly and leaves the
-    /// user here.
+    /// <b>It switches to the Collections tab, like the population double-click.</b> An earlier
+    /// revision of <c>Docs/Port/07-ui-contracts.md</c> §3.1 said the replay stayed here, and this
+    /// step was instructed accordingly; steps 3.2 and 3.4 both traced the opposite and it was
+    /// verified against the source. <c>PreparePackagedSelection</c> calls
+    /// <c>TrySelect(procId, ALoadIt := true, …)</c> (<c>MainQuickStat.pas:789</c>) → <c>TrySelect</c>
+    /// calls <c>PopulationRequested</c> (<c>EPR.VclFrame.Populations.pas:195</c>) → that notifies
+    /// every observer's <c>AfterPopulationSelect</c> (<c>:217-218</c>) → and <c>TfrmQuickStat</c>,
+    /// which registered itself at <c>MainQuickStat.pas:288</c>, ends that handler with
+    /// <c>pgSelections.ActivePage := tbsDataElements</c> (<c>:541</c>). The tab therefore changes
+    /// before the collect starts, which is also when the user can see which elements the package
+    /// ticked.
+    /// </para>
+    /// <para>
+    /// The Delphi then loads the cohort a <em>second</em> time, because control returns to
+    /// <c>PreparePackagedSelection</c> which calls <c>LoadPopulationIntoGrid</c> itself. That is
+    /// wasted work with no visible effect, and is not reproduced.
     /// </para>
     /// <para>
     /// The whole replay sits in one <see cref="IShellProgress.BeginOperation"/> scope and the collect
@@ -314,6 +327,11 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
             {
                 return;
             }
+
+            // Where AfterPopulationSelect does it: after the cohort is in the matrix and before the
+            // collect, so the ticks that ApplyCollectorSelectionAsync is about to make are on screen
+            // while the run works down them.
+            _workspace.RequestCollectionsTab();
 
             await ApplyCollectorSelectionAsync(package.Selection).ConfigureAwait(true);
 

@@ -217,9 +217,28 @@ public class ShellProgressTests
 
         progress.Report(new OperationProgress("Framdrift", "arbeider", 5));
 
-        Assert.Contains(nameof(IShellProgress.Header), raised);
         Assert.Contains(nameof(IShellProgress.Info), raised);
         Assert.Contains(nameof(IShellProgress.Percent), raised);
+
+        // Header is deliberately absent: Report ignores the header an operation reports, because the
+        // Delphi's is a static caption that nothing ever assigns (§G.6, MainQuickStat.pas:433).
+        Assert.DoesNotContain(nameof(IShellProgress.Header), raised);
+        Assert.Equal("Progress", ((IShellProgress)progress).Header);
+    }
+
+    [Fact]
+    public void TheHeaderSurvivesEveryOperationThatReportsOneOfItsOwn()
+    {
+        // The symptom this prevents: Core's login pipeline reports "Connecting" and CollectorRunner
+        // reports "Collecting data", so the banner used to read "Collecting data" from the first
+        // collect until the process ended.  The operation's name belongs on the line underneath.
+        IShellProgress progress = NewProgress();
+
+        ((IProgress<OperationProgress>)progress).Report(new OperationProgress("Connecting", "Connecting to X ...", 10));
+        ((IProgress<OperationProgress>)progress).Report(new OperationProgress("Collecting data", "Antropometri", 40));
+
+        Assert.Equal("Progress", progress.Header);
+        Assert.Equal("Antropometri", progress.Info);
     }
 
     [Fact]

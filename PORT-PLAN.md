@@ -556,8 +556,27 @@ These are observable and must match the Delphi build exactly.
   (`MainQuickStat.pas:400`) before `AfterLogin` fills the list, and `actCollectDataExecute`
   (`:633-681`) walks `Items` from 0 upward calling `AddData` for each checked entry. Column order is
   insertion order, so that walk *is* the column order of every export. Registry order decides which
-  collectors exist and how they are listed before sorting; it does not decide columns. Sorting is
-  ordinal, which is why the `^ `-prefixed demographic collectors come first (§G.5 of the UI spec).
+  collectors exist and how they are listed before sorting; it does not decide columns.
+
+  **The sort is linguistic and case-insensitive — `StringComparer.CurrentCultureIgnoreCase` — not
+  ordinal.** Earlier revisions of this section, of `05-ui-spec.md` §G.5 and of `07-ui-contracts.md`
+  §5 all said ordinal, "which is what keeps the `^ `-prefixed demographic collectors first". That is
+  exactly backwards, and step 3.3 caught it. `'^'` is U+005E, which sits **above** `'Z'` (U+005A) and
+  below `'a'`, and every other title begins with a capital — so an ordinal sort puts all eleven
+  demographic elements **last**. Sorted both ways against the real 120-collector KORTTID registry:
+  ordinal leads with `Antibiotika: Resistendrivende` and trails with the `^ ` group; any linguistic
+  ignore-case comparer reproduces `Docs/Screenshots/QuickStat bilde 2.png` exactly — `^ Alder … ^
+  Statuskode`, then `Antropometri`, `Diabetes:`, `Labdata:`, `NDV:`.
+
+  The mechanism is `LBS_SORT` on a Win32 list box, whose default comparison is `CompareStringW` with
+  `LOCALE_USER_DEFAULT` and `NORM_IGNORECASE` — culture-sensitive by construction, exactly like
+  `CurrentCultureIgnoreCase`. The port is therefore culture-dependent in the same way the Delphi is;
+  nb-NO, nn-NO, en-US and tr-TR agree on the whole registry except one adjacent pair
+  (`Medisin: Antall per behandlingstype` / `Medisin: Antall på utvalgte ATC-grupper`), and every
+  Norwegian machine — the shipped configuration — agrees. Shipping ordinal would have moved eleven
+  demographic columns from the left edge to the right edge of **every** CSV a customer has scripts
+  against. Pinned by `Ui/Collections/CollectorOrderTests.cs`, including a test that deliberately
+  records what the broken ordinal rule would produce so nobody "corrects" it back.
 - **Identification modes**: `pgiPersonIdOnly` and `pgiRandomPersonId` **omit** the DOB, national ID
   and name columns entirely — no empty field, no separator.
 - **Config file compatibility**: an existing `QuickStat.config.xml` must work untouched.
