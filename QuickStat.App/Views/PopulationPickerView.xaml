@@ -109,10 +109,26 @@
                       IsChecked="{Binding FrequentlyUsedOnly, Mode=TwoWay}"
                       IsEnabled="{Binding CanFilterFrequentlyUsed}" />
 
-            <!-- Caption to the LEFT of the box; see DatasetTabView for why FlowDirection is paired. -->
+            <!--
+                cbSimpleView, Alignment = taLeftJustify: the caption sits to the LEFT of the box.
+
+                QsCaptionLeftCheckBox, not a local FlowDirection.  RightToLeft mirrors the whole
+                visual subtree, and the default template draws the tick as a Path - so a hand-rolled
+                version comes out with the checkmark pointing down-left, which putting the caption
+                back to LeftToRight cannot reach because the mark lives inside the template.  The
+                style sets FlowDirection and VerticalAlignment itself; setting either here would be
+                a local value, which beats a style setter, and the defect would be back.
+
+                TODO (merge): QsCaptionLeftCheckBox was added to Theme/QuickStat.Styles.xaml on
+                feature/dotnet AFTER branch agent-3-2 was cut, so it is not in this worktree and
+                QuickStat.exe cannot start here - "Cannot find resource named
+                'QsCaptionLeftCheckBox'".  The build is unaffected: StaticResource resolves at load,
+                not at compile time.  This is expected and resolves the moment the branch is merged;
+                Ui/Theme/ThemeResourceTests.cs then confirms the key exists.  Written this way on
+                the coordinator's instruction rather than reinvented locally.
+            -->
             <CheckBox HorizontalAlignment="Right"
-                      VerticalAlignment="Center"
-                      FlowDirection="RightToLeft"
+                      Style="{StaticResource QsCaptionLeftCheckBox}"
                       FontSize="{StaticResource QsSmallFontSize}"
                       IsChecked="{Binding Simplified, Mode=TwoWay}">
                 <TextBlock FlowDirection="LeftToRight" Text="Simplified" />
