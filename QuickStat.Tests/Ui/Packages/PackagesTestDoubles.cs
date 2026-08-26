@@ -172,6 +172,41 @@ internal sealed class FakePatientRepository : IPatientRepository
         throw new NotSupportedException();
 }
 
+/// <summary>
+/// A presenter that runs a probe at the moment a dialog would go up.
+/// </summary>
+/// <remarks>
+/// <see cref="HeadlessNotificationPresenter"/> records what was shown but not what the rest of the
+/// application looked like while it was showing, and "is the busy overlay behind this message box"
+/// is exactly that kind of question.
+/// </remarks>
+/// <param name="probe">Called before the notification is recorded.</param>
+/// <param name="answer">What every confirmation answers.</param>
+internal sealed class ProbingNotificationPresenter(Action<UserNotification> probe, bool answer = false)
+    : IUserNotificationPresenter
+{
+    private readonly List<UserNotification> _notifications = [];
+
+    /// <summary>Everything this presenter was asked to show, in order.</summary>
+    public IReadOnlyList<UserNotification> Notifications => _notifications;
+
+    public Task PresentAsync(UserNotification notification)
+    {
+        probe(notification);
+        _notifications.Add(notification);
+
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> AskAsync(UserNotification notification)
+    {
+        probe(notification);
+        _notifications.Add(notification);
+
+        return Task.FromResult(answer);
+    }
+}
+
 /// <summary>An <see cref="IQueryParameterResolver"/> that answers with whatever the test set.</summary>
 internal sealed class FakeParameterResolver : IQueryParameterResolver
 {

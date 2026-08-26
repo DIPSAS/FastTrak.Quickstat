@@ -275,32 +275,35 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // Both refusals happen before the busy scope opens, and so do their message boxes.  The
+        // Delphi is in the same state: TrySelect returns false before PopulationRequested is
+        // reached, so nothing has set crSqlWait when MSG_UNKNOWN_POPULATION goes up.
+        if (_session.Current is null)
+        {
+            await _notifier.WarnAsync(NotConnectedMessage).ConfigureAwait(true);
+
+            return;
+        }
+
+        if (FindPopulation(package.Selection.PopulationId) is not { } population)
+        {
+            _logger.LogWarning(
+                "Package {RowId} names population {ProcId}, which this study does not have.",
+                package.RowId,
+                package.Selection.PopulationId);
+
+            await _notifier.WarnAsync(string.Format(
+                CultureInfo.InvariantCulture,
+                UnknownPopulationFormat,
+                package.Selection.PopulationId)).ConfigureAwait(true);
+
+            return;
+        }
+
         using IDisposable operation = _progress.BeginOperation(package.Title);
 
         try
         {
-            if (_session.Current is null)
-            {
-                await _notifier.WarnAsync(NotConnectedMessage).ConfigureAwait(true);
-
-                return;
-            }
-
-            if (FindPopulation(package.Selection.PopulationId) is not { } population)
-            {
-                _logger.LogWarning(
-                    "Package {RowId} names population {ProcId}, which this study does not have.",
-                    package.RowId,
-                    package.Selection.PopulationId);
-
-                await _notifier.WarnAsync(string.Format(
-                    CultureInfo.InvariantCulture,
-                    UnknownPopulationFormat,
-                    package.Selection.PopulationId)).ConfigureAwait(true);
-
-                return;
-            }
-
             if (!await LoadPopulationAsync(population, cancellationToken).ConfigureAwait(true))
             {
                 return;
@@ -388,9 +391,18 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// <returns>Whether it stays visible.</returns>
     /// <remarks>
     /// <para>
-    /// Delphi <c>TObjectListView.RefreshView</c> with <c>fcUpperCase</c>: both sides are
-    /// <c>AnsiUppercase</c>d and matched with <c>Pos</c>, a plain substring search - and the filter
-    /// text <em>is</em> trimmed here, where the population list's is not.
+    /// Delphi <c>TSpotLightContext.InternalRefreshList</c>
+    /// (<c>Emetra.VclUtil.Spotlight.pas:143-164</c>), verbatim:
+    /// <c>lookFor := AnsiUppercase(Trim(FEditFilter.Text))</c> and then
+    /// <c>Pos(lookFor, AnsiUppercase(itemText)) &gt; 0</c> - a plain substring search, and the
+    /// filter text <em>is</em> trimmed here where the population list's is not. That is a different
+    /// class from the population frame's <c>TObjectListView.RefreshView</c>, which is why the two
+    /// filters differ at all.
+    /// </para>
+    /// <para>
+    /// <c>itemText</c> is <c>AsListBox(false)</c>, and <c>false</c> is not a choice: the package
+    /// list's spotlight context is constructed with no <c>Simplified</c> check box
+    /// (<c>MainQuickStat.pas:295</c>), so the comment is always part of what is matched.
     /// </para>
     /// <para>
     /// Both sides are folded with the <b>current culture</b>, because <c>AnsiUppercase</c> is

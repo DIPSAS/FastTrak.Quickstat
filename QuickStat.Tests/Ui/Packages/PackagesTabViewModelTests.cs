@@ -47,7 +47,7 @@ public class PackagesTabViewModelTests
             Repository = new FakePackageRepository();
             Patients = new FakePatientRepository();
             Parameters = new FakeParameterResolver();
-            Presenter = HeadlessNotificationPresenter.Answering(answerConfirmations);
+            Presenter = new ProbingNotificationPresenter(_ => OnNotify?.Invoke(), answerConfirmations);
             Populations = new PopulationPickerViewModel();
 
             IdentificationPolicy identification = new();
@@ -98,7 +98,10 @@ public class PackagesTabViewModelTests
 
         internal FakeParameterResolver Parameters { get; }
 
-        internal HeadlessNotificationPresenter Presenter { get; }
+        internal ProbingNotificationPresenter Presenter { get; }
+
+        /// <summary>Runs the moment a dialog would go up, so a case can look at the shell then.</summary>
+        internal Action? OnNotify { get; set; }
 
         internal PopulationPickerViewModel Populations { get; }
 
@@ -545,7 +548,13 @@ public class PackagesTabViewModelTests
     {
         using Harness harness = new();
 
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa"));
+
         Assert.False(harness.ViewModel.OpenPackageCommand.CanExecute(null));
+
+        await harness.SelectAsync("Alfa");
+
+        Assert.True(harness.ViewModel.OpenPackageCommand.CanExecute(null));
     }
 
     [Fact]
@@ -640,6 +649,29 @@ public class PackagesTabViewModelTests
             warning.Message);
         Assert.Empty(harness.Patients.Loaded);
         Assert.Null(harness.Workspace.Population);
+        Assert.False(harness.Progress.IsBusy);
+    }
+
+    [Fact]
+    public async Task ARefusedReplayNeverMarksTheShellBusy()
+    {
+        // The warning is a modal box; the busy overlay behind it would be noise.  The Delphi has no
+        // wait cursor at this point either - TrySelect gives up before PopulationRequested runs, so
+        // nothing has assigned crSqlWait.
+        using Harness harness = new();
+
+        List<bool> busyWhenShown = [];
+
+        harness.OnNotify = () => busyWhenShown.Add(harness.Progress.IsBusy);
+
+        harness.Connect();
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+        Assert.False(harness.Progress.IsBusy);
+        Assert.Equal([false], busyWhenShown);
     }
 
     [Theory]
