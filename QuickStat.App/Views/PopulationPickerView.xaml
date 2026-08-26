@@ -120,10 +120,17 @@
         </Grid>
 
         <Grid Grid.Row="3">
+            <!--
+                IsSharedSizeScope is what makes the id column one width for the whole list rather
+                than one per row: the VCL grid has real columns and widens column 0 to the widest id
+                it has painted (Emetra.VclComp.ListView.pas:322, 639-640), so without this the titles
+                would not line up once the ids differ in length.
+            -->
             <ListBox x:Name="PopulationList"
                      AlternationCount="2"
                      BorderBrush="{StaticResource QsBorderBrush}"
                      BorderThickness="1"
+                     Grid.IsSharedSizeScope="True"
                      HorizontalContentAlignment="Stretch"
                      ItemContainerStyle="{StaticResource QsPopulationItem}"
                      ItemsSource="{Binding Populations}"
@@ -150,7 +157,7 @@
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <!-- 24 + 2 x GapX, and it grows to fit the widest id. -->
-                                <ColumnDefinition Width="Auto" MinWidth="32" />
+                                <ColumnDefinition Width="Auto" MinWidth="32" SharedSizeGroup="PopulationId" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
