@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Xml.Linq;
 using QuickStat.Tests.Configuration;
+using QuickStat.ViewModels;
 using Xunit;
 
 namespace QuickStat.Tests.Ui.Populations;
@@ -64,10 +65,15 @@ public class PopulationViewMarkupTests
             .Where(element => element.Name.LocalName == "SectionHeader")
             .Select(element => (string?)element.Attribute("Header"))];
 
-        Assert.Equal(["Select database", "Select population"], headers);
+        // Against the view-model's constants, not against a second copy of the same literals: a
+        // caption that exists twice is a caption that can differ in two places.
+        Assert.Equal(
+            [PopulationTabViewModel.DatabaseHeader, PopulationTabViewModel.PopulationHeader],
+            headers);
+
         Assert.Contains(
             Named(tab, "TextBlock"),
-            element => Attribute(element, "Text") == "Tip: Double click to prepare population");
+            element => Attribute(element, "Text") == PopulationTabViewModel.TipText);
     }
 
     [Fact]
@@ -105,10 +111,24 @@ public class PopulationViewMarkupTests
     {
         XDocument picker = Picker();
 
-        Assert.Contains(Named(picker, "TextBlock"), element => Attribute(element, "Text") == "Filter / search text");
-        Assert.Contains(Named(picker, "TextBlock"), element => Attribute(element, "Text") == "Type filter text here");
-        Assert.Contains(Named(picker, "CheckBox"), element => Attribute(element, "Content") == "Frequently used only");
-        Assert.Contains(Named(picker, "TextBlock"), element => Attribute(element, "Text") == "Simplified");
+        // MainQuickStat.pas:289-292 overwrites the frame's Norwegian .dfm captions with these four.
+        Assert.Equal("Filter / search text", PopulationPickerViewModel.FilterHeader);
+        Assert.Equal("Type filter text here", PopulationPickerViewModel.FilterPlaceholder);
+        Assert.Equal("Frequently used only", PopulationPickerViewModel.FrequentlyUsedCaption);
+        Assert.Equal("Simplified", PopulationPickerViewModel.SimplifiedCaption);
+
+        Assert.Contains(
+            Named(picker, "TextBlock"),
+            element => Attribute(element, "Text") == PopulationPickerViewModel.FilterHeader);
+        Assert.Contains(
+            Named(picker, "TextBlock"),
+            element => Attribute(element, "Text") == PopulationPickerViewModel.FilterPlaceholder);
+        Assert.Contains(
+            Named(picker, "CheckBox"),
+            element => Attribute(element, "Content") == PopulationPickerViewModel.FrequentlyUsedCaption);
+        Assert.Contains(
+            Named(picker, "TextBlock"),
+            element => Attribute(element, "Text") == PopulationPickerViewModel.SimplifiedCaption);
     }
 
     [Fact]
@@ -123,7 +143,7 @@ public class PopulationViewMarkupTests
     [Fact]
     public void FrequentlyUsedOnlyIsDisabledUntilAStudyIsConnected()
     {
-        XElement box = One(Picker(), "CheckBox", "Content", "Frequently used only");
+        XElement box = One(Picker(), "CheckBox", "Content", PopulationPickerViewModel.FrequentlyUsedCaption);
 
         Assert.Equal("{Binding CanFilterFrequentlyUsed}", Attribute(box, "IsEnabled"));
         Assert.Equal("{Binding FrequentlyUsedOnly, Mode=TwoWay}", Attribute(box, "IsChecked"));
