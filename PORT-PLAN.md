@@ -1,26 +1,48 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0–2 and Phase 3 wave 1 complete; Phase 3 wave 2 (steps 3.2, 3.3, 3.4, 3.6) in flight on branches `agent-3-2`/`-3-3`/`-3-4`/`-3-6`.**
+Status: **in implementation — Phases 0–3 complete. Resume at Phase 4 (restore the lost functionality).**
 Branch: `feature/dotnet`
 Last updated: 2026-08-26
 
-> **Resume here.** Phases 0, 1 and 2 and **Phase 3 wave 1** have all landed, each verified
-> independently rather than on the implementing agent's report: from-scratch Debug and Release
-> builds with zero warnings, **1901 tests passing**, `QuickStat.exe` at x64, launches from a foreign
-> working directory with the full DI graph and the real shell, and exits 0 through the real
-> `OnExit`, `LOGS\` created beside the exe.
+> **Resume here. Phase 3 is complete — the whole application is built.** All six UI steps are
+> merged, verified independently rather than on the implementing agents' reports: from-scratch Debug
+> and Release builds with zero warnings, **2205 tests passing** under `en-US`, `tr-TR`, `ar-SA`,
+> `th-TH` and the machine's own `nn-NO`, and `QuickStat.exe` launching from a foreign working
+> directory with the full DI graph, loading a real `QuickStat.config.xml`, and logging no errors.
 >
-> **Wave 2 must read `Docs/Port/07-ui-contracts.md` first.** Step 3.1 wrote it as the UI ownership
-> map: which files each of 3.2, 3.3, 3.4 and 3.6 owns, the shared surface they consume
-> (`IShellWorkspace`, `IShellProgress`, `IConnectionCoordinator`, `IUiDispatcher`, and the rest), the
-> fourteen decisions 3.1 took that constrain them, and the build and test traps it actually hit.
-> Every wave-2 view and view-model already exists as a compiling, DI-registered stub with its owner
-> named in a header comment.
+> **Next: Phase 4.** Nothing blocks it.
 >
-> Two things wave 2 must not reinvent: **`QuickStat.Tests/Ui/StaTestRunner.cs`**,
-> **`DependencyPropertyRegistrationTests.cs`** and **`DatasetGridThemeTests.cs`** are shared and
-> read-only — extend, do not copy. And **`Controls/Dataset/**` is finished**; bind to `MatrixGrid`,
-> never edit it.
+> **Six defects were found while integrating wave 2, five of them in code or contracts that earlier
+> phases had signed off.** Every one is fixed; they are listed here because they are the pattern to
+> expect, not because they are still open.
+>
+> | # | Defect | Found by |
+> |---|---|---|
+> | 1 | **`05-ui-spec.md` §G.5, §6 and `07` §5 all specified the collector sort backwards.** They said `StringComparer.Ordinal` "keeps the `^ `-prefixed demographic collectors first". `'^'` is U+005E — above `'Z'`, below `'a'` — and every other title starts with a capital, so ordinal puts all eleven demographic elements **last**. Would have moved eleven columns from the left to the right edge of every CSV. §6 now specifies `CurrentCultureIgnoreCase`, which is what `LBS_SORT` does | 3.3 |
+> | 2 | **`PersonMatrix` could not be re-collected.** `AddColumns` and `Add` refuse a locked matrix, `Lock()` ends every run, and only `ClearPopulation` unlocked — so the second click of *Collect data* threw. The Delphi's `fLocked` gates painting and export, never adding. `ClearVariables` now unlocks | 3.3 |
+> | 3 | **The ordering contract in `07` §3.1 threw on the second population of a session.** `SortBy` throws while locked, and the check precedes the equality short-circuit. `Clear()` must come first | 3.2 and 3.4, independently |
+> | 4 | **`07` §3.1 said the package replay stays on the Packages tab. It does not** — `TrySelect(procId, true, …)` reaches `AfterPopulationSelect`, which sets `pgSelections.ActivePage := tbsDataElements`. Restored as parity | 3.2 and 3.4, independently |
+> | 5 | **The Progress header never went back.** Core reports `Connecting` and `Collecting data`; `ShellProgress` let them win, so the banner read *Collecting data* for the rest of the session. `TfrmQuickStat.SetHeader` exists at `MainQuickStat.pas:433` and nothing ever calls it (§G.6) | 3.3 |
+> | 6 | **A mirrored checkmark.** `FlowDirection="RightToLeft"` puts the caption left of the box — and mirrors the whole subtree, including the tick. Fixed once in the theme as `QsCaptionLeftCheckBox` | reported from a running build |
+>
+> Two more came out of the culture sweep, which is now a permanent, opt-in file
+> (`QuickStat.Tests/CultureSweep.cs`, `-e QUICKSTAT_TEST_CULTURE=xx-YY`) because three agents each
+> built and discarded one: `SqlParameterFactory` threw out of its own error message under a
+> non-Gregorian calendar, and a collector-SQL assertion used a collation where it meant a byte scan.
+> A flaky settings-store test was also diagnosed and fixed — `Save()` gave up after one transient
+> sharing violation, silently losing whatever the user had just changed.
+>
+> **Read `Docs/Port/07-ui-contracts.md` before touching the UI.** It is the ownership map: which
+> files belong to which step, the shared surface (`IShellWorkspace`, `IShellProgress`,
+> `IConnectionCoordinator`, `IUiDispatcher`, and the rest), the decisions that constrain callers, and
+> the build and test traps that were actually hit. Its §3.1 and §5 carry the corrections above
+> inline, marked as corrections.
+>
+> Shared and read-only, extend rather than copy: **`QuickStat.Tests/Ui/StaTestRunner.cs`**,
+> **`DependencyPropertyRegistrationTests.cs`**, **`DatasetGridThemeTests.cs`**,
+> **`Ui/Dialogs/RealisedWindow.cs`** (3.6's; a BAML binding does not attach until the element is
+> realised, so asserting on one before that passes vacuously) and **`CultureSweep.cs`**.
+> **`Controls/Dataset/**` is finished**; bind to `MatrixGrid`, never edit it.
 >
 > **`QuickStat.Core` is now functionally complete.** All seven Phase 2 steps are merged. The
 > composition root in `QuickStat.App/App.xaml.cs` calls the seven `AddQuickStat*` extension methods;
@@ -752,6 +774,21 @@ drops it and shifts every later ordinal); `01-data-access.md` §3.1 lists nine S
 numbers where the Delphi has seven; `04-matrix-export.md` §5.2 describes `develop_old` — a non-empty
 `DataPoint.Caption` exports as text, in full, on **both** tarmscreening refs (`8486b3d09`), so that
 behaviour does not depend on R12.
+
+### 8.10 Still open after Phase 3 — carried into Phase 5
+
+Nothing here blocks Phase 4. Each is recorded so it is not rediscovered.
+
+| # | Item | Note |
+|---|---|---|
+| a | **No view can be instantiated under test if it uses `{StaticResource}` and does not merge the theme itself.** `StaticResource` resolves during parse, against `Application.Current`, which is `null` under test — and creating an `Application` would break every later test, since WPF allows one per `AppDomain`. 3.6 merged the theme into each of its own views' `Resources`; 3.1's, 3.2's, 3.3's and 3.4's views do not, so their markup is pinned structurally (as XML) and proved to load only by launching the executable | The alternative — merging in every view — duplicates every brush. A test-only `Application` on a dedicated STA thread would solve it properly and is the right Phase 5 job |
+| b | **Two population-loading code paths.** 3.2 owns `PopulationPickerViewModel.TryLoadPopulationAsync`; 3.4's replay has its own ~30-line equivalent because 3.2's command was synchronous when 3.4 was written. Both are tested and agree today | Exactly the "two halves each locally correct" shape that produced defects 3 and 4 above. Collapse onto 3.2's method; deferred because both halves are green and the merge was already large |
+| c | **The busy overlay's Cancel button can never appear.** `IShellProgress.BeginOperation(string)` takes no `CancellationTokenSource`, so nothing can offer one to `BusyOverlayViewModel.OfferCancellation` | One overload. The overlay is correct and tested; the button is simply never shown |
+| d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |
+| e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
+| f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
+| g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
+| h | **Nothing has ever run against a database.** No collector has executed, no population has loaded, no package has been read or written, no period prompt has fired for a real query | This is Phase 5, and it is the largest remaining unknown by a wide margin |
 
 ### 8.9 Surfaced during Phase 3 wave 1 — two of these need a human
 
