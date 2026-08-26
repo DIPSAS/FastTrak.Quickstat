@@ -41,6 +41,41 @@ public readonly record struct IdentificationColumns
     /// <summary>The one place a mode is turned into a column set.</summary>
     /// <param name="identification">The selected mode.</param>
     /// <returns>Which columns that mode allows.</returns>
-    public static IdentificationColumns For(PersonIdentification identification) =>
-        throw new NotImplementedException();
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is not one of the three declared modes. The Delphi's equivalent state - no radio
+    /// button checked - raised <c>EAbort('Unhandled identification strategy.')</c>
+    /// (<c>MainQuickStat.pas:914</c>); failing loudly here rather than defaulting to something is
+    /// deliberate, because every plausible default is either a privacy leak or silent data loss.
+    /// </exception>
+    public static IdentificationColumns For(PersonIdentification identification) => identification switch
+    {
+        PersonIdentification.Full => new IdentificationColumns
+        {
+            IncludesPersonId = true,
+            IncludesDateOfBirth = true,
+            IncludesNationalId = true,
+            IncludesName = true,
+            UsesPseudonyms = false,
+        },
+        PersonIdentification.PersonIdOnly => new IdentificationColumns
+        {
+            IncludesPersonId = true,
+            IncludesDateOfBirth = false,
+            IncludesNationalId = false,
+            IncludesName = false,
+            UsesPseudonyms = false,
+        },
+        PersonIdentification.RandomPersonId => new IdentificationColumns
+        {
+            IncludesPersonId = true,
+            IncludesDateOfBirth = false,
+            IncludesNationalId = false,
+            IncludesName = false,
+            UsesPseudonyms = true,
+        },
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(identification),
+            identification,
+            "Unhandled identification strategy."),
+    };
 }
