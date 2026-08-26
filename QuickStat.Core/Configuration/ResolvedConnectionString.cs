@@ -34,4 +34,16 @@ public sealed record ResolvedConnectionString
     /// (<c>Docs/Port/01-data-access.md</c> §3.2).
     /// </remarks>
     public string? UdlPath { get; init; }
+
+    /// <summary>Returns <see cref="Redacted"/>.</summary>
+    /// <returns>The password-free rendering.</returns>
+    /// <remarks>
+    /// This override is the reason the record is safe to hand to a logger. The compiler-generated
+    /// <c>ToString</c> of a record prints every property, so
+    /// <c>logger.LogInformation("{Connection}", resolved)</c> would otherwise write
+    /// <see cref="Value"/> - password and all - into a log file that is not access-controlled.
+    /// Making the default rendering the safe one means a caller has to reach for
+    /// <see cref="Value"/> deliberately.
+    /// </remarks>
+    public override string ToString() => Redacted;
 }
