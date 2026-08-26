@@ -248,6 +248,7 @@ packages/
 # commit.  A negation only works after the pattern it overrides, hence the position.
 !/QuickStat.Core/Domain/Packages/
 !/QuickStat.Tests/Domain/Packages/
+!/QuickStat.Tests/Ui/Packages/
 
 # Agent worktrees created inside the repo during the port.  Transient; never committed.
 /.claude/worktrees/

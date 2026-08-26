@@ -61,14 +61,14 @@
         <q:SectionHeader DockPanel.Dock="Top"
                          Margin="3,3,3,0"
                          Header="{Binding CaptionText}">
-            <CheckBox FlowDirection="RightToLeft"
-                      VerticalAlignment="Center"
+            <CheckBox Style="{StaticResource QsCaptionLeftCheckBox}"
                       Foreground="{StaticResource QsOnAccentBrush}"
                       IsChecked="{Binding WideColumns, Mode=TwoWay}">
                 <!--
-                    RightToLeft on the box is what puts the caption to its left; LeftToRight on the
-                    content stops the caption itself being mirrored.  Still one CheckBox, so the
-                    caption is clickable and the automation name is derived from it.
+                    The style puts the caption to the left of the box and keeps the checkmark from
+                    being mirrored with it; LeftToRight here stops the caption itself being
+                    mirrored.  Still one CheckBox, so the caption is clickable and the automation
+                    name is derived from it.
                 -->
                 <TextBlock FlowDirection="LeftToRight" Text="Wide columns" />
             </CheckBox>

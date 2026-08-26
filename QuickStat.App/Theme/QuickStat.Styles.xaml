@@ -271,6 +271,34 @@
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
     </Style>
 
+    <!--
+        Caption to the LEFT of the box, which is what the Delphi's Alignment = taLeftJustify does
+        (§C.1 "Wide columns", §B.1 "Simplified").
+
+        FlowDirection is the only way to get that from a stock CheckBox, but it mirrors the whole
+        visual subtree - and the checkmark in the default template is a Path, so the tick comes out
+        backwards, pointing down-left.  It is immediately visible and was reported from a running
+        build.  Setting the content back to LeftToRight, as the call sites already do, fixes the
+        caption but cannot reach the mark, which lives inside the control's template.
+
+        Style.Resources does reach it: an implicit Path style is found by the template's own
+        elements, so the glyph alone is flipped back.  Verified by rendering, and pinned by
+        Ui/Theme/CaptionLeftCheckBoxTests.cs, which measures where the ink actually falls rather
+        than asserting these setters back to itself.
+
+        The alternative was a full ControlTemplate, which would have meant re-creating the hover,
+        focus, pressed and disabled visuals by hand and losing the OS-native box.
+    -->
+    <Style x:Key="QsCaptionLeftCheckBox" TargetType="{x:Type CheckBox}">
+        <Setter Property="FlowDirection" Value="RightToLeft" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Style.Resources>
+            <Style TargetType="{x:Type Path}">
+                <Setter Property="FlowDirection" Value="LeftToRight" />
+            </Style>
+        </Style.Resources>
+    </Style>
+
     <!-- ===================================================================================
          List items (§F.4 QsPopulationItem / QsPackageItem / QsCheckListItem)
 

@@ -718,6 +718,7 @@ inside a tab: `Margin="4"` horizontally, `8` between logical groups. No `BorderT
 | `QsPopulationItem` | `ListBoxItem` | see B.1.1: alternation, teal selection, white selected text, 1 px bottom divider |
 | `QsPackageItem` | `ListBoxItem` | see B.3 |
 | `QsCheckListItem` | `ListBoxItem` | `CheckBox` + text, `Padding=4,2`, native selection colours |
+| `QsCaptionLeftCheckBox` | `CheckBox` | Caption to the **left** of the box, i.e. Delphi `Alignment = taLeftJustify`. Used by *Wide columns* (§C.1) and *Simplified* (§B.1). `FlowDirection=RightToLeft` is the only way to get that from a stock `CheckBox`, but it mirrors the whole subtree and the default template draws the tick as a `Path`, so the check comes out backwards; the style carries an implicit `Path` style in `Style.Resources` setting it back to `LeftToRight`, which reaches inside the control's own template and flips the glyph alone. Call sites still set `FlowDirection=LeftToRight` on the caption `TextBlock`. Added during Phase 3 wave 2, from a defect seen in a running build; pinned by `Ui/Theme/CaptionLeftCheckBoxTests.cs`, which compares rendered pixels |
 | `QsDataGrid`, `QsDataGridColumnHeader`, `QsDataGridCell`, `QsDataGridRow` | `DataGrid` family | see C.3 |
 | `QsProgressBar` | `ProgressBar` | `Height=10`, `Foreground={QsProgressBrush}`, `Background={QsProgressTrackBrush}`, no bevel |
 | `QsSplitter` | `GridSplitter` | `Width=8`, `Background={QsPageBrush}`, 2 × 20 px `QsBorderBrush` grip dots centred |
