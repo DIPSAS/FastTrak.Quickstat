@@ -122,12 +122,7 @@ public static class CsvMatrixWriter
         ArgumentNullException.ThrowIfNull(dataset);
         ArgumentNullException.ThrowIfNull(options);
 
-        IdentificationColumns columns = options.Columns;
-        int identityColumns =
-            (columns.IncludesPersonId ? 1 : 0) +
-            (columns.IncludesDateOfBirth ? 1 : 0) +
-            (columns.IncludesNationalId ? 1 : 0) +
-            (columns.IncludesName ? 1 : 0);
+        int identityColumns = FixedColumns.VisibleOrdinals(options.Columns).Count;
 
         return identityColumns + (dataset.Columns.Count * (options.IncludeTimestamps ? 2 : 1));
     }
@@ -201,26 +196,13 @@ public static class CsvMatrixWriter
     {
         fields.Clear();
 
-        // Even in RandomPersonId the header cell is the ordinary quoted "PID": the Delphi's
-        // pseudonym branch is guarded by rowNo > FixedRows - 1 (EPR.QA.Matrix.pas:466).
-        if (columns.IncludesPersonId)
+        // One derivation, shared with the grid and with the data rows below, so a header can never
+        // end up describing a column the data rows do not write. Even in RandomPersonId the person
+        // cell here is the ordinary quoted "PID": the Delphi's pseudonym branch is guarded by
+        // rowNo > FixedRows - 1 (EPR.QA.Matrix.pas:466).
+        foreach (string header in FixedColumns.HeadersFor(columns))
         {
-            fields.Add(new CsvField(FixedColumns.PersonIdHeader));
-        }
-
-        if (columns.IncludesDateOfBirth)
-        {
-            fields.Add(new CsvField(FixedColumns.DateOfBirthHeader));
-        }
-
-        if (columns.IncludesNationalId)
-        {
-            fields.Add(new CsvField(FixedColumns.NationalIdHeader));
-        }
-
-        if (columns.IncludesName)
-        {
-            fields.Add(new CsvField(FixedColumns.NameHeader));
+            fields.Add(new CsvField(header));
         }
 
         foreach (ExportColumn column in dataset.Columns)
@@ -246,31 +228,26 @@ public static class CsvMatrixWriter
     {
         fields.Clear();
 
-        if (columns.UsesPseudonyms)
+        // The same ordinal list the header row used, so the two cannot fall out of step.
+        foreach (int ordinal in FixedColumns.VisibleOrdinals(columns))
         {
-            int pseudonym = anonymiser!.GetPseudonym(row.PersonId);
+            if (ordinal == FixedColumns.PersonId && columns.UsesPseudonyms)
+            {
+                // The one unquoted field in the whole format: write(F, <integer>, ';').
+                int pseudonym = anonymiser!.GetPseudonym(row.PersonId);
 
-            // The one unquoted field in the whole format: write(F, <integer>, ';').
-            fields.Add(new CsvField(pseudonym.ToString(CultureInfo.InvariantCulture), Quoted: false));
-        }
-        else if (columns.IncludesPersonId)
-        {
-            fields.Add(new CsvField(row.PersonId.ToString(CultureInfo.InvariantCulture)));
-        }
+                fields.Add(new CsvField(pseudonym.ToString(CultureInfo.InvariantCulture), Quoted: false));
 
-        if (columns.IncludesDateOfBirth)
-        {
-            fields.Add(new CsvField(FormatDateOfBirth(row.DateOfBirth, culture, legacy)));
-        }
+                continue;
+            }
 
-        if (columns.IncludesNationalId)
-        {
-            fields.Add(new CsvField(row.NationalId ?? string.Empty));
-        }
-
-        if (columns.IncludesName)
-        {
-            fields.Add(new CsvField(row.FullName));
+            fields.Add(new CsvField(ordinal switch
+            {
+                FixedColumns.PersonId => row.PersonId.ToString(CultureInfo.InvariantCulture),
+                FixedColumns.DateOfBirth => FormatDateOfBirth(row.DateOfBirth, culture, legacy),
+                FixedColumns.NationalId => row.NationalId ?? string.Empty,
+                _ => row.FullName,
+            }));
         }
 
         for (int columnIndex = 0; columnIndex < dataset.Columns.Count; columnIndex++)

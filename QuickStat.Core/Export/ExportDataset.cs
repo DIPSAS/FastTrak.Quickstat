@@ -15,8 +15,9 @@ namespace QuickStat.Export;
 /// depend on a matrix implementation landing first.
 /// </para>
 /// <para>
-/// Colour is deliberately absent. Cell appearance comes from <see cref="PersonMatrix.GetCell"/>,
-/// which belongs to 2.5; the xlsx writer therefore does not shade cells yet.
+/// Cell appearance comes from <see cref="PersonMatrix.GetCell"/>, and is collected only on request:
+/// the CSV never reads a colour, and computing one means resolving and running the display rule for
+/// every valued cell in what can be a matrix of a million of them.
 /// </para>
 /// </remarks>
 public sealed class ExportDataset
@@ -29,6 +30,10 @@ public sealed class ExportDataset
 
     /// <summary>Projects a locked matrix.</summary>
     /// <param name="matrix">The dataset. Must be locked.</param>
+    /// <param name="includeAppearance">
+    /// Also collect each valued cell's background, foreground and alignment from
+    /// <see cref="PersonMatrix.GetCell"/>. Only the xlsx writer uses them.
+    /// </param>
     /// <returns>The flattened dataset.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="matrix"/> is null.</exception>
     /// <exception cref="InvalidOperationException">
@@ -36,7 +41,7 @@ public sealed class ExportDataset
     /// into every cell in the Delphi (<c>EPR.QA.Matrix.pas:236-237</c>); that is a defect, not a
     /// format, so it fails here instead (<c>Docs/Port/04-matrix-export.md</c> R-10).
     /// </exception>
-    public static ExportDataset FromMatrix(PersonMatrix matrix)
+    public static ExportDataset FromMatrix(PersonMatrix matrix, bool includeAppearance = false)
     {
         ArgumentNullException.ThrowIfNull(matrix);
 
@@ -66,17 +71,31 @@ public sealed class ExportDataset
 
             for (int columnIndex = 0; columnIndex < columns.Length; columnIndex++)
             {
-                if (matrix.TryGetDataPoint(rowIndex, columnIndex, out DataPoint? dataPoint) &&
-                    dataPoint is not null)
+                if (!matrix.TryGetDataPoint(rowIndex, columnIndex, out DataPoint? dataPoint))
                 {
-                    cells[columnIndex] = new ExportCell
-                    {
-                        HasValue = true,
-                        Value = dataPoint.Value,
-                        Timestamp = dataPoint.Timestamp,
-                        Caption = dataPoint.Caption,
-                    };
+                    continue;
                 }
+
+                // GetCell is asked for only where there is a datapoint. Its empty-cell branch would
+                // otherwise be run once per hole in a sparse matrix, for an appearance no writer
+                // uses: nothing is written into an empty cell, so there is nothing to shade.
+                MatrixCell appearance = includeAppearance
+                    ? matrix.GetCell(rowIndex, columnIndex)
+                    : default;
+
+                cells[columnIndex] = new ExportCell
+                {
+                    HasValue = true,
+                    Value = dataPoint.Value,
+                    Timestamp = dataPoint.Timestamp,
+
+                    // The full caption, not MatrixCell.Text: the grid truncates to six characters
+                    // and may substitute a rule's display text, and the export does neither.
+                    Caption = dataPoint.Caption,
+                    Background = appearance.Background,
+                    Foreground = appearance.Foreground,
+                    AlignLeft = appearance.AlignLeft,
+                };
             }
 
             rows[rowIndex] = new ExportRow

@@ -75,8 +75,12 @@ public sealed class DatasetExporter : IDatasetExporter
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(options);
 
-        return await ExportAsync(ExportDataset.FromMatrix(matrix), filePath, options, cancellationToken)
-            .ConfigureAwait(false);
+        // Only the workbook reads a colour, so only the workbook pays for computing one.
+        ExportDataset dataset = ExportDataset.FromMatrix(
+            matrix,
+            includeAppearance: options.Format == ExportFormat.Xlsx);
+
+        return await ExportAsync(dataset, filePath, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Exports an already-flattened dataset.</summary>
