@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -83,6 +84,7 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     private readonly ISessionService _session;
     private readonly IPackageRepository _repository;
     private readonly IPatientRepository _patients;
+    private readonly IPopulationRepository _populationRepository;
     private readonly IQueryParameterResolver _parameters;
     private readonly IUserNotifier _notifier;
     private readonly PopulationPickerViewModel _populations;
@@ -107,6 +109,7 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// <param name="session">Tells us the study id, and when a project has been connected.</param>
     /// <param name="repository">Reads, writes and deletes rows in <c>Report.QuickStat</c>.</param>
     /// <param name="patients">Runs the population's own query during a replay.</param>
+    /// <param name="populationRepository">Writes the <c>dbo.AddPopulationLog</c> audit row.</param>
     /// <param name="parameters">Resolves that query's placeholders, prompting for a period.</param>
     /// <param name="notifier">The §D.4 warnings and the delete confirmation.</param>
     /// <param name="populations">Where the replay finds the population to load. Step 3.2's.</param>
@@ -120,6 +123,7 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         ISessionService session,
         IPackageRepository repository,
         IPatientRepository patients,
+        IPopulationRepository populationRepository,
         IQueryParameterResolver parameters,
         IUserNotifier notifier,
         PopulationPickerViewModel populations,
@@ -133,6 +137,7 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(patients);
+        ArgumentNullException.ThrowIfNull(populationRepository);
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(notifier);
         ArgumentNullException.ThrowIfNull(populations);
@@ -146,6 +151,7 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         _session = session;
         _repository = repository;
         _patients = patients;
+        _populationRepository = populationRepository;
         _parameters = parameters;
         _notifier = notifier;
         _populations = populations;
@@ -492,9 +498,18 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// A cancelled period prompt is not an error and raises nothing, which is what
     /// <see cref="ParameterResolution.CancelledByUser"/> exists to say.
     /// </para>
+    /// <para>
+    /// The <c>dbo.AddPopulationLog</c> audit row is written here as well. The Delphi writes it from
+    /// <c>PopulationRequested</c> (<c>EPR.VclFrame.Populations.pas:219</c>), which the replay reaches
+    /// through <c>TrySelect</c> - so a replay does count towards the popularity ranking that the
+    /// <c>Frequently used only</c> box reads, and skipping it here would quietly change which
+    /// populations that box offers.
+    /// </para>
     /// </remarks>
     private async Task<bool> LoadPopulationAsync(Population population, CancellationToken cancellationToken)
     {
+        long startedAt = Stopwatch.GetTimestamp();
+
         ParameterResolution resolution = await _parameters
             .ResolveAsync(population.QueryText, cancellationToken)
             .ConfigureAwait(true);
@@ -530,7 +545,33 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
 
         _workspace.SetPopulation(population);
 
+        LogPopulationSelected(population, Stopwatch.GetElapsedTime(startedAt));
+
         return true;
+    }
+
+    /// <summary>Writes the popularity audit row, and never lets it matter.</summary>
+    /// <param name="population">The population that was prepared.</param>
+    /// <param name="elapsed">How long preparing it took.</param>
+    /// <remarks>
+    /// Fire and forget, as <see cref="IPopulationRepository.LogPopulationSelectedAsync"/> requires:
+    /// the Delphi logs and swallows the failure (<c>EPR.VclFrame.Populations.pas:224-226</c>) and it
+    /// must never block or surface.
+    /// </remarks>
+    private void LogPopulationSelected(Population population, TimeSpan elapsed)
+    {
+        if (_session.Current is not { } current)
+        {
+            return;
+        }
+
+        _ = _populationRepository
+            .LogPopulationSelectedAsync(current.StudyId, population.ProcId, population.Title, (long)elapsed.TotalMilliseconds)
+            .ContinueWith(
+                task => _logger.LogWarning(task.Exception, "Could not write the population audit row."),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
     }
 
     /// <summary>

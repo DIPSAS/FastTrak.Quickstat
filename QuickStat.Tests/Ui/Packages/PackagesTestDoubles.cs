@@ -172,6 +172,36 @@ internal sealed class FakePatientRepository : IPatientRepository
         throw new NotSupportedException();
 }
 
+/// <summary>An <see cref="IPopulationRepository"/> that only records the audit rows.</summary>
+/// <remarks>
+/// The catalogue itself comes from step 3.2's picker, so the replay never calls the two load
+/// methods; the audit row is the one thing this tab writes through here.
+/// </remarks>
+internal sealed class FakePopulationRepository : IPopulationRepository
+{
+    /// <summary>Every <c>dbo.AddPopulationLog</c> row, as study id and <c>ProcId</c>.</summary>
+    public List<(int StudyId, int ProcId, string Title)> AuditRows { get; } = [];
+
+    public Task<IReadOnlyList<Population>> GetPopulationsAsync(
+        int studyId,
+        int dbVersion,
+        bool frequentlyUsedOnly,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public Task LogPopulationSelectedAsync(
+        int studyId,
+        int procId,
+        string procTitle,
+        long elapsedMilliseconds,
+        CancellationToken cancellationToken = default)
+    {
+        AuditRows.Add((studyId, procId, procTitle));
+
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>
 /// A presenter that runs a probe at the moment a dialog would go up.
 /// </summary>

@@ -46,6 +46,7 @@ public class PackagesTabViewModelTests
             Session = new FakeSessionService();
             Repository = new FakePackageRepository();
             Patients = new FakePatientRepository();
+            Audit = new FakePopulationRepository();
             Parameters = new FakeParameterResolver();
             Presenter = new ProbingNotificationPresenter(_ => OnNotify?.Invoke(), answerConfirmations);
             Populations = new PopulationPickerViewModel();
@@ -72,6 +73,7 @@ public class PackagesTabViewModelTests
                 Session,
                 Repository,
                 Patients,
+                Audit,
                 Parameters,
                 new UserNotifier(Presenter, NullLogger<UserNotifier>.Instance),
                 Populations,
@@ -95,6 +97,8 @@ public class PackagesTabViewModelTests
         internal FakePackageRepository Repository { get; }
 
         internal FakePatientRepository Patients { get; }
+
+        internal FakePopulationRepository Audit { get; }
 
         internal FakeParameterResolver Parameters { get; }
 
@@ -174,6 +178,7 @@ public class PackagesTabViewModelTests
             new FakeSessionService(),
             new FakePackageRepository(),
             new FakePatientRepository(),
+            new FakePopulationRepository(),
             new FakeParameterResolver(),
             new UserNotifier(new HeadlessNotificationPresenter(), NullLogger<UserNotifier>.Instance),
             new PopulationPickerViewModel(),
@@ -582,6 +587,41 @@ public class PackagesTabViewModelTests
         Assert.True(wanted.IsChecked);
         Assert.False(unwanted.IsChecked);
         Assert.Equal("Diabetes basissett 2024", harness.Dataset.CaptionText);
+    }
+
+    [Fact]
+    public async Task AReplayCountsTowardsThePopularityRanking()
+    {
+        // The Delphi writes dbo.AddPopulationLog from PopulationRequested, which the replay reaches
+        // through TrySelect (EPR.VclFrame.Populations.pas:219).  Skipping it here would quietly
+        // change what the "Frequently used only" box offers, because the server ranks from these
+        // rows.
+        using Harness harness = new();
+
+        harness.Connect(931);
+        harness.AddPopulation(257, "Aktive diabetikere");
+        harness.Patients.Cohort.Add(ShellWorkspaceTests.NewPatient(52));
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+        Assert.Equal((931, 257, "Aktive diabetikere"), Assert.Single(harness.Audit.AuditRows));
+    }
+
+    [Fact]
+    public async Task ARefusedReplayWritesNoAuditRow()
+    {
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.AddPopulation(8);
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+        Assert.Empty(harness.Audit.AuditRows);
     }
 
     [Fact]
