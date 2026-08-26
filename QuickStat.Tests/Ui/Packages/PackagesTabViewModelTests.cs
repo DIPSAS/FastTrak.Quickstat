@@ -949,6 +949,79 @@ public class PackagesTabViewModelTests
     }
 
     [Fact]
+    public void TheShellIsNotMarkedBusyWhileTheModalIsUp()
+    {
+        // IsBusy drives the wait cursor and the busy overlay, and the dialog is a window the user is
+        // typing into.  Marking the shell busy around ShowDialog would put both on top of it.
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.Workspace.SetCheckedCollectorNames(["QS_HBA1C"]);
+        harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(52)]);
+        harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation(257));
+
+        bool busyWhileAsking = true;
+
+        harness.ViewModel.SaveSpecRequested += (_, request) =>
+        {
+            busyWhileAsking = harness.Progress.IsBusy;
+
+            request.Accepted = true;
+            request.Title = "Nytt sett";
+        };
+
+        harness.Dataset.SaveDataPackageCommand.Execute(null);
+
+        Assert.False(busyWhileAsking);
+        Assert.False(harness.Progress.IsBusy);
+    }
+
+    [Fact]
+    public void AFailingDialogIsReportedRatherThanLostAsAnUnobservedTask()
+    {
+        // The save runs as fire-and-forget off a synchronous command, so anything that escapes it
+        // reaches App.Report as a crash box rather than the status line.
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.Workspace.SetCheckedCollectorNames(["QS_HBA1C"]);
+        harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(52)]);
+        harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation(257));
+
+        harness.ViewModel.SaveSpecRequested += (_, _) => throw new InvalidOperationException("No window.");
+
+        harness.Dataset.SaveDataPackageCommand.Execute(null);
+
+        Assert.True(harness.Progress.IsError);
+        Assert.Contains(
+            harness.Presenter.Notifications,
+            notification => notification.Severity == NotificationSeverity.Error);
+    }
+
+    [Fact]
+    public void AFailedSaveIsReported()
+    {
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.Workspace.SetCheckedCollectorNames(["QS_HBA1C"]);
+        harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(52)]);
+        harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation(257));
+        harness.Repository.Throws = new InvalidOperationException("The server said no.");
+
+        harness.ViewModel.SaveSpecRequested += (_, request) =>
+        {
+            request.Accepted = true;
+            request.Title = "Nytt sett";
+        };
+
+        harness.Dataset.SaveDataPackageCommand.Execute(null);
+
+        Assert.True(harness.Progress.IsError);
+        Assert.Empty(harness.ViewModel.Packages);
+    }
+
+    [Fact]
     public void SavingWithNoPopulationDoesNothing()
     {
         // Delphi Guard.CheckNotNull(fGridPopulation) would have crashed; DatasetViewModel's

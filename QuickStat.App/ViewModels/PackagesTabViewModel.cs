@@ -604,17 +604,20 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
 
         IReadOnlyList<string> collectorNames = _workspace.CheckedCollectorNames;
 
-        SaveSpecRequest request = new();
-
-        SaveSpecRequested?.Invoke(this, request);
-
-        if (!request.Accepted)
-        {
-            return;
-        }
-
         try
         {
+            SaveSpecRequest request = new();
+
+            // Outside the busy scope on purpose: this blocks on a modal window, and marking the shell
+            // busy for its duration would put the wait cursor and the overlay behind the dialog the
+            // user is typing into.
+            SaveSpecRequested?.Invoke(this, request);
+
+            if (!request.Accepted)
+            {
+                return;
+            }
+
             using IDisposable operation = _progress.BeginOperation(SaveSpecViewModel.SaveSpecificationHeader);
 
             PackagedSelection saved = await _repository.SaveAsync(new PackagedSelection
