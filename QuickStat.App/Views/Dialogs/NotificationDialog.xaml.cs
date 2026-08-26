@@ -20,13 +20,16 @@ namespace QuickStat.Views.Dialogs;
 /// </remarks>
 public partial class NotificationDialog : Window
 {
-    /// <summary>Initialises the dialog with no notification. Used by the XAML designer.</summary>
-    public NotificationDialog() => InitializeComponent();
-
     /// <summary>Initialises the dialog for one notification.</summary>
     /// <param name="notification">What to show.</param>
     public NotificationDialog(UserNotification notification)
         : this() => DataContext = new NotificationViewModel(notification);
+
+    /// <summary>
+    /// Loads the XAML. Private: a notification dialog with nothing to notify has no use, and there
+    /// is no path that produces one by accident.
+    /// </summary>
+    private NotificationDialog() => InitializeComponent();
 
     private void OnYes(object sender, RoutedEventArgs e) => DialogResult = true;
 }
