@@ -49,11 +49,12 @@ public class PackagesTabViewModelTests
             Audit = new FakePopulationRepository();
             Parameters = new FakeParameterResolver();
             Presenter = new ProbingNotificationPresenter(_ => OnNotify?.Invoke(), answerConfirmations);
-            Populations = new PopulationPickerViewModel();
+            Populations = QuickStat.Tests.Ui.Populations.PopulationTestDoubles.NewPickerViewModel();
 
             IdentificationPolicy identification = new();
 
-            Collections = new CollectionsTabViewModel(Workspace, identification);
+            Collections = QuickStat.Tests.Ui.Collections.CollectionsTabHarness.Headless(
+                Workspace, identification, Progress);
 
             Dataset = new DatasetViewModel(
                 Workspace,
@@ -181,8 +182,9 @@ public class PackagesTabViewModelTests
             new FakePopulationRepository(),
             new FakeParameterResolver(),
             new UserNotifier(new HeadlessNotificationPresenter(), NullLogger<UserNotifier>.Instance),
-            new PopulationPickerViewModel(),
-            new CollectionsTabViewModel(workspace, new IdentificationPolicy()),
+            QuickStat.Tests.Ui.Populations.PopulationTestDoubles.NewPickerViewModel(),
+            QuickStat.Tests.Ui.Collections.CollectionsTabHarness.Headless(
+                workspace, new IdentificationPolicy(), progress),
             dataset,
             NullLogger<PackagesTabViewModel>.Instance);
     }

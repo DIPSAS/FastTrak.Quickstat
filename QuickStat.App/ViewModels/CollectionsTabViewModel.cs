@@ -1,7 +1,12 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using QuickStat.Collectors;
+using QuickStat.Data;
+using QuickStat.Diagnostics;
 using QuickStat.Domain.Anonymisation;
+using QuickStat.Domain.Matrix;
 using QuickStat.Services;
 
 namespace QuickStat.ViewModels;
@@ -9,43 +14,22 @@ namespace QuickStat.ViewModels;
 /// <summary>The <c>Collections</c> tab: the data-element list, <c>Collect data</c>, export options.</summary>
 /// <remarks>
 /// <para>
-/// <b>OWNER: step 3.3. This is a compiling stub with no behaviour.</b> Step 3.1 wired the two
-/// properties that cross tab boundaries - <see cref="Identification"/> and
-/// <see cref="ExportTimestamps"/> - because getting either of them wrong is a privacy or a
-/// data-format defect, and both already have a single shared home.
+/// <c>05-ui-spec.md</c> §B.2, §D.1, §G.3-§G.6. Step 3.3 owns this.
 /// </para>
 /// <para>
-/// <b>What is left to do</b> (<c>05-ui-spec.md</c> §B.2, §D.1, §G.4, §G.5):
+/// It is the port of three Delphi routines: <c>AfterLogin</c> (<c>MainQuickStat.pas:471-493</c>)
+/// fills the list, <c>ValidateCollectorSelection</c> (<c>:690-713</c>) decides whether
+/// <c>Collect data</c> is enabled, and <c>actCollectDataExecute</c> (<c>:633-681</c>) is the run
+/// itself.
 /// </para>
-/// <list type="bullet">
-///   <item><description>
-///     Fill <see cref="DataElements"/> from <see cref="QuickStat.Collectors.ICollectorRegistry"/>
-///     after login, sorted <b>ordinally by title</b>. That order is the column order of every
-///     export - PORT-PLAN.md §6.
-///   </description></item>
-///   <item><description>
-///     <see cref="CollectDataCommand"/>: clear the variables, add the DRUID/DRUG caption records,
-///     walk the list from index 0, and for each ticked element set the status line to its title and
-///     run it through <see cref="QuickStat.Collectors.ICollectorRunner"/> into the matrix. Then lock
-///     the matrix and call
-///     <see cref="IShellWorkspace.NotifyDataChanged"/> - which is what re-enables
-///     <c>Open this dataset in Excel</c>, refreshes the dataset caption and repaints the grid.
-///     Progress is per patient: <c>100 * personIndex / population.Count</c>. Finish with
-///     <see cref="IShellProgress.Done"/>.
-///   </description></item>
-///   <item><description>
-///     Show which element is being collected through <see cref="DataElementViewModel.IsCollecting"/>
-///     and <see cref="CurrentlyCollecting"/>. §G.4: <b>do not</b> move <c>SelectedItem</c>, and
-///     restore the scroll offset afterwards. The Delphi moved <c>ItemIndex</c> and then put it back.
-///   </description></item>
-///   <item><description>
-///     Every <see cref="DataElementViewModel.IsChecked"/> change must call
-///     <c>CollectDataCommand.NotifyCanExecuteChanged()</c> and
-///     <see cref="IShellWorkspace.SetCheckedCollectorNames"/>.
-///   </description></item>
-/// </list>
+/// <para>
+/// <b>The order of <see cref="DataElements"/> is the column order of every export</b> - PORT-PLAN.md
+/// §6 - because the run walks the list from index 0 and the matrix appends columns in the order it
+/// is given them. See <see cref="DataElementViewModel.TitleOrder"/> for the rule and for why it is
+/// not <see cref="StringComparer.Ordinal"/>.
+/// </para>
 /// </remarks>
-public sealed partial class CollectionsTabViewModel : ObservableObject
+public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposable
 {
     /// <summary>Teal header above the list.</summary>
     public const string ElementsHeader = "Select data elements";
@@ -79,28 +63,126 @@ public sealed partial class CollectionsTabViewModel : ObservableObject
     /// <summary>The timestamp check box. Delphi <c>cbExportDates</c>.</summary>
     public const string ExportTimestampsCaption = "Export timestamp for every data element";
 
+    /// <summary>
+    /// Status line while the registry is being built. Delphi <c>TXT_LOADING_COLLECTORS</c>
+    /// (<c>QuickStat.Collectors.pas:86</c>), listed in <c>05-ui-spec.md</c> §G.6.
+    /// </summary>
+    public const string LoadingCollectorsText = "Loading collectors";
+
+    /// <summary>
+    /// Shown instead of a second collect run against the same population.
+    /// </summary>
+    /// <remarks>
+    /// <b>A regression against the Delphi, forced by <see cref="PersonMatrix"/>.</b> There,
+    /// <c>ClearVariables</c> leaves <c>fLocked</c> alone and <c>AddData</c> never consults it
+    /// (<c>FastTrak/EPR.QA.Matrix.pas:205-215</c>), so clicking <c>Collect data</c> twice simply
+    /// re-collects. Here <see cref="PersonMatrix.AddColumns"/> and <see cref="PersonMatrix.Add"/>
+    /// both throw once <see cref="PersonMatrix.Lock"/> has been called, and only
+    /// <see cref="PersonMatrix.ClearPopulation"/> unlocks - which would throw the cohort away.
+    /// Saying so is better than the <see cref="InvalidOperationException"/> the run would otherwise
+    /// raise on the second click. Delete this constant and the guard in <c>CollectDataAsync</c> that
+    /// reads it as soon as Core allows a re-collect.
+    /// </remarks>
+    public const string AlreadyCollectedMessage =
+        "This dataset has already been collected.\n\n"
+        + "Load the population again before collecting a different set of data elements.";
+
     private readonly IShellWorkspace _workspace;
     private readonly IIdentificationPolicy _identification;
+    private readonly ICollectorRegistry _registry;
+    private readonly ICollectorRunner _runner;
+    private readonly ISessionService _session;
+    private readonly IShellProgress _progress;
+    private readonly IUiDispatcher _dispatcher;
+    private readonly IUserNotifier _notifier;
+    private readonly ILogger<CollectionsTabViewModel> _logger;
 
     [ObservableProperty]
     private DataElementViewModel? _currentlyCollecting;
 
+    private bool _suspendCheckedNotifications;
+    private bool _disposed;
+
     /// <summary>Creates the tab's view-model.</summary>
     /// <param name="workspace">Cross-tab state; owns the timestamp flag and the ticked names.</param>
     /// <param name="identification">The one shared identification mode.</param>
-    public CollectionsTabViewModel(IShellWorkspace workspace, IIdentificationPolicy identification)
+    /// <param name="registry">Supplies the data elements for the connected study.</param>
+    /// <param name="runner">Runs one collector over the cohort.</param>
+    /// <param name="session">Tells this tab when to rebuild the list, and supplies the study id.</param>
+    /// <param name="progress">Status line, percentage and the busy flag.</param>
+    /// <param name="dispatcher">Marshals a session change onto the user-interface thread.</param>
+    /// <param name="notifier">Reports a failed run to the user.</param>
+    /// <param name="logger">Log.</param>
+    public CollectionsTabViewModel(
+        IShellWorkspace workspace,
+        IIdentificationPolicy identification,
+        ICollectorRegistry registry,
+        ICollectorRunner runner,
+        ISessionService session,
+        IShellProgress progress,
+        IUiDispatcher dispatcher,
+        IUserNotifier notifier,
+        ILogger<CollectionsTabViewModel> logger)
     {
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(identification);
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(runner);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(progress);
+        ArgumentNullException.ThrowIfNull(dispatcher);
+        ArgumentNullException.ThrowIfNull(notifier);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _workspace = workspace;
         _identification = identification;
+        _registry = registry;
+        _runner = runner;
+        _session = session;
+        _progress = progress;
+        _dispatcher = dispatcher;
+        _notifier = notifier;
+        _logger = logger;
 
-        _identification.ModeChanged += (_, _) => OnPropertyChanged(nameof(Identification));
+        _identification.ModeChanged += OnIdentificationModeChanged;
+        _session.SessionChanged += OnSessionChanged;
     }
 
-    /// <summary>The tickable data elements, sorted ordinally by <see cref="DataElementViewModel.Title"/>.</summary>
+    /// <summary>
+    /// Raised immediately before a run walks the list, so the view can remember where the check list
+    /// is scrolled to.
+    /// </summary>
+    /// <remarks>
+    /// §G.4. Delphi <c>actCollectDataExecute</c> saves <c>TopIndex</c> and <c>ItemIndex</c> before
+    /// the loop and puts both back after it. The port keeps the scroll half and drops the
+    /// selection half - the run marks <see cref="DataElementViewModel.IsCollecting"/> rather than
+    /// moving <c>SelectedItem</c>, so there is no selection to restore.
+    /// </remarks>
+    public event EventHandler? CollectRunStarting;
+
+    /// <summary>Raised after a run finishes, however it finished, so the view can scroll back.</summary>
+    public event EventHandler? CollectRunFinished;
+
+    /// <summary>
+    /// The tickable data elements, ordered by <see cref="DataElementViewModel.TitleOrder"/>.
+    /// </summary>
+    /// <remarks>
+    /// Filled from <see cref="ICollectorRegistry"/> after every successful login, which is Delphi
+    /// <c>AfterLogin</c>. <b>This order is the column order of every export</b> (PORT-PLAN.md §6).
+    /// </remarks>
     public ObservableCollection<DataElementViewModel> DataElements { get; } = [];
+
+    /// <summary>
+    /// The reload started by the most recent session change; already completed when nothing is in
+    /// flight.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ISessionService.SessionChanged"/> is a plain event and building the registry is
+    /// asynchronous, so the handler starts the work and does not wait for it. This is how a test -
+    /// or anything else that needs the list to be there - waits. It never faults: see
+    /// <see cref="ReloadDataElementsAsync"/>.
+    /// </remarks>
+    public Task PendingReload { get; private set; } = Task.CompletedTask;
 
     /// <summary>
     /// The radio group, bound through <see cref="QuickStat.Converters.EnumToBooleanConverter"/>.
@@ -152,8 +234,380 @@ public sealed partial class CollectionsTabViewModel : ObservableObject
         }
     }
 
-    /// <summary>Runs the collect. Enabled while at least one element is ticked.</summary>
-    /// <remarks>Step 3.3 replaces this with the real command; the stub is permanently disabled.</remarks>
-    public IAsyncRelayCommand CollectDataCommand { get; } =
-        new AsyncRelayCommand(static () => Task.CompletedTask, static () => false);
+    /// <summary>
+    /// Rebuilds <see cref="DataElements"/> for a session. Delphi <c>AfterLogin</c>.
+    /// </summary>
+    /// <param name="session">The session that has just been established.</param>
+    /// <param name="cancellationToken">Cancels the registry build.</param>
+    /// <returns>A task that completes when the list has been replaced.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>It never throws.</b> The only caller that matters is the
+    /// <see cref="ISessionService.SessionChanged"/> handler, which cannot await it; an escaping
+    /// exception would surface as an unobserved task exception and, through
+    /// <c>TaskScheduler.UnobservedTaskException</c>, as a crash dialog. A failure leaves the list
+    /// empty and the status line red.
+    /// </para>
+    /// <para>
+    /// It also copies the study id onto the matrix, which is the other half of Delphi
+    /// <c>AfterLogin</c>'s <c>fGrid.Data.PrepareStudy</c>: nothing else in the port sets
+    /// <see cref="PersonMatrix.StudyId"/>, and a saved package records it.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+    public async Task ReloadDataElementsAsync(SessionContext session, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        using IDisposable operation = _progress.BeginOperation(LoadingCollectorsText);
+
+        try
+        {
+            _workspace.Matrix.StudyId = session.StudyId;
+
+            IReadOnlyList<ICollector> collectors =
+                await _registry.BuildAsync(session, cancellationToken).ConfigureAwait(false);
+
+            _dispatcher.Invoke(() => Replace(collectors));
+
+            _logger.LogInformation(
+                "The Collections tab lists {ElementCount} data elements for study {StudyName}.",
+                collectors.Count,
+                session.StudyName);
+
+            // Delphi TQuickStatCollectors.PrepareStudy ends with fStatus.Done, in a finally.  Only
+            // the success path does so here: "Task completed" is a lie after a failure, and unlike
+            // the Delphi there is no automatic exception dialog behind it to say otherwise.
+            _progress.Done();
+        }
+        catch (OperationCanceledException)
+        {
+            _dispatcher.Invoke(Clear);
+
+            _logger.LogInformation("Loading the data elements was cancelled.");
+        }
+        catch (Exception exception)
+        {
+            _dispatcher.Invoke(Clear);
+
+            _progress.Fail(exception.Message);
+
+            _logger.LogError(exception, "Could not load the data elements for study {StudyName}.", session.StudyName);
+        }
+    }
+
+    /// <summary>
+    /// Unticks everything, then ticks the elements a saved package names. Delphi
+    /// <c>PreparePackagedSelection</c> (<c>MainQuickStat.pas:794-803</c>).
+    /// </summary>
+    /// <param name="collectorNames">
+    /// <see cref="QuickStat.Domain.Packages.PackagedSelection.CollectorNames"/>, in stored order.
+    /// </param>
+    /// <returns>The names that matched no data element, in the order they were given.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>For step 3.4's replay.</b> Ticking is this tab's business - the workspace's checked names
+    /// are a projection of <see cref="DataElements"/>, not a second copy - so the replay asks rather
+    /// than reaching in. Matching is <see cref="ICollectorRegistry.TryFind"/>, i.e. name
+    /// <em>or</em> title, case-insensitively, exactly as <c>TryFindCollector</c> does.
+    /// </para>
+    /// <para>
+    /// The unknown names are returned rather than reported: §D.4's
+    /// <c>The selection contains an unknown data element.</c> warning belongs to the Packages tab,
+    /// which knows which package it came from. The Delphi raised it once per missing element from
+    /// inside the loop (<c>:803</c>); one warning listing all of them is step 3.4's decision to make.
+    /// </para>
+    /// <para>
+    /// The whole update pushes to <see cref="IShellWorkspace.SetCheckedCollectorNames"/> once, not
+    /// once per tick.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="collectorNames"/> is <see langword="null"/>.</exception>
+    public IReadOnlyList<string> ApplyPackagedSelection(IEnumerable<string> collectorNames)
+    {
+        ArgumentNullException.ThrowIfNull(collectorNames);
+
+        List<string> unknown = [];
+
+        _suspendCheckedNotifications = true;
+
+        try
+        {
+            foreach (DataElementViewModel element in DataElements)
+            {
+                element.IsChecked = false;
+            }
+
+            foreach (string collectorName in collectorNames)
+            {
+                if (_registry.TryFind(collectorName, out ICollector? collector) &&
+                    FindByName(collector.Descriptor.Name) is { } element)
+                {
+                    element.IsChecked = true;
+                }
+                else
+                {
+                    unknown.Add(collectorName);
+                }
+            }
+        }
+        finally
+        {
+            _suspendCheckedNotifications = false;
+        }
+
+        PublishCheckedCollectors();
+
+        return unknown;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        _identification.ModeChanged -= OnIdentificationModeChanged;
+        _session.SessionChanged -= OnSessionChanged;
+    }
+
+    /// <summary>
+    /// The collect run. Delphi <c>actCollectDataExecute</c> (<c>MainQuickStat.pas:633-681</c>).
+    /// </summary>
+    /// <param name="cancellationToken">Cancels between collectors and inside one.</param>
+    /// <returns>A task that completes when the run has finished.</returns>
+    /// <remarks>
+    /// <para>
+    /// Clear the variables, walk the list <b>from index 0</b>, and for each ticked element put its
+    /// title on the status line and run it into the matrix. Then lock the matrix and announce the
+    /// change, in that order - <c>07-ui-contracts.md</c> §3.1.
+    /// </para>
+    /// <para>
+    /// Four things the Delphi does that are gone, each because they moved rather than disappeared:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description>
+    ///     <c>AddCaptions</c> - the twelve DRUID/DRUG caption records plus <c>LoadCaptions</c> - now
+    ///     happens once per connection in <see cref="ICaptionLoader"/>, which is where step 2.5 put
+    ///     it and why <see cref="IConnectionCoordinator"/> calls it.
+    ///   </description></item>
+    ///   <item><description>
+    ///     <c>Screen.Cursor := crSqlWait</c> is <see cref="IShellProgress.BeginOperation"/>, which
+    ///     counts, so a package replay that wraps this in its own scope still gets one wait cursor
+    ///     (§G.3).
+    ///   </description></item>
+    ///   <item><description>
+    ///     <c>actExportData.Enabled := fGrid.Data.HasData</c> is
+    ///     <c>DatasetViewModel.HasData</c>, refreshed by
+    ///     <see cref="IShellWorkspace.NotifyDataChanged"/>.
+    ///   </description></item>
+    ///   <item><description>
+    ///     <c>UpdateGridInfo</c> is the same notification, which is why it is raised in the
+    ///     <c>finally</c>: the Delphi refreshes the caption whether or not the run succeeded.
+    ///   </description></item>
+    /// </list>
+    /// <para>
+    /// Progress is the runner's: one report per batch, <c>title (n/m)</c>. The Delphi's own
+    /// per-patient percentage (<c>EPR.QA.Matrix.pas:159-160</c>) was also really per batch, since it
+    /// only fired when a batch filled.
+    /// </para>
+    /// </remarks>
+    [RelayCommand(CanExecute = nameof(CanCollectData))]
+    private async Task CollectDataAsync(CancellationToken cancellationToken)
+    {
+        PersonMatrix matrix = _workspace.Matrix;
+
+        if (matrix.IsLocked)
+        {
+            // See AlreadyCollectedMessage: a Core restriction the Delphi does not have.
+            _logger.LogWarning("A second collect run was refused because the matrix is already locked.");
+
+            await _notifier.InformAsync(AlreadyCollectedMessage).ConfigureAwait(true);
+
+            return;
+        }
+
+        // A snapshot: the collection must not be enumerated while a collector is running, and the
+        // cohort is fixed for the whole run.
+        List<DataElementViewModel> ticked = [.. DataElements.Where(static element => element.IsChecked)];
+        int[] personIds = [.. matrix.Rows.Select(static row => row.PersonId)];
+        int studyId = _session.Current?.StudyId ?? matrix.StudyId;
+
+        CollectRunStarting?.Invoke(this, EventArgs.Empty);
+
+        // BeginOperation always sets the status line, and the Delphi's first is the first collector's
+        // title.  With nothing ticked there is no run to describe, so the line is left as it is.
+        using IDisposable operation = _progress.BeginOperation(ticked.Count > 0 ? ticked[0].Title : _progress.Info);
+
+        try
+        {
+            matrix.ClearVariables();
+
+            foreach (DataElementViewModel element in ticked)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                await CollectOneAsync(element, matrix, personIds, studyId, cancellationToken).ConfigureAwait(true);
+            }
+
+            matrix.Lock();
+
+            _progress.Done();
+        }
+        catch (OperationCanceledException)
+        {
+            // The matrix stays unlocked, so the columns collected so far show but cannot be
+            // exported - DatasetViewModel.EnsureExportable.  There is no Delphi equivalent; the run
+            // could not be interrupted at all.
+            _logger.LogInformation("The collect run was cancelled.");
+
+            _progress.Reset();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "The collect run failed.");
+
+            _progress.Fail(exception.Message);
+
+            await _notifier.ErrorAsync(
+                "The data collection failed." + Environment.NewLine + Environment.NewLine + exception.Message)
+                .ConfigureAwait(true);
+        }
+        finally
+        {
+            CurrentlyCollecting = null;
+
+            // Delphi: UpdateGridInfo is in the finally, so the caption is refreshed even when a
+            // collector threw.  After the happy path this is the second half of the ordering
+            // contract - Lock, then notify.
+            _workspace.NotifyDataChanged();
+
+            CollectRunFinished?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private bool CanCollectData() => DataElements.Any(static element => element.IsChecked);
+
+    private async Task CollectOneAsync(
+        DataElementViewModel element,
+        PersonMatrix matrix,
+        IReadOnlyList<int> personIds,
+        int studyId,
+        CancellationToken cancellationToken)
+    {
+        if (!_registry.TryFind(element.Name, out ICollector? collector))
+        {
+            // Delphi: `if Supports( Items.Objects[n], IGridDataCollector, ... )` - a list entry that
+            // is not a collector is skipped in silence.  Unreachable unless the registry was rebuilt
+            // underneath the list.
+            _logger.LogWarning("Data element {CollectorName} is ticked but no longer in the registry.", element.Name);
+
+            return;
+        }
+
+        CurrentlyCollecting = element;
+        element.IsCollecting = true;
+
+        try
+        {
+            _progress.SetInfo(element.Title);
+
+            CollectorRunSummary summary = await _runner
+                .RunAsync(collector, personIds, studyId, matrix, _progress, cancellationToken)
+                .ConfigureAwait(true);
+
+            matrix.AddColumns(summary.VariableNames);
+
+            _logger.LogDebug(
+                "{CollectorName}: {ColumnCount} columns, {RowsAccepted} values, {BatchCount} batches.",
+                summary.Descriptor.Name,
+                summary.VariableNames.Count,
+                summary.RowsAccepted,
+                summary.BatchCount);
+        }
+        finally
+        {
+            element.IsCollecting = false;
+        }
+    }
+
+    private DataElementViewModel? FindByName(string name) =>
+        DataElements.FirstOrDefault(element => string.Equals(element.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private void Replace(IEnumerable<ICollector> collectors)
+    {
+        Clear();
+
+        foreach (ICollector collector in collectors.OrderBy(
+                     static collector => collector.Descriptor.Title,
+                     DataElementViewModel.TitleOrder))
+        {
+            DataElements.Add(new DataElementViewModel(
+                collector.Descriptor.Name,
+                collector.Descriptor.Title,
+                OnElementCheckedChanged));
+        }
+
+        CollectDataCommand.NotifyCanExecuteChanged();
+    }
+
+    private void Clear()
+    {
+        CurrentlyCollecting = null;
+
+        DataElements.Clear();
+
+        // Nothing is ticked any more, so neither Collect data nor the Dataset tab's package command
+        // may stay enabled.  Delphi AfterLogin calls ValidateCollectorSelection for the same reason.
+        _workspace.SetCheckedCollectorNames([]);
+
+        CollectDataCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnElementCheckedChanged(DataElementViewModel element)
+    {
+        _ = element;
+
+        if (_suspendCheckedNotifications)
+        {
+            return;
+        }
+
+        PublishCheckedCollectors();
+    }
+
+    private void PublishCheckedCollectors()
+    {
+        // In check-list order, which is the order a saved package stores and the order a replay
+        // re-ticks in.
+        _workspace.SetCheckedCollectorNames(
+            DataElements.Where(static element => element.IsChecked).Select(static element => element.Name));
+
+        CollectDataCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnIdentificationModeChanged(object? sender, PersonIdentification mode)
+    {
+        _ = mode;
+
+        OnPropertyChanged(nameof(Identification));
+    }
+
+    private void OnSessionChanged(object? sender, SessionContext? session)
+    {
+        if (session is null)
+        {
+            // ISessionService.ConnectAsync awaits with ConfigureAwait(false) throughout, so this can
+            // arrive on a thread-pool thread and DataElements is bound to a ListBox.
+            _dispatcher.Invoke(Clear);
+
+            return;
+        }
+
+        PendingReload = ReloadDataElementsAsync(session);
+    }
 }

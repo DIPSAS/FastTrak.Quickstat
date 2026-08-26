@@ -40,6 +40,18 @@ internal static class PopulationTestDoubles
     /// </remarks>
     internal static PopulationTabViewModel NewTabViewModel() => new PopulationHarness().Tab;
 
+    /// <summary>
+    /// A fully wired <see cref="PopulationPickerViewModel"/> over fakes, for callers that only need
+    /// one to exist.
+    /// </summary>
+    /// <returns>The picker view-model.</returns>
+    /// <remarks>
+    /// Same purpose as <see cref="NewTabViewModel"/>, for <c>Ui/Packages</c>: step 3.4's tests hand a
+    /// picker to <c>PackagesTabViewModel</c> without driving it, and were written against the
+    /// parameterless stub this step replaced.
+    /// </remarks>
+    internal static PopulationPickerViewModel NewPickerViewModel() => new PopulationHarness().Picker;
+
     /// <summary>A catalogue row.</summary>
     /// <param name="procId">The id.</param>
     /// <param name="title">The bold main text.</param>
