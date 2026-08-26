@@ -247,6 +247,7 @@ packages/
 # never descends into an excluded directory, so the whole feature is invisible and would be lost on
 # commit.  A negation only works after the pattern it overrides, hence the position.
 !/QuickStat.Core/Domain/Packages/
+!/QuickStat.Tests/Domain/Packages/
 
 # Test and coverage output
 [Tt]est[Rr]esult*/
