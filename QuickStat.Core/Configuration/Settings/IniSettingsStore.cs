@@ -43,6 +43,12 @@ public sealed class IniSettingsStore : ISettingsStore, IDisposable
 {
     private const string TemporaryFileSuffix = ".tmp";
 
+    /// <summary>How many times <c>Save</c> tries the write-and-move before giving up.</summary>
+    private const int SaveAttempts = 3;
+
+    /// <summary>Multiplied by the attempt number, so the waits are 10 ms then 20 ms.</summary>
+    private const int SaveRetryDelayMilliseconds = 10;
+
     /// <summary>
     /// Every rendering of a date this store will read: the one it writes, a few obvious hand-edits,
     /// and what the Delphi would have written on a Norwegian or an American machine.
@@ -528,24 +534,48 @@ public sealed class IniSettingsStore : ISettingsStore, IDisposable
         }
 
         string temporaryPath = FilePath + TemporaryFileSuffix;
+        string contents = builder.ToString();
 
-        try
+        // Retried, because on Windows both the write and the move lose to a transient sharing
+        // violation: an on-access virus scanner opens the file microseconds after it appears, and a
+        // move onto a target somebody is still reading fails outright. Flush() is contractually
+        // allowed to swallow the failure, which means one unlucky attempt silently loses whatever
+        // the user just changed - a remembered period, a window position. Observed as an
+        // intermittent failure of ConcurrentWritersDoNotCorruptTheStore, roughly one run in three.
+        //
+        // Three attempts with a short backoff, and the last one rethrows so the caller still
+        // decides. Nothing here waits long enough to be felt: the whole budget is 30 ms.
+        for (int attempt = 1; ; attempt++)
         {
-            // UTF-8 without a BOM: this file is never read through WritePrivateProfileString, which
-            // is the only reader that would have needed one, and a BOM in front of the first section
-            // header trips up every naive INI parser that might look at it later.
-            File.WriteAllText(
-                temporaryPath,
-                builder.ToString(),
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            try
+            {
+                // UTF-8 without a BOM: this file is never read through WritePrivateProfileString,
+                // which is the only reader that would have needed one, and a BOM in front of the
+                // first section header trips up every naive INI parser that might look at it later.
+                File.WriteAllText(
+                    temporaryPath,
+                    contents,
+                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-            File.Move(temporaryPath, FilePath, overwrite: true);
-        }
-        catch
-        {
-            TryDeleteTemporaryFile(temporaryPath);
+                File.Move(temporaryPath, FilePath, overwrite: true);
 
-            throw;
+                return;
+            }
+            catch (IOException) when (attempt < SaveAttempts)
+            {
+                Thread.Sleep(attempt * SaveRetryDelayMilliseconds);
+            }
+            catch (UnauthorizedAccessException) when (attempt < SaveAttempts)
+            {
+                // What a scanner holding the target open actually surfaces as, often enough.
+                Thread.Sleep(attempt * SaveRetryDelayMilliseconds);
+            }
+            catch
+            {
+                TryDeleteTemporaryFile(temporaryPath);
+
+                throw;
+            }
         }
     }
 
