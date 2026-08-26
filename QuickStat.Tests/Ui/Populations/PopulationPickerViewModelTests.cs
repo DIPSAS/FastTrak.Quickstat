@@ -334,7 +334,24 @@ public class PopulationPickerViewModelTests
         using PopulationHarness harness = new();
 
         Assert.True(harness.Picker.IsEmpty);
+        Assert.Equal(PopulationPickerViewModel.NoDatabaseText, harness.Picker.EmptyStateText);
+    }
+
+    [Fact]
+    public async Task WithADatabaseThatHasNoPopulationsTheEmptyStateSaysThatInstead()
+    {
+        using PopulationHarness harness = new();
+        List<string?> changed = [];
+
+        harness.Picker.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        await harness.ConnectAsync();
+
+        Assert.True(harness.Picker.IsEmpty);
         Assert.Equal(PopulationPickerViewModel.NoPopulationsText, harness.Picker.EmptyStateText);
+
+        // The collection was empty before and after, so only the session change can announce this.
+        Assert.Contains(nameof(PopulationPickerViewModel.EmptyStateText), changed);
     }
 
     [Fact]
@@ -767,11 +784,29 @@ public class PopulationPickerViewModelTests
     }
 
     // ---------------------------------------------------------------------------------------
-    // TrySelect - the package replay's entry point
+    // TryLoadPopulationAsync - the package replay's entry point (step 3.4)
     // ---------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task TrySelectFindsAPopulationThatTheFilterIsHiding()
+    public async Task LoadingByIdSelectsTheRowAndFillsTheGrid()
+    {
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1), ShellWorkspaceTests.NewPatient(2)];
+
+        await harness.ConnectAsync(
+            PopulationTestDoubles.NewPopulation(1, "Ein"),
+            PopulationTestDoubles.NewPopulation(2, "To"));
+
+        Assert.True(await harness.Picker.TryLoadPopulationAsync(2));
+
+        Assert.Equal(2, harness.Picker.SelectedPopulation?.ProcId);
+        Assert.Equal(2, harness.Workspace.Population?.ProcId);
+        Assert.Equal(2, harness.Workspace.RowCount);
+    }
+
+    [Fact]
+    public async Task LoadingByIdFindsAPopulationThatTheFilterIsHiding()
     {
         using PopulationHarness harness = new();
 
@@ -786,15 +821,14 @@ public class PopulationPickerViewModelTests
         Assert.Equal([1], VisibleIds(harness.Picker));
 
         // The Delphi asks the list VIEW, so a replay with a filter typed reports the population as
-        // unknown. Deliberate change, flagged on TrySelectAsync.
-        bool found = await harness.Picker.TrySelectAsync(2, loadIt: true);
+        // unknown. Deliberate change, flagged on TryLoadPopulationAsync.
+        Assert.True(await harness.Picker.TryLoadPopulationAsync(2));
 
-        Assert.True(found);
         Assert.Equal(2, harness.Workspace.Population?.ProcId);
     }
 
     [Fact]
-    public async Task TrySelectDoesNotAskForTheCollectionsTab()
+    public async Task LoadingByIdDoesNotAskForTheCollectionsTab()
     {
         using PopulationHarness harness = new();
 
@@ -806,36 +840,64 @@ public class PopulationPickerViewModelTests
 
         harness.Workspace.CollectionsTabRequested += (_, _) => requests++;
 
-        Assert.True(await harness.Picker.TrySelectAsync(1, loadIt: true));
+        Assert.True(await harness.Picker.TryLoadPopulationAsync(1));
 
+        // The replay leaves the user on the Packages tab (07-ui-contracts.md §3.1).
         Assert.Equal(0, requests);
     }
 
     [Fact]
-    public async Task TrySelectWithoutLoadingOnlySelects()
+    public async Task LoadingByIdAnswersFalseForAnUnknownId()
     {
         using PopulationHarness harness = new();
 
         await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
 
-        Assert.True(await harness.Picker.TrySelectAsync(1, loadIt: false));
-
-        Assert.Equal(1, harness.Picker.SelectedPopulation?.ProcId);
-        Assert.Empty(harness.Patients.Loaded);
-        Assert.Null(harness.Workspace.Population);
-    }
-
-    [Fact]
-    public async Task TrySelectAnswersFalseForAnUnknownId()
-    {
-        using PopulationHarness harness = new();
-
-        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
-
-        Assert.False(await harness.Picker.TrySelectAsync(999, loadIt: true));
+        Assert.False(await harness.Picker.TryLoadPopulationAsync(999));
 
         Assert.Null(harness.Picker.SelectedPopulation);
         Assert.Empty(harness.Patients.Loaded);
+    }
+
+    [Fact]
+    public async Task ReplayingASecondPackageAfterACollectRunDoesNotThrow()
+    {
+        // The same locked-matrix trap as PreparingASecondPopulationAfterACollectRunDoesNotThrow, on
+        // the other entry point: replay a package, collect, replay another.
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1)];
+
+        await harness.ConnectAsync(
+            PopulationTestDoubles.NewPopulation(1, "Ein"),
+            PopulationTestDoubles.NewPopulation(2, "To"));
+
+        Assert.True(await harness.Picker.TryLoadPopulationAsync(1));
+
+        harness.Matrix.Lock();
+
+        Assert.True(await harness.Picker.TryLoadPopulationAsync(2));
+
+        Assert.Equal(2, harness.Workspace.Population?.ProcId);
+        Assert.False(harness.Matrix.IsLocked);
+        Assert.Empty(harness.Notifier.Errors);
+    }
+
+    [Fact]
+    public async Task LoadingByIdIsAwaitableSoAReplayCanCollectAfterwards()
+    {
+        // The reason this is a Task and not a command: PackagesTabViewModel has to know the cohort
+        // is in the grid before it starts the collect run.
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1)];
+
+        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
+
+        Task<bool> load = harness.Picker.TryLoadPopulationAsync(1);
+
+        Assert.True(await load);
+        Assert.True(harness.Workspace.HasPopulation);
     }
 
     // ---------------------------------------------------------------------------------------

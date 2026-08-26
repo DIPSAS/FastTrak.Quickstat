@@ -45,19 +45,22 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <summary>Caption of the right-hand check box, which sits to the <em>left</em> of its box.</summary>
     public const string SimplifiedCaption = "Simplified";
 
-    /// <summary>
-    /// Empty state when the catalogue itself is empty - no database chosen, or the study has none.
-    /// </summary>
+    /// <summary>Empty state before a database has been chosen. This is what a first run shows.</summary>
     /// <remarks>
     /// <b>Addition</b>, flagged. The VCL hides the whole list when it has nothing to show
     /// (<c>Emetra.VclComp.ListView.pas:524</c>, <c>Visible := FLocalList.Count &gt; 0</c>), leaving a
     /// blank rectangle with no explanation; <c>05-ui-spec.md</c> §B.1.1 asks for a message instead
-    /// and does not say what it should read.
+    /// and does not say what it should read. Three of them rather than one, because a single
+    /// sentence would be untrue in two of the three states it has to cover.
     /// </remarks>
-    public const string NoPopulationsText = "No populations are available. Select a database above.";
+    public const string NoDatabaseText = "No database is selected. Choose one above.";
+
+    /// <summary>Empty state when a study is connected and its catalogue is empty.</summary>
+    /// <remarks>See <see cref="NoDatabaseText"/>; same addition, same reason.</remarks>
+    public const string NoPopulationsText = "This database has no populations.";
 
     /// <summary>Empty state when the catalogue is not empty but the filter excludes everything.</summary>
-    /// <remarks>See <see cref="NoPopulationsText"/>; same addition, same reason.</remarks>
+    /// <remarks>See <see cref="NoDatabaseText"/>; same addition, same reason.</remarks>
     public const string NoMatchesText = "No populations match the filter.";
 
     private readonly IPopulationRepository _catalogue;
@@ -165,8 +168,13 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <summary>Whether the list has nothing to show, so the empty state takes its place.</summary>
     public bool IsEmpty => PopulationsView.IsEmpty;
 
-    /// <summary>What the empty state says. See <see cref="NoPopulationsText"/>.</summary>
-    public string EmptyStateText => Populations.Count == 0 ? NoPopulationsText : NoMatchesText;
+    /// <summary>What the empty state says. See <see cref="NoDatabaseText"/>.</summary>
+    public string EmptyStateText => (_session.Current, Populations.Count) switch
+    {
+        (null, _) => NoDatabaseText,
+        (_, 0) => NoPopulationsText,
+        _ => NoMatchesText,
+    };
 
     /// <summary>Whether a catalogue load is in flight.</summary>
     internal bool IsLoadingCatalogue => _catalogueLoad is not null;
@@ -198,18 +206,19 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     }
 
     /// <summary>
-    /// Finds a population by <c>ProcId</c>, selects it, and optionally loads it into the grid.
+    /// Finds a population by <c>ProcId</c>, selects it, and loads its cohort into the grid.
     /// </summary>
     /// <param name="procId">The <c>ProcId</c> stored in a packaged selection.</param>
-    /// <param name="loadIt">Whether to run the population as well as select it.</param>
     /// <param name="cancellationToken">Cancels the load.</param>
     /// <returns><see langword="false"/> when no population in the catalogue has that id.</returns>
     /// <remarks>
     /// <para>
-    /// Delphi <c>TfrmPopulations.TrySelect</c> (<c>EPR.VclFrame.Populations.pas:186-200</c>), which
-    /// exists for one caller: the package replay (<c>MainQuickStat.pas:789</c>). <b>Step 3.4 should
-    /// call this rather than rebuilding the load sequence</b>, which is the contract described on
-    /// <see cref="PreparePopulationCommand"/>.
+    /// Delphi <c>TfrmPopulations.TrySelect(AProcId, ALoadIt := true, …)</c>
+    /// (<c>EPR.VclFrame.Populations.pas:186-200</c>), which exists for one caller: the package replay
+    /// (<c>MainQuickStat.pas:789</c>). <b>Step 3.4 calls this rather than rebuilding the load
+    /// sequence</b> - the ordering below is a contract, not a formality, and two copies of it is
+    /// exactly how it comes apart. It is awaitable for the same reason: the replay has to know the
+    /// cohort is in the grid before it starts collecting.
     /// </para>
     /// <para>
     /// <b>Two deliberate differences from the Delphi, both reported.</b>
@@ -225,13 +234,14 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// Second, it does <b>not</b> switch to the <c>Collections</c> tab. In the Delphi it does, because
     /// <c>TrySelect(..., ALoadIt := true, ...)</c> goes through <c>PopulationRequested</c> and
     /// therefore through <c>AfterPopulationSelect</c>, whose last act is
-    /// <c>pgSelections.ActivePage := tbsDataElements</c>. <c>Docs/Port/07-ui-contracts.md</c> §3.1
-    /// states the opposite and instructs step 3.4 not to request the tab; this follows the
-    /// instruction and flags the discrepancy rather than resolving it unilaterally. Reversal is one
-    /// call to <see cref="IShellWorkspace.RequestCollectionsTab"/>.
+    /// <c>pgSelections.ActivePage := tbsDataElements</c> (<c>MainQuickStat.pas:541</c>).
+    /// <c>Docs/Port/07-ui-contracts.md</c> §3.1 states the opposite and instructs step 3.4 not to
+    /// request the tab; this follows the instruction and flags the discrepancy rather than resolving
+    /// it unilaterally. Reversal is one call to
+    /// <see cref="IShellWorkspace.RequestCollectionsTab"/>.
     /// </para>
     /// </remarks>
-    public async Task<bool> TrySelectAsync(int procId, bool loadIt, CancellationToken cancellationToken = default)
+    public async Task<bool> TryLoadPopulationAsync(int procId, CancellationToken cancellationToken = default)
     {
         PopulationViewModel? found = null;
 
@@ -252,10 +262,7 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
 
         SelectedPopulation = found;
 
-        if (loadIt)
-        {
-            await LoadAsync(found, activateCollectionsTab: false, cancellationToken).ConfigureAwait(true);
-        }
+        await LoadAsync(found, activateCollectionsTab: false, cancellationToken).ConfigureAwait(true);
 
         return true;
     }
@@ -549,6 +556,10 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
         {
             // cbShowCommon.Enabled := Sender.StudyId > 0 (EPR.VclFrame.Populations.pas:146).
             CanFilterFrequentlyUsed = session is { StudyId: > 0 };
+
+            // EmptyStateText distinguishes "no database" from "no populations", and the collection
+            // raises nothing when it was empty before and is empty after.
+            OnPropertyChanged(nameof(EmptyStateText));
 
             BeginCatalogueLoad();
         });
