@@ -44,8 +44,8 @@ public partial class App : Application
         // --- Phase 2.2: SQL execution + login pipeline -----------------------------------
         // (QuickStat.Data)
 
-        // --- Phase 2.3: populations + patients -------------------------------------------
-        // (QuickStat.Domain.Populations, QuickStat.Domain.Patients)
+        // --- Phase 2.3: populations + patients + packaged selections ---------------------
+        // (QuickStat.Domain.Populations, QuickStat.Domain.Patients, QuickStat.Domain.Packages)
 
         // --- Phase 2.4: collector framework + registry -----------------------------------
         // (QuickStat.Collectors)
