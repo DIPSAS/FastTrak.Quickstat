@@ -38,8 +38,16 @@ public sealed class DataPoint
     /// </summary>
     /// <remarks>
     /// When present the cell is drawn left-aligned and shows the caption truncated to <b>six</b>
-    /// characters instead of the number (<c>EPR.QA.DataPoint.pas:86-92</c>). The export is
-    /// unaffected: it always writes the raw value.
+    /// characters instead of the number (<c>EPR.QA.DataPoint.pas:86-92</c>). The export writes the
+    /// caption too, but <b>in full</b> — truncation is a display concern only
+    /// (<c>EPR.QA.Matrix.pas:242-246</c>).
+    /// </remarks>
+    /// <remarks>
+    /// An earlier revision of this remark said the export always writes the raw value. That
+    /// described the <c>develop_old</c> copy in this repository, not the parity baseline: commit
+    /// <c>8486b3d09</c> (2022-05-06, "#489525: QuickStat skal kunne vise og eksportere tekstdata fra
+    /// skjema") added the caption branch, and it is present on <b>both</b> tarmscreening refs, so
+    /// this behaviour does not depend on how PORT-PLAN.md R12 was decided.
     /// </remarks>
     public string? Caption { get; set; }
 

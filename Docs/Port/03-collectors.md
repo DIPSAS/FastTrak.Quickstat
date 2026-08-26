@@ -870,6 +870,15 @@ where `LABSET_URINE = [ltDUAlbumin, ltUAlbumin, ltUMicroAlbumin, ltACRatio, ltDU
 Resolved against the `TLabTest` declaration order in `VMR.Lab.Interfaces.pas`, the ordinals are
 **ascending** (a Delphi `for..in` over a set yields ordinals in ascending order):
 
+> **Corrected 2026-08-26 (step 2.4).** An earlier revision of this table had the kidney group one
+> too high and therefore emitted the wrong id list. The cause is a **typo in the Delphi enum**:
+> the coagulation member is `lFibrinogen`, not `ltFibrinogen`. Any extraction that filters members
+> on an `lt` prefix silently drops it and shifts every later ordinal down by one. Recomputed from
+> `C:\work\FastTrak-tarmscreening\VMR\VMR.Lab.Interfaces.pas` at `249ac2d16` (176 members, no
+> explicit `=` assignments, so plain 0-based ordinals), and cross-checked twice: `LABCLASSES_KIDNEY`
+> carries 49/50/53/54 for the same analytes, and `QuickStat.Collectors.pas:206-209` registers 51
+> and 52 as "eGFR Cockgroft-Gault" and "eGFR MDRD".
+
 | `TLabTest` | ordinal |
 | --- | --- |
 | `ltDUProtein` | 3 |
@@ -877,14 +886,14 @@ Resolved against the `TLabTest` declaration order in `VMR.Lab.Interfaces.pas`, t
 | `ltUMicroAlbumin` | 5 |
 | `ltACRatio` | 6 |
 | `ltDUAlbumin` | 7 |
-| `ltCreatinine` | 50 |
-| `ltEstGFR` | 51 |
-| `ltUrate` | 54 |
-| `ltUrea` | 55 |
+| `ltCreatinine` | 49 |
+| `ltEstGFR` | 50 |
+| `ltUrate` | 53 |
+| `ltUrea` | 54 |
 | `ltNatrium` | 90 |
 | `ltKalium` | 91 |
 
-→ `LAB.KIDNEY` emits `... la.LabClassId IN (3, 4, 5, 6, 7, 50, 51, 54, 55, 90, 91)`.
+→ `LAB.KIDNEY` emits `... la.LabClassId IN (3, 4, 5, 6, 7, 49, 50, 53, 54, 90, 91)`.
 
 **Port recommendation:** do not port `TLabSet`/`TLabTest` as a C# enum-set. Replace the single
 `CreateOldSchool` call with the literal id array above (and keep `LABCLASSES_KIDNEY` — note it is a
