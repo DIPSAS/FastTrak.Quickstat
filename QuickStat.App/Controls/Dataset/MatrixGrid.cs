@@ -201,11 +201,23 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         typeof(MatrixGrid),
         new FrameworkPropertyMetadata(Frozen("#FFFAFA"), FrameworkPropertyMetadataOptions.AffectsRender));
 
+    /// <summary>Default font size for cell text. <c>05-ui-spec.md</c> §F.3: the port's grid is 12.</summary>
+    public const double DefaultFontSize = 12;
+
     /// <summary>Identifies the <see cref="FontFamily"/> dependency property.</summary>
+    /// <remarks>
+    /// <b>Every <c>AddOwner</c> below passes an explicit default.</b> The obvious-looking
+    /// <c>new FrameworkPropertyMetadata(FrameworkPropertyMetadataOptions.Inherits | …)</c> compiles,
+    /// because it binds to the <c>(object defaultValue)</c> overload and boxes the flags - and then
+    /// throws <c>ArgumentException: Default value type does not match type of property</c> from the
+    /// static constructor the first time anything instantiates the control. There is no
+    /// flags-only overload.
+    /// </remarks>
     public static readonly DependencyProperty FontFamilyProperty =
         TextElement.FontFamilyProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
+                SystemFonts.MessageFontFamily,
                 FrameworkPropertyMetadataOptions.Inherits
                 | FrameworkPropertyMetadataOptions.AffectsMeasure
                 | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -215,6 +227,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         TextElement.FontSizeProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
+                DefaultFontSize,
                 FrameworkPropertyMetadataOptions.Inherits
                 | FrameworkPropertyMetadataOptions.AffectsMeasure
                 | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -224,6 +237,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         TextElement.FontWeightProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
+                FontWeights.Normal,
                 FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="EmphasisFontWeight"/> dependency property.</summary>
@@ -237,7 +251,9 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     public static readonly DependencyProperty ForegroundProperty =
         TextElement.ForegroundProperty.AddOwner(
             typeof(MatrixGrid),
-            new FrameworkPropertyMetadata(FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(
+                Brushes.Black,
+                FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="CellCulture"/> dependency property.</summary>
     public static readonly DependencyProperty CellCultureProperty = DependencyProperty.Register(
