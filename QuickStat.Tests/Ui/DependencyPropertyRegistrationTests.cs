@@ -77,7 +77,9 @@ public class DependencyPropertyRegistrationTests
         // control that becomes generic - the test would keep passing while checking nothing.
         IReadOnlyList<Type> types = [.. WpfTypes()];
 
-        Assert.Contains(types, type => type == typeof(Controls.Dataset.MatrixGrid));
+        // Root-qualified: step 3.5's tests live in QuickStat.Tests.Ui.Controls, which shadows
+        // QuickStat.Controls for every unqualified lookup made from this namespace.
+        Assert.Contains(types, type => type == typeof(global::QuickStat.Controls.Dataset.MatrixGrid));
         Assert.Contains(types, type => type == typeof(MainWindow));
     }
 
@@ -85,6 +87,7 @@ public class DependencyPropertyRegistrationTests
     [InlineData("FontFamily")]
     [InlineData("FontSize")]
     [InlineData("Foreground")]
+    [InlineData("FontWeight")]
     public void TheReOwnedTextPropertiesKeepTheirMetadataFlags(string propertyName)
     {
         // The second, quieter half of the same bug, and the half that survives a careless fix.
@@ -94,7 +97,7 @@ public class DependencyPropertyRegistrationTests
         // changed the font, with nothing to explain why.
         StaTestRunner.Run(() =>
         {
-            Type grid = typeof(Controls.Dataset.MatrixGrid);
+            Type grid = typeof(global::QuickStat.Controls.Dataset.MatrixGrid);
 
             DependencyProperty property = (DependencyProperty)grid
                 .GetField($"{propertyName}Property", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)!
