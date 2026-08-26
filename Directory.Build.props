@@ -53,7 +53,16 @@
     -->
     <InvariantGlobalization>false</InvariantGlobalization>
 
-    <!-- Product metadata -->
+    <!--
+      Product metadata.
+
+      The banner reads AssemblyFileVersion, which is what the Delphi bound to (vifFileVersion), and
+      MSBuild derives it from Version along with AssemblyVersion and InformationalVersion - so this
+      one property is the whole answer.  Until now it was unset, so the window read "1.0.0.0" while
+      the build it replaces reads "22.12.21.547" (PORT-PLAN.md §8.9).  26.0.0.0 continues the Delphi
+      build's year-led scheme without pretending to be one of its dated builds.
+    -->
+    <Version>26.0.0.0</Version>
     <Company>DIPS</Company>
     <Product>QuickStat</Product>
     <NeutralLanguage>en</NeutralLanguage>

@@ -790,12 +790,12 @@ Nothing here blocks Phase 4. Each is recorded so it is not rediscovered.
 | g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
 | h | **Nothing has ever run against a database.** No collector has executed, no population has loaded, no package has been read or written, no period prompt has fired for a real query | This is Phase 5, and it is the largest remaining unknown by a wide margin |
 
-### 8.9 Surfaced during Phase 3 wave 1 — two of these need a human
+### 8.9 Surfaced during Phase 3 wave 1 — one of these still needs a human
 
 | # | Question | Status |
 |---|---|---|
 | a | **Three palette colours in `05-ui-spec.md` §F.1 describe `develop_old`, not the parity baseline** | **Needs a decision.** See below |
-| b | **No `<Version>` is set**, so the banner reads `1.0.0.0` | **Needs a decision.** The shipped Delphi build is `22.12.21.547`, a date-derived FinalBuilder number. Not for an agent to invent; it is a packaging choice |
+| b | **No `<Version>` is set**, so the banner reads `1.0.0.0` | **Resolved: `26.0.0.0`**, decided by the product owner at the start of Phase 4 and set once as `<Version>` in `Directory.Build.props`. MSBuild derives `AssemblyVersion`, `FileVersion` and `InformationalVersion` from it, and the banner reads `AssemblyFileVersion` — so the single property covers the banner, the file properties and the `@AppVer` the login sends to `dbo.AddSession` |
 | c | §H.2 lists two cross-tab items; there is a **third**, `ExportTimestamps` — owned by the Collections tab, read by the Dataset tab's export commands | Resolved: it lives on `IShellWorkspace`. Recorded in `07-ui-contracts.md` |
 | d | §C.3 is wrong in three places — fixed-column header alignment, missing horizontal grid lines, and a two-header-row tooltip rule for a grid with `FixedRows = 1` | Resolved toward the `.pas` in each case, with evidence. Recorded in the step 3.5 report and `07-ui-contracts.md` |
 | e | §F.4 says the splitter is 8 px; §A.2 and the `.dfm` say 9 | Resolved: 9 |
