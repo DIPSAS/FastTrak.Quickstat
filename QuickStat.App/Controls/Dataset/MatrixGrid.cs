@@ -1016,39 +1016,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
         Focus();
 
-        Point point = e.GetPosition(this);
-        MatrixGridHit hit = _layout.HitTest(point, _horizontalOffset, _verticalOffset);
-
-        if (hit.IsHeader)
-        {
-            BeginColumnResize(point, e);
-
-            return;
-        }
-
-        if (!hit.IsHit)
-        {
-            return;
-        }
-
-        // A fixed-column click selects the row and leaves the current column alone, which is
-        // TPersonGrid.HandleFixedClick assigning Row and never Col (EPR.QA.GUI.Grid.pas:151-155).
-        // The caret therefore lands on the same variable one row down, and the hint follows it.
-        if (hit.Kind == MatrixGridCellKind.Fixed)
-        {
-            CurrentRowIndex = hit.RowIndex;
-        }
-        else
-        {
-            CurrentRowIndex = hit.RowIndex;
-            CurrentColumnIndex = hit.ColumnIndex;
-        }
-
-        ScrollIntoView(hit.RowIndex, hit.ColumnIndex);
-
-        e.Handled = true;
-
-        OnCellActivated(new MatrixGridCellEventArgs(hit.RowIndex, hit.ColumnIndex));
+        e.Handled = PressAt(e.GetPosition(this));
     }
 
     /// <inheritdoc />
@@ -1074,8 +1042,62 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
         base.OnMouseMove(e);
 
-        Point point = e.GetPosition(this);
+        MoveTo(e.GetPosition(this));
+    }
 
+    /// <inheritdoc />
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+
+        base.OnMouseLeftButtonUp(e);
+
+        EndColumnResize();
+    }
+
+    /// <summary>Handles a primary press at a point in the control's own coordinates.</summary>
+    /// <param name="point">Where the press landed.</param>
+    /// <returns><see langword="true"/> when the press was consumed.</returns>
+    /// <remarks>
+    /// Split out of <see cref="OnMouseLeftButtonDown"/> so it can be driven from a test: a
+    /// synthesised <see cref="MouseButtonEventArgs"/> reports the <em>real</em> cursor position, so
+    /// there is no way to raise a click at a chosen cell without a window otherwise.
+    /// </remarks>
+    internal bool PressAt(Point point)
+    {
+        MatrixGridHit hit = _layout.HitTest(point, _horizontalOffset, _verticalOffset);
+
+        if (hit.IsHeader)
+        {
+            return BeginColumnResize(point);
+        }
+
+        if (!hit.IsHit)
+        {
+            return false;
+        }
+
+        // A fixed-column click selects the row and leaves the current column alone, which is
+        // TPersonGrid.HandleFixedClick assigning Row and never Col (EPR.QA.GUI.Grid.pas:151-155).
+        // The caret therefore lands on the same variable one row down, and the hint follows it.
+        CurrentRowIndex = hit.RowIndex;
+
+        if (hit.Kind != MatrixGridCellKind.Fixed)
+        {
+            CurrentColumnIndex = hit.ColumnIndex;
+        }
+
+        ScrollIntoView(hit.RowIndex, hit.ColumnIndex);
+
+        OnCellActivated(new MatrixGridCellEventArgs(hit.RowIndex, hit.ColumnIndex));
+
+        return true;
+    }
+
+    /// <summary>Handles pointer movement at a point in the control's own coordinates.</summary>
+    /// <param name="point">Where the pointer is.</param>
+    internal void MoveTo(Point point)
+    {
         if (_resizingColumn != NoIndex)
         {
             _layout.SetColumnWidth(_resizingColumn, _resizeOriginWidth + (point.X - _resizeOriginX));
@@ -1091,15 +1113,14 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         UpdateHover(_layout.HitTest(point, _horizontalOffset, _verticalOffset));
     }
 
-    /// <inheritdoc />
-    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
-    {
-        ArgumentNullException.ThrowIfNull(e);
+    /// <summary>The cell the pointer is currently over.</summary>
+    internal MatrixGridHit Hover => _hover;
 
-        base.OnMouseLeftButtonUp(e);
+    /// <summary>Whether a column-resize drag is in progress.</summary>
+    internal bool IsResizingColumn => _resizingColumn != NoIndex;
 
-        EndColumnResize();
-    }
+    /// <summary>Ends a column-resize drag.</summary>
+    internal void ReleasePointer() => EndColumnResize();
 
     /// <inheritdoc />
     protected override void OnLostMouseCapture(MouseEventArgs e)
@@ -1613,22 +1634,23 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         dc.DrawRectangle(brush, null, bounds);
     }
 
-    private void BeginColumnResize(Point point, MouseButtonEventArgs e)
+    private bool BeginColumnResize(Point point)
     {
         int target = _layout.ColumnResizeTargetAt(point, _horizontalOffset);
 
         if (target == NoIndex)
         {
-            return;
+            return false;
         }
 
         _resizingColumn = target;
         _resizeOriginX = point.X;
         _resizeOriginWidth = _layout.ColumnWidth(target);
 
+        // Returns false with no window - harmless, and the drag still tracks through OnMouseMove.
         _ = CaptureMouse();
 
-        e.Handled = true;
+        return true;
     }
 
     private void EndColumnResize()
