@@ -538,6 +538,16 @@ public sealed class MatrixGridLayout
             return MatrixGrid.NoIndex;
         }
 
+        // The frozen block is painted last and wins hit-testing, so its trailing edge wins the grip
+        // too. Without this the identity columns would stop being resizable the moment a data
+        // column's edge scrolled under that same x.
+        int lastFrozen = FixedColumnCount - 1;
+
+        if (IsOnRightEdgeOf(lastFrozen, point.X, horizontalOffset))
+        {
+            return lastFrozen;
+        }
+
         // Only three edges can be within a grip of any x: the two around the column under the
         // pointer, and the grid's own right edge.  Scanning all of them would cost a linear pass per
         // mouse move, and this control is built for a thousand columns.
@@ -572,8 +582,9 @@ public sealed class MatrixGridLayout
         double edge = isFrozen ? offsets[displayIndex + 1] : offsets[displayIndex + 1] - horizontalOffset;
 
         // An edge that has scrolled in behind the frozen block is covered by it and must not be
-        // grabbable through it.
-        return (isFrozen || edge >= frozen) && Math.Abs(x - edge) <= ResizeGripWidth;
+        // grabbable through it. Strictly greater, so an edge sitting exactly on the boundary belongs
+        // to the frozen column that is drawn there.
+        return (isFrozen || edge > frozen) && Math.Abs(x - edge) <= ResizeGripWidth;
     }
 
     /// <summary>
