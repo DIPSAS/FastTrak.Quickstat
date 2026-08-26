@@ -34,6 +34,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The same .ico again, this time embedded so XAML can address it.  ApplicationIcon above only
+      stamps the executable's shell icon; the banner in the shell window (05-ui-spec.md §A.2,
+      imgAppIcon) needs it as an assembly resource, reachable as
+      pack://application:,,,/QuickStat;component/Assets/QuickStat_Icon.ico.  Linked rather than
+      copied so the repository keeps one icon file (PORT-PLAN.md §6, Phase 6 keeps QuickStat_Icon.ico).
+    -->
+    <Resource Include="..\QuickStat_Icon.ico" Link="Assets\QuickStat_Icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="QuickStat.Tests" />
   </ItemGroup>
 
