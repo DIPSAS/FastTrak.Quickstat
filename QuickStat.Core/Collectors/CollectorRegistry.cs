@@ -99,6 +99,18 @@ public sealed class CollectorRegistry : ICollectorRegistry
 
         SqlResultSet result = await _sql.QueryAsync(request, cancellationToken).ConfigureAwait(false);
 
+        if (result.IsEmpty)
+        {
+            // A study with no form classes gets no dynamic collectors, and that is not an error.
+            // The columns are deliberately not demanded here: AddCollectorsStudySpecific calls
+            // FieldByName *inside* its `while not EOF` loop (QuickStat.Collectors.pas:396-410), so
+            // a result set that carries no rows never has its metadata inspected. Asking for the
+            // ordinals up front turned "this study has no forms" into a hard failure whenever the
+            // procedure returned nothing at all - which is what SqlResultSet.Empty represents, and
+            // what a procedure that returns early produces.
+            return [];
+        }
+
         int nameOrdinal = result.GetOrdinal(QaSql.FormNameColumn);
         int titleOrdinal = result.GetOrdinal(QaSql.FormTitleColumn);
 

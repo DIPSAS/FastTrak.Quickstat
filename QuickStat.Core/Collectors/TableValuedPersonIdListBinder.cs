@@ -19,6 +19,16 @@ namespace QuickStat.Collectors;
 /// statement comparable with a Delphi trace. Swapping the registration is a one-line change once
 /// the type and a startup probe exist.
 /// </para>
+/// <para>
+/// The fragment names the parameter with <c>@</c> rather than the Delphi's <c>:</c> on purpose, and
+/// this agrees with step 2.2 rather than assuming anything: <c>SqlRequestBinder</c> removes every
+/// <see cref="SqlRequest.TableParameters"/> name from the scalar set before it demands values, and
+/// it compares those names case-insensitively - so a <c>:pids</c> placeholder would <em>also</em>
+/// work, but an <c>@pids</c> one needs no rewriting at all and cannot be mistaken for a positional
+/// argument. The type and column names come from
+/// <see cref="SqlTableParameter.ForPersonIds(SqlOptions, string, IReadOnlyCollection{int})"/>, so
+/// they are stated once for both this step and step 2.3's national-id recovery.
+/// </para>
 /// </remarks>
 public sealed class TableValuedPersonIdListBinder : IPersonIdListBinder
 {
@@ -60,16 +70,10 @@ public sealed class TableValuedPersonIdListBinder : IPersonIdListBinder
     {
         ArgumentNullException.ThrowIfNull(personIds);
 
-        SqlTableParameter parameter = new()
-        {
-            Name = ParameterName,
-            TypeName = _options.PersonIdListTypeName!,
-            ColumnName = _options.PersonIdListColumnName,
-            Values = personIds,
-        };
+        SqlTableParameter parameter = SqlTableParameter.ForPersonIds(_options, ParameterName, personIds);
 
         return new PersonIdListBinding(
-            "(SELECT " + _options.PersonIdListColumnName + " FROM @" + ParameterName + ")",
+            "(SELECT " + parameter.ColumnName + " FROM @" + parameter.Name + ")",
             parameter);
     }
 }

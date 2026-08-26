@@ -60,7 +60,11 @@ public sealed class CollectorRunner : ICollectorRunner
         ArgumentNullException.ThrowIfNull(sink);
 
         CollectorDescriptor descriptor = collector.Descriptor;
-        VariableNameSet variableNames = new();
+
+        // The sink owns the column-order policy, so it builds the set and the runner fills it. A
+        // set constructed here would always be ColumnOrder.FirstSeen and PersonMatrix.ColumnOrder
+        // would be a property nobody reads.
+        VariableNameSet variableNames = sink.CreateVariableNameSet();
 
         int rowsAccepted = 0;
         int rowsForUnknownPersons = 0;
