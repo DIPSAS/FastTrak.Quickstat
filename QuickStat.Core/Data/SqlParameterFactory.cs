@@ -84,10 +84,21 @@ internal static class SqlParameterFactory
             case DateTime timestamp:
                 if (timestamp.Year < MinimumSqlDateTimeYear)
                 {
+                    // Formatted invariantly, and it matters more than it looks. An interpolated hole
+                    // uses CurrentCulture, and a culture whose default calendar is not Gregorian -
+                    // ar-SA uses Umm al-Qura, which starts in the twentieth century - cannot render
+                    // year 1 or 1752 at all. It throws ArgumentOutOfRangeException while building the
+                    // message for the exception we are in the middle of throwing, so on an Arabic
+                    // machine an out-of-range date produced a baffling error from inside string
+                    // formatting instead of the clear one written here. Diagnostics should be
+                    // invariant regardless: a log line saying 1752-01-01 is what an operator wants,
+                    // whatever their locale.
                     throw new SqlParameterBindingException(
-                        $"Parameter ':{name}' is {timestamp:yyyy-MM-dd}, which SQL Server's DATETIME cannot " +
-                        $"represent (its range starts in {MinimumSqlDateTimeYear}). A default-constructed " +
-                        "DateTime is almost always an unset value that should have been NULL.")
+                        string.Create(
+                            CultureInfo.InvariantCulture,
+                            $"Parameter ':{name}' is {timestamp:yyyy-MM-dd}, which SQL Server's DATETIME cannot " +
+                            $"represent (its range starts in {MinimumSqlDateTimeYear}). A default-constructed " +
+                            $"DateTime is almost always an unset value that should have been NULL."))
                     {
                         ParameterName = name,
                     };

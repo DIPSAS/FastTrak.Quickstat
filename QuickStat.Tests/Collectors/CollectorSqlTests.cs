@@ -200,7 +200,15 @@ public class CollectorSqlTests
         // Norwegian machine does not emit "120,0".
         AssertContains(CollectorNames.GbdLowBp, "WHERE v.Quantity < 120");
         AssertContains(CollectorNames.GbdLowBp, "dbo.GetLastQuantityTable( 3556, NULL )");
-        Assert.DoesNotContain(",0", CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.GbdLowBp).BuildSql(Context));
+        // Ordinal, and it is not a formality. Without it this binds to the culture-sensitive
+        // overload, and a collation that treats "," as ignorable punctuation matches ",0" against
+        // the ", 0" in "v.EventTime, 0 AS RowId" - so the test fails while the SQL is perfectly
+        // correct. The same confusion in the other direction is what §8.8(i) warns about for the two
+        // list filters: a byte scan and a collation are different questions.
+        Assert.DoesNotContain(
+            ",0",
+            CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.GbdLowBp).BuildSql(Context),
+            StringComparison.Ordinal);
     }
 
     [Fact]
