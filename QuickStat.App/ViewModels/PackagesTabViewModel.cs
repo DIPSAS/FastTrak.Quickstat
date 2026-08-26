@@ -517,6 +517,12 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// <see cref="ParameterResolution.CancelledByUser"/> exists to say.
     /// </para>
     /// <para>
+    /// <see cref="NationalIdRecovery.EnsureNationalIdsAsync"/> runs between the cohort query and
+    /// <see cref="PersonMatrix.PreparePopulation"/>, exactly as it does on the Populations tab, so
+    /// that a replayed package carries the same <c>Fødselsnummer</c> column as the population loaded
+    /// by hand.
+    /// </para>
+    /// <para>
     /// The <c>dbo.AddPopulationLog</c> audit row is written here as well. The Delphi writes it from
     /// <c>PopulationRequested</c> (<c>EPR.VclFrame.Populations.pas:219</c>), which the replay reaches
     /// through <c>TrySelect</c> - so a replay does count towards the popularity ranking that the
@@ -553,6 +559,14 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
 
         IReadOnlyList<Patient> patients = await _patients
             .LoadPopulationAsync(population, resolution.Values, cancellationToken)
+            .ConfigureAwait(true);
+
+        // Same step, same place, as the Populations tab: a replay that produced no Fødselsnummer
+        // while the same population loaded from the tab did would be a bug in one of the two halves.
+        // MainQuickStat.pas:536-540 reaches this path too - the replay goes through TrySelect and so
+        // through AfterPopulationSelect (:789).
+        await NationalIdRecovery
+            .EnsureNationalIdsAsync(_patients, patients, _logger, cancellationToken)
             .ConfigureAwait(true);
 
         PersonMatrix matrix = _workspace.Matrix;

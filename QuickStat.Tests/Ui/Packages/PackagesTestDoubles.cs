@@ -142,6 +142,19 @@ internal sealed class FakePatientRepository : IPatientRepository
     /// <summary>When set, <see cref="LoadPopulationAsync"/> fails with it.</summary>
     public Exception? Throws { get; set; }
 
+    /// <summary>What the national-id recovery query answers, keyed by <c>PersonId</c>.</summary>
+    /// <remarks>
+    /// The real statement filters <c>NationalId IS NOT NULL</c>, so a patient with no id on file is
+    /// modelled by leaving them out of this map rather than by mapping them to an empty string.
+    /// </remarks>
+    public Dictionary<int, string> NationalIds { get; } = [];
+
+    /// <summary>Every <c>GetNationalIdsAsync</c> call, as the person ids it was handed.</summary>
+    public List<IReadOnlyCollection<int>> NationalIdRequests { get; } = [];
+
+    /// <summary>When set, the national-id recovery query fails with it.</summary>
+    public Exception? NationalIdThrows { get; set; }
+
     public Task<IReadOnlyList<Patient>> LoadPopulationAsync(
         Population population,
         IReadOnlyDictionary<string, object?> parameters,
@@ -162,8 +175,31 @@ internal sealed class FakePatientRepository : IPatientRepository
 
     public Task<IReadOnlyDictionary<int, string>> GetNationalIdsAsync(
         IReadOnlyCollection<int> personIds,
-        CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(personIds);
+
+        NationalIdRequests.Add([.. personIds]);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (NationalIdThrows is not null)
+        {
+            throw NationalIdThrows;
+        }
+
+        Dictionary<int, string> answer = [];
+
+        foreach (int personId in personIds)
+        {
+            if (NationalIds.TryGetValue(personId, out string? nationalId))
+            {
+                answer[personId] = nationalId;
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<int, string>>(answer);
+    }
 
     public Task<IReadOnlyList<Patient>> SearchAsync(
         int studyId,

@@ -365,6 +365,12 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <c>Rows.Count</c> at that moment. The Delphi does exactly this at <c>:532</c> and
     /// <c>:564-566</c>.
     /// </para>
+    /// <para>
+    /// <see cref="NationalIdRecovery.EnsureNationalIdsAsync"/> sits between the cohort query and
+    /// <see cref="PersonMatrix.PreparePopulation"/>, where <c>AddNationalIds</c> sits in the Delphi
+    /// (<c>MainQuickStat.pas:536-540</c>) and where it has to sit here: the ids are copied onto the
+    /// rows by <c>PreparePopulation</c>.
+    /// </para>
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanPreparePopulation))]
     private async Task PreparePopulationAsync(CancellationToken cancellationToken)
@@ -416,6 +422,15 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
 
             IReadOnlyList<Patient> cohort = await _patients
                 .LoadPopulationAsync(population, resolution.Values, cancellationToken)
+                .ConfigureAwait(true);
+
+            // The two lines this repository has commented out as
+            // "// TODO: Disse feiler, hvor er de??" (MainQuickStat.pas:536-540), restored:
+            // unconditional, and here rather than after PreparePopulation, which copies the ids onto
+            // the rows it builds (PersonMatrix.cs:151).  Not conditioned on the identification mode -
+            // NationalIdRecovery's remarks say why, and why a failure only degrades this one column.
+            await NationalIdRecovery
+                .EnsureNationalIdsAsync(_patients, cohort, _logger, cancellationToken)
                 .ConfigureAwait(true);
 
             PersonMatrix matrix = _workspace.Matrix;
