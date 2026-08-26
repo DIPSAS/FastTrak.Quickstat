@@ -537,6 +537,14 @@ These are observable and must match the Delphi build exactly.
   cell after each data column.
 - **Grid column order**: `PID`, then `Født` / `Fødselsnummer` / `Navn` (only when fully identified),
   then data columns in collector order.
+
+  "Collector order" here is **the order of the check list, which is alphabetical by title** — not
+  registry order, and the two differ. `cbDataCollector.Sorted := true` is set in `FormShow`
+  (`MainQuickStat.pas:400`) before `AfterLogin` fills the list, and `actCollectDataExecute`
+  (`:633-681`) walks `Items` from 0 upward calling `AddData` for each checked entry. Column order is
+  insertion order, so that walk *is* the column order of every export. Registry order decides which
+  collectors exist and how they are listed before sorting; it does not decide columns. Sorting is
+  ordinal, which is why the `^ `-prefixed demographic collectors come first (§G.5 of the UI spec).
 - **Identification modes**: `pgiPersonIdOnly` and `pgiRandomPersonId` **omit** the DOB, national ID
   and name columns entirely — no empty field, no separator.
 - **Config file compatibility**: an existing `QuickStat.config.xml` must work untouched.
