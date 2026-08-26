@@ -69,6 +69,15 @@ public static class LabClassSets
     public static IReadOnlyList<int> HeartFailure { get; } =
         [6, 22, 49, 50, 51, 52, 53, 90, 91, 124, 140, 171, 575, 995, 1075];
 
+    /// <summary><c>LABCLASSES_INTERLEUKINS</c> - <c>[1094..1104]</c>, 11 consecutive ids.</summary>
+    /// <remarks>
+    /// No gaps and no extras (<c>EPR.QA.Definitions.pas:122</c>). Restored by Phase 4 from commit
+    /// <c>fefc8a809</c>, the only one of the four features that exists on just one of the two
+    /// tarmscreening refs (PORT-PLAN.md R12, <c>Docs/Port/03-collectors.md</c> §E.4).
+    /// </remarks>
+    public static IReadOnlyList<int> Interleukins { get; } =
+        [1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104];
+
     /// <summary><c>LABCLASSES_CRP</c>.</summary>
     public static IReadOnlyList<int> Crp { get; } = [26];
 

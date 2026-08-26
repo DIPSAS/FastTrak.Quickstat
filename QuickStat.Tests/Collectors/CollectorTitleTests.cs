@@ -85,6 +85,9 @@ public class CollectorTitleTests
         AssertTitle(CollectorNames.LabHeartFailure, "Labdata: Hjertesviktrelaterte labdata (siste)");
         AssertTitle(CollectorNames.LabDiabetes, "Labdata: Diabetes (siste)");
 
+        // 'Interleukiner' has no colon, so TLabSetCollector wraps it (Docs/Port §E.4).
+        AssertTitle(CollectorNames.LabInterleukins, "Labdata: Interleukiner (siste)");
+
         // Already has a colon, so it is left alone rather than becoming "Labdata: GBD: … (siste)".
         AssertTitle(CollectorNames.LabGeriatric, "GBD: Sentrale labdata (siste)");
     }

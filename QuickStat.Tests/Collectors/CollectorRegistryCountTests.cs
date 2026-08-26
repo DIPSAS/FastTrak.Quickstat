@@ -101,8 +101,8 @@ public class CollectorRegistryCountTests
     [Fact]
     public void FamilySizesMatchTheDelphiBlocks()
     {
-        // 36 always-on = 1 form-frequency + 15 basic + 19 lab data + 1 'SIZE'.
-        Assert.Equal(35, CollectorCatalog.AlwaysBeforeFormCollectors.Count);
+        // 37 always-on = 1 form-frequency + 15 basic + 20 lab data + 1 'SIZE'.
+        Assert.Equal(36, CollectorCatalog.AlwaysBeforeFormCollectors.Count);
         Assert.Single(CollectorCatalog.AlwaysAfterFormCollectors);
 
         // 79 = 24 GBD var-sets + 17 diagnoses + 38 drugs.
@@ -201,7 +201,7 @@ public class CollectorRegistryCountTests
         // AddCollectorsHardCoded's ungated 'SIZE'.
         Assert.Equal(CollectorNames.PatientAge, names[1]);
         Assert.Equal(CollectorNames.LabKidney, names[16]);
-        Assert.Equal(CollectorNames.Size, names[35]);
+        Assert.Equal(CollectorNames.Size, names[36]);
 
         // Then the gated blocks, in source order: GBD (with diagnoses and drugs inside it), NDV,
         // GWAS, ROAS, DOGFOOD.
@@ -260,18 +260,38 @@ public class CollectorRegistryCountTests
     }
 
     [Fact]
-    public void ThePhase4CollectorsNotYetRestoredAreStillAbsent()
+    public void AllFivePhase4CollectorsAreRestored()
     {
-        // Each still needs a library-side implementation brought across from the pinned ref.
-        // Recorded as a test so that adding one is a conscious act.
+        // The five that are commented out in this repository's QuickStat.Collectors.pas and whose
+        // library-side implementations exist only on the pinned ref (PORT-PLAN.md §5). Pinned by
+        // literal name rather than by constant, because the name is the persistence format: a saved
+        // package stores it, so a typo here would be a silent data-compatibility break.
         HashSet<string> names = [.. CollectorTestContext.Names(CollectorCatalog.All)];
 
-        Assert.Contains(CollectorNames.DrugAntibioticIntermediate, names);
-        Assert.Contains(CollectorNames.DrugAntibioticRecommended, names);
-        Assert.Contains(CollectorNames.DrugJ01Xx05, names);
+        Assert.Contains("DRUG.INTERMEDIATE", names);
+        Assert.Contains("DRUG.RECOMMENDED", names);
+        Assert.Contains("DRUG.J01XX05", names);
+        Assert.Contains("ROAS.BASE", names);
+        Assert.Contains("LAB.INTERLEUKINS", names);
 
-        Assert.Contains(CollectorNames.RoasBase, names);
-        Assert.DoesNotContain("LAB.INTERLEUKINS", names);
+        Assert.Equal(CollectorNames.DrugAntibioticIntermediate, "DRUG.INTERMEDIATE");
+        Assert.Equal(CollectorNames.DrugAntibioticRecommended, "DRUG.RECOMMENDED");
+        Assert.Equal(CollectorNames.DrugJ01Xx05, "DRUG.J01XX05");
+        Assert.Equal(CollectorNames.RoasBase, "ROAS.BASE");
+        Assert.Equal(CollectorNames.LabInterleukins, "LAB.INTERLEUKINS");
+    }
+
+    [Fact]
+    public void InterleukinsSitsBetweenHeartFailureAndCrp()
+    {
+        // QuickStat.Collectors.pas:296-298. Always-on, so an ungated study shows it too.
+        List<string> names = CollectorTestContext.Names(CollectorTestContext.Build("TARMSCREENING"));
+
+        int heartFailure = names.IndexOf(CollectorNames.LabHeartFailure);
+
+        Assert.True(heartFailure >= 0, "The heart-failure lab set is not registered.");
+        Assert.Equal(heartFailure + 1, names.IndexOf(CollectorNames.LabInterleukins));
+        Assert.Equal(heartFailure + 2, names.IndexOf(CollectorNames.LabCrp));
     }
 
     private static void AssertOrder(List<string> names, string first, string second)

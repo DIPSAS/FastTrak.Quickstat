@@ -26,16 +26,20 @@ namespace QuickStat.Collectors.Registry;
 /// partial files.
 /// </para>
 /// <para>
-/// <b>One collector is still absent</b>: <c>QST_LAB_INTERLEUKINS</c>. It is commented out in this
-/// repository's <c>QuickStat.Collectors.pas</c> and it also needs a library-side implementation
-/// brought across from the pinned ref, which is Phase 4's job (PORT-PLAN.md §5). Restoring it takes
-/// the registry from 130 to 131 distinct names, and is one line in <c>CollectorCatalog.LabData.cs</c>.
+/// <b>All five of Phase 4's restored registrations are present.</b>
+/// <c>QS_DRUG_ANTIBIOTIC_INTERMEDIATE</c>, <c>QS_DRUG_ANTIBIOTIC_RECOMMENDED</c>,
+/// <c>QS_DRUG_J01XX05</c>, <c>QS_ROAS_BASE</c> and <c>QST_LAB_INTERLEUKINS</c> are commented out in
+/// this repository's <c>QuickStat.Collectors.pas</c> and their library-side implementations exist
+/// only on the pinned ref, so all five were brought across in Phase 4 (PORT-PLAN.md §5). They take
+/// the registry to 131 distinct names and a <c>KORTTID</c> study to 124 - 123 on a database without
+/// <c>KB.AntibioticResistance2</c>, since <c>DRUG.INTERMEDIATE</c> is registered only when that
+/// table resolves.
 /// </para>
 /// </remarks>
 public static partial class CollectorCatalog
 {
     /// <summary>
-    /// The always-on collectors registered <b>before</b> the dynamic per-form ones: 35 of them.
+    /// The always-on collectors registered <b>before</b> the dynamic per-form ones: 36 of them.
     /// </summary>
     public static IReadOnlyList<ICollector> AlwaysBeforeFormCollectors { get; } = CreateAlwaysBeforeFormCollectors();
 
@@ -83,7 +87,7 @@ public static partial class CollectorCatalog
     ];
 
     /// <summary>
-    /// All 130 static collectors, in registration order, with every gate treated as open.
+    /// All 131 static collectors, in registration order, with every gate treated as open.
     /// </summary>
     /// <remarks>
     /// <para>

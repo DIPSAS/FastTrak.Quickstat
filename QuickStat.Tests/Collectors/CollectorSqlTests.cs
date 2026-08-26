@@ -264,6 +264,37 @@ public class CollectorSqlTests
     }
 
     [Fact]
+    public void InterleukinLabSetStatementIsVerbatim()
+    {
+        // Docs/Port/03-collectors.md §E.4, resolved verbatim. Eleven consecutive lab classes, and
+        // the only thing that distinguishes this statement from the other lab sets is that list.
+        Assert.Equal(new[] { 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104 }, LabClassSets.Interleukins);
+        Assert.Equal(11, LabClassSets.Interleukins.Count);
+        Assert.Equal(
+            LabClassSets.Interleukins,
+            Enumerable.Range(1094, 11));
+
+        AssertSql(
+            CollectorNames.LabInterleukins,
+            "SELECT agg.* FROM " +
+            "( " +
+            "  SELECT ld.PersonId, ISNULL(la.NLK, Report.LabClassName(lc.LabClassId)) AS VarName, ld.NumResult, ld.LabDate, ld.ResultId, " +
+            "  RANK() OVER ( PARTITION BY ld.PersonId,lc.LabClassId ORDER BY ld.LabDate DESC ) AS OrderBy " +
+            "  FROM dbo.LabData ld " +
+            "  JOIN dbo.LabCode lc ON lc.LabCodeId = ld.LabCodeId " +
+            "  JOIN dbo.LabClass la ON la.LabClassId = lc.LabClassId " +
+            "  WHERE ( ld.PersonId IN (/*PIDS*/) ) AND ( la.LabClassId IN (1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104) AND ( ld.NumResult >= 0 ) ) " +
+            " ) agg " +
+            " WHERE agg.OrderBy = 1 ORDER BY agg.PersonId, agg.VarName");
+
+        // A data dependency, not a schema one: absent lab classes return no rows, so unlike
+        // DRUG.INTERMEDIATE this collector carries no availability gate (§E.4).
+        Assert.Same(
+            CollectorAvailability.Always,
+            CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.LabInterleukins).Descriptor.Availability);
+    }
+
+    [Fact]
     public void RoasBaseCarriesAll68ItemIdsInTheDelphiOrder()
     {
         // Docs/Port/03-collectors.md §E.3, count-verified against EPR.QA.Definitions.pas:103-105.

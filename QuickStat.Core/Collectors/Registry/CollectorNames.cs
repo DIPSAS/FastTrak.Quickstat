@@ -205,6 +205,12 @@ public static class CollectorNames
     /// <summary><c>QST_LAB_HEART_FAILURE</c>.</summary>
     public const string LabHeartFailure = LabPrefix + "HEART_FAILURE";
 
+    /// <summary>
+    /// <c>QST_LAB_INTERLEUKINS</c> = <c>PREFIX_LAB_COLLECTOR + LAB_INTERLEUKINS</c>
+    /// (<c>EPR.QA.Collector.Names.pas:283,309</c>).
+    /// </summary>
+    public const string LabInterleukins = LabPrefix + "INTERLEUKINS";
+
     /// <summary><c>QST_LAB_CRP</c>.</summary>
     public const string LabCrp = LabPrefix + "CRP";
 

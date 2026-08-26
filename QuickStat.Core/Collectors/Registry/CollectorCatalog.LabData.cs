@@ -1,7 +1,7 @@
 namespace QuickStat.Collectors.Registry;
 
 /// <content>
-/// <c>AddCollectorsLabData</c> - nineteen always-on lab collectors
+/// <c>AddCollectorsLabData</c> - twenty always-on lab collectors
 /// (<c>QuickStat.Collectors.pas:280-311</c>).
 /// </content>
 public static partial class CollectorCatalog
@@ -21,8 +21,11 @@ public static partial class CollectorCatalog
         Make.LabSet(CollectorNames.LabHyperPara, CollectorTitles.LabSetHyperPara, LabClassSets.HyperPara),
         Make.LabSet(CollectorNames.LabHeartFailure, CollectorTitles.LabSetHeartFailure, LabClassSets.HeartFailure),
 
-        // Phase 4 slots QST_LAB_INTERLEUKINS in here, between heart failure and CRP - that is where
-        // the commented-out registration sits (QuickStat.Collectors.pas:297).
+        // QST_LAB_INTERLEUKINS sits between heart failure and CRP - that is where the commented-out
+        // registration was (QuickStat.Collectors.pas:297). Lab classes 1094-1104 are a *data*
+        // dependency, not a schema one: a database without them returns no rows rather than failing,
+        // so unlike DRUG.INTERMEDIATE this needs no availability gate.
+        Make.LabSet(CollectorNames.LabInterleukins, CollectorTitles.LabSetInterleukins, LabClassSets.Interleukins),
         Make.LabSet(CollectorNames.LabCrp, CollectorTitles.LabSetCrp, LabClassSets.Crp),
 
         // All lab data, by the confidence the lab class carries.

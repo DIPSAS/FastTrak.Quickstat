@@ -32,8 +32,8 @@ public class CollectorRegistryTests
 
         IReadOnlyList<ICollector> collectors = await registry.BuildAsync(Session("TARMSCREENING"));
 
-        // 36 always-on plus 2 x 2 dynamic.
-        Assert.Equal(40, collectors.Count);
+        // 37 always-on plus 2 x 2 dynamic.
+        Assert.Equal(CollectorTestContext.AlwaysCount + 4, collectors.Count);
         Assert.Same(collectors, registry.Collectors);
 
         // Two round trips, in order: the form classes, then the availability probe.
@@ -127,7 +127,7 @@ public class CollectorRegistryTests
         await registry.BuildAsync(Session("KORTTID"));
         await registry.BuildAsync(Session("NDV"));
 
-        Assert.Equal(44, registry.Collectors.Count);
+        Assert.Equal(CollectorTestContext.AlwaysCount + 8, registry.Collectors.Count);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class CollectorRegistryTests
 
         sql.Enqueue(SqlResultSet.Empty);
 
-        Assert.Equal(36, (await Registry(sql).BuildAsync(Session("TARMSCREENING"))).Count);
+        Assert.Equal(CollectorTestContext.AlwaysCount, (await Registry(sql).BuildAsync(Session("TARMSCREENING"))).Count);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public class CollectorRegistryTests
 
         sql.Enqueue(SqlResultSet.Create(FormClassColumns));
 
-        Assert.Equal(36, (await Registry(sql).BuildAsync(Session("TARMSCREENING"))).Count);
+        Assert.Equal(CollectorTestContext.AlwaysCount, (await Registry(sql).BuildAsync(Session("TARMSCREENING"))).Count);
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public class CollectorRegistryTests
         List<string> names = CollectorTestContext.Names(await Registry(sql).BuildAsync(Session("TARMSCREENING")));
 
         // The anonymous form is skipped, so only one pair arrives.
-        Assert.Equal(38, names.Count);
+        Assert.Equal(CollectorTestContext.AlwaysCount + 2, names.Count);
         Assert.Equal(names.IndexOf(CollectorNames.LabCount60M) + 1, names.IndexOf("BARTHEL"));
         Assert.Equal(names.IndexOf("FORM.BARTHEL") + 1, names.IndexOf(CollectorNames.Size));
     }

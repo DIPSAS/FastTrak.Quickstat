@@ -115,6 +115,12 @@ public static class CollectorTitles
     /// <summary><c>StrTitleLabsetHeartFailure</c>.</summary>
     public const string LabSetHeartFailure = "Hjertesviktrelaterte labdata";
 
+    /// <summary>
+    /// <c>StrTitleLabsetInterleukins</c> (<c>EPR.QA.Collector.Names.pas:133</c>). No colon, so
+    /// <see cref="CollectorTitle.ForLabSet"/> wraps it into <c>Labdata: Interleukiner (siste)</c>.
+    /// </summary>
+    public const string LabSetInterleukins = "Interleukiner";
+
     /// <summary><c>StrTitleLabsetCrp</c>.</summary>
     public const string LabSetCrp = "CRP";
 
