@@ -42,6 +42,10 @@ internal static class Make
     /// <param name="varPrefix">Prepended to every returned <c>VarName</c>.</param>
     /// <param name="sql">The finished statement, with placeholders except <c>{IdList}</c> resolved.</param>
     /// <param name="batchSize">People per statement.</param>
+    /// <param name="availability">
+    /// What the database must provide, or <see langword="null"/> for
+    /// <see cref="CollectorAvailability.Always"/>.
+    /// </param>
     /// <returns>The collector.</returns>
     private static Collector Create(
         string name,
@@ -49,7 +53,8 @@ internal static class Make
         CollectorKind kind,
         string varPrefix,
         string sql,
-        int batchSize)
+        int batchSize,
+        CollectorAvailability? availability = null)
     {
         CollectorDescriptor descriptor = new()
         {
@@ -59,6 +64,7 @@ internal static class Make
             VarPrefix = varPrefix,
             PidBinding = BindingFor(sql),
             BatchSize = batchSize,
+            Availability = availability ?? CollectorAvailability.Always,
         };
 
         return new Collector(descriptor, context => BindIdList(sql, context));
@@ -129,14 +135,24 @@ internal static class Make
     /// <param name="varPrefix">Prepended to every returned <c>VarName</c>.</param>
     /// <param name="sql">The finished statement.</param>
     /// <param name="kind">Family, for grouping and golden-file naming.</param>
+    /// <param name="availability">
+    /// What the database must provide, or <see langword="null"/> for
+    /// <see cref="CollectorAvailability.Always"/>.
+    /// </param>
     /// <returns>The collector.</returns>
     /// <remarks>
     /// The batch size is always <see cref="WholeCohort"/>, as in
     /// <c>EPR.QA.Collector.Base.pas:226</c>. Whether the statement actually restricts to the cohort
     /// depends on whether it contains <c>{IdList}</c>; most do not (PORT-PLAN.md R10).
     /// </remarks>
-    public static Collector Custom(string name, string title, string varPrefix, string sql, CollectorKind kind = CollectorKind.Custom) =>
-        Create(name, title, kind, varPrefix, sql, WholeCohort);
+    public static Collector Custom(
+        string name,
+        string title,
+        string varPrefix,
+        string sql,
+        CollectorKind kind = CollectorKind.Custom,
+        CollectorAvailability? availability = null) =>
+        Create(name, title, kind, varPrefix, sql, WholeCohort, availability);
 
     // ---- Var sets -------------------------------------------------------------------------------
 
@@ -368,9 +384,19 @@ internal static class Make
     /// <param name="title">Displayed title, verbatim.</param>
     /// <param name="varPrefix">Prepended to every returned <c>VarName</c>.</param>
     /// <param name="sql">The finished statement.</param>
+    /// <param name="availability">
+    /// What the database must provide, or <see langword="null"/> for
+    /// <see cref="CollectorAvailability.Always"/>. Only
+    /// <see cref="CollectorNames.DrugAntibioticIntermediate"/> passes anything here.
+    /// </param>
     /// <returns>The collector.</returns>
-    public static Collector DrugSetCollector(string name, string title, string varPrefix, string sql) =>
-        Custom(name, title, varPrefix, sql, CollectorKind.DrugSet);
+    public static Collector DrugSetCollector(
+        string name,
+        string title,
+        string varPrefix,
+        string sql,
+        CollectorAvailability? availability = null) =>
+        Custom(name, title, varPrefix, sql, CollectorKind.DrugSet, availability);
 
     /// <summary>A DRUID drug-drug interaction collector.</summary>
     /// <param name="name">Collector name.</param>

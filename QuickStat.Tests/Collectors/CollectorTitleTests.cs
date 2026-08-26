@@ -82,6 +82,16 @@ public class CollectorTitleTests
     }
 
     [Fact]
+    public void TheAntibioticTitlesReadAsOneFamily()
+    {
+        // Docs/Port/03-collectors.md §E.1 and §E.2. TCustomDataCollector appends nothing, so these
+        // are the registered resourcestrings verbatim - including the missing "s" in
+        // "Resistendrivende", which is upstream (PORT-PLAN.md §8.4).
+        AssertTitle(CollectorNames.DrugAntibioticResistance, "Antibiotika: Resistendrivende");
+        AssertTitle(CollectorNames.DrugAntibioticIntermediate, "Antibiotika: Intermediære");
+    }
+
+    [Fact]
     public void UpstreamTypographicalQuirksArePreserved()
     {
         // Every one of these is what the shipped build displays. Parity beats tidiness

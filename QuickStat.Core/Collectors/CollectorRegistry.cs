@@ -130,8 +130,9 @@ public sealed class CollectorRegistry : ICollectorRegistry
     /// <param name="cancellationToken">Cancels the probe.</param>
     /// <returns>The objects that exist, compared case-insensitively.</returns>
     /// <remarks>
-    /// Skips the round trip entirely when nothing needs probing, which is the case until Phase 4
-    /// restores the two collectors that inner-join <c>KB.AntibioticResistance2</c> (R7).
+    /// One entry today - <c>KB.AntibioticResistance2</c>, for the one collector that inner-joins it
+    /// (R7) - so the probe runs on every project switch. The empty-list short circuit is kept: it is
+    /// what makes a catalog with no optional collectors cost nothing.
     /// </remarks>
     private async Task<IReadOnlySet<string>> ProbeDatabaseObjectsAsync(CancellationToken cancellationToken)
     {

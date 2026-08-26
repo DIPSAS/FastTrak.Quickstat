@@ -14,7 +14,7 @@ namespace QuickStat.Collectors.Registry;
 /// dynamic collectors are registered <em>between</em> them.
 /// </para>
 /// <para>
-/// The catalog is <c>partial</c> and each family owns its own file: 126 registrations in one file
+/// The catalog is <c>partial</c> and each family owns its own file: 131 registrations in one file
 /// would not be reviewable. The families are demographics and forms
 /// (<c>CollectorCatalog.Basic.cs</c>), lab data (<c>.LabData.cs</c>), GBD var-sets
 /// (<c>.Gbd.cs</c>), diagnoses (<c>.Diagnose.cs</c>), drugs (<c>.Drug.cs</c>), NDV / diabetes
@@ -26,13 +26,12 @@ namespace QuickStat.Collectors.Registry;
 /// partial files.
 /// </para>
 /// <para>
-/// <b>Five collectors are deliberately absent</b>: <c>QS_DRUG_ANTIBIOTIC_INTERMEDIATE</c>,
-/// <c>QS_DRUG_ANTIBIOTIC_RECOMMENDED</c>, <c>QS_DRUG_J01XX05</c>, <c>QS_ROAS_BASE</c> and
-/// <c>QST_LAB_INTERLEUKINS</c>. They are commented out in this repository's
-/// <c>QuickStat.Collectors.pas</c> and they also need library-side implementations brought across
-/// from the pinned ref, which is Phase 4's job (PORT-PLAN.md §5). Restoring them takes the registry
-/// from 126 to 131 distinct names and a <c>KORTTID</c> study from 120 to 124; each is one line in
-/// the family file it belongs to.
+/// <b>Four collectors are still absent</b>: <c>QS_DRUG_ANTIBIOTIC_RECOMMENDED</c>,
+/// <c>QS_DRUG_J01XX05</c>, <c>QS_ROAS_BASE</c> and <c>QST_LAB_INTERLEUKINS</c>. They are commented
+/// out in this repository's <c>QuickStat.Collectors.pas</c> and they also need library-side
+/// implementations brought across from the pinned ref, which is Phase 4's job (PORT-PLAN.md §5).
+/// Restoring them takes the registry from 127 to 131 distinct names; each is one line in the family
+/// file it belongs to.
 /// </para>
 /// </remarks>
 public static partial class CollectorCatalog
@@ -50,8 +49,8 @@ public static partial class CollectorCatalog
     public static IReadOnlyList<ICollector> AlwaysAfterFormCollectors { get; } = CreateAlwaysAfterFormCollectors();
 
     /// <summary>
-    /// Gate <b>G</b>: 24 GBD var-sets, then the 17 diagnosis collectors, then the 35 drug
-    /// collectors - 76 in all.
+    /// Gate <b>G</b>: 24 GBD var-sets, then the 17 diagnosis collectors, then the 36 drug
+    /// collectors - 77 in all.
     /// </summary>
     /// <remarks>
     /// <c>AddCollectorsDiagnose</c> and <c>AddCollectorsDrug</c> are called from inside the
@@ -86,12 +85,20 @@ public static partial class CollectorCatalog
     ];
 
     /// <summary>
-    /// All 126 static collectors, in registration order, with every gate treated as open.
+    /// All 127 static collectors, in registration order, with every gate treated as open.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The order is the same as a study matching every gate would produce, except that the
     /// <c>2 x N</c> dynamic per-form collectors are absent - they depend on the study's form
     /// classes and are added by <see cref="CollectorRegistryBuilder"/>.
+    /// </para>
+    /// <para>
+    /// Availability is <em>not</em> applied here either, so
+    /// <see cref="CollectorNames.DrugAntibioticIntermediate"/> is present even though a database
+    /// without <c>KB.AntibioticResistance2</c> would never register it. This is the catalog, not a
+    /// session's registry.
+    /// </para>
     /// </remarks>
     public static IReadOnlyList<ICollector> All { get; } =
     [

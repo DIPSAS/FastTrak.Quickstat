@@ -93,7 +93,7 @@ public class CollectorSqlTests
     [Fact]
     public void MostWholeCohortCollectorsCarryNoPersonIdFragmentAtAll()
     {
-        // PORT-PLAN.md R10: preserved for parity, recorded as a performance follow-up. The four
+        // PORT-PLAN.md R10: preserved for parity, recorded as a performance follow-up. The
         // exceptions are the drug-set collectors built on SQL_WHERE_PERSON_LIST.
         List<string> wholeCohortWithIdList =
         [
@@ -111,6 +111,7 @@ public class CollectorSqlTests
                 CollectorNames.DrugAnticholinergicN05,
                 CollectorNames.DrugAnticholinergicAb,
                 CollectorNames.DrugAntibioticResistance,
+                CollectorNames.DrugAntibioticIntermediate,
             },
             wholeCohortWithIdList);
     }
@@ -172,6 +173,33 @@ public class CollectorSqlTests
         Assert.Equal(
             new[] { "J01CR%", "J01D[CDH]%", "J01MA%" },
             DrugSql.ResistanceDrivingAtcPatterns);
+    }
+
+    [Fact]
+    public void IntermediateAntibioticStatementDelegatesItsSelectionToTheKnowledgeBase() =>
+        // Docs/Port/03-collectors.md §E.1, resolved verbatim. Note the order - the KB join goes
+        // between the ATC-index join and the WHERE - and the trailing space, both upstream.
+        AssertSql(
+            CollectorNames.DrugAntibioticIntermediate,
+            "SELECT PersonId, 'INTERMEDIATE_AB' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "JOIN KB.AntibioticResistance2 r2 ON r2.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) ");
+
+    [Fact]
+    public void OnlyTheIntermediateAntibioticStatementTouchesTheKbSchema()
+    {
+        // The KB schema is the one non-dbo dependency in the whole subsystem, and it is the reason
+        // CollectorAvailability exists. A second one appearing silently would be a regression.
+        List<string> withKb =
+        [
+            .. CollectorCatalog.All
+                .Where(collector => collector.BuildSql(Context).Contains("KB.", StringComparison.Ordinal))
+                .Select(collector => collector.Descriptor.Name),
+        ];
+
+        Assert.Equal([CollectorNames.DrugAntibioticIntermediate], withKb);
     }
 
     [Fact]

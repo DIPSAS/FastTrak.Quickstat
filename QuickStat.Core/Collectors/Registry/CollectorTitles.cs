@@ -411,6 +411,11 @@ public static class CollectorTitles
     /// </remarks>
     public const string DrugAntibioticResistance = "Antibiotika: Resistendrivende";
 
+    /// <summary>
+    /// <c>StrTitleDrugAntibioticIntermediate</c> (<c>EPR.QA.Collector.Names.pas:190</c>).
+    /// </summary>
+    public const string DrugAntibioticIntermediate = "Antibiotika: Intermediære";
+
     /// <summary><c>StrTitleDrugNorGeP</c>.</summary>
     public const string DrugNorGeP = "Medisin: NorGeP avvik";
 

@@ -1,8 +1,8 @@
 namespace QuickStat.Collectors.Sql;
 
 /// <summary>
-/// The hand-written drug SQL from <c>EPR.QA.Collector.Drug.pas</c>, plus the two antibiotic
-/// statements that live in <c>EPR.QA.SQL.pas</c>.
+/// The hand-written drug SQL from <c>EPR.QA.Collector.Drug.pas</c>, plus the antibiotic statements
+/// that live in <c>EPR.QA.SQL.pas</c>.
 /// </summary>
 /// <remarks>
 /// Split out of <see cref="QaSql"/> only for readability; the transcription rules in that type's
@@ -23,6 +23,24 @@ public static class DrugSql
 
     /// <summary><c>QRY_NORGEP</c>.</summary>
     public const string NorGeP = "EXEC Report.NorGeP";
+
+    /// <summary>
+    /// The one table outside <c>dbo</c> the whole collector subsystem touches.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="DrugSetAntibioticIntermediate"/> inner-joins it, and nothing else does. It is not
+    /// part of the core FastTrak schema, it is absent from many customer databases, and the original
+    /// author first spelled it <c>AntibioticRestistance2</c> - so it may exist under that name
+    /// instead (<c>EPR.QA.SQL.pas:453</c>, corrected by commit <c>4c96c3c3b</c>).
+    /// </para>
+    /// <para>
+    /// Because the join is an <b>inner</b> join, a missing table makes the statement fail rather
+    /// than return nothing, which is why the collector carries a
+    /// <see cref="CollectorAvailability"/> gate (PORT-PLAN.md R7).
+    /// </para>
+    /// </remarks>
+    public const string AntibioticResistanceKnowledgeBase = "KB.AntibioticResistance2";
 
     /// <summary><c>QRY_DRUGCOUNT_BY_TYPE</c> - ongoing treatments per treatment type.</summary>
     public const string DrugCountByType =
@@ -156,6 +174,29 @@ public static class DrugSql
             "  " + clauses +
             ")";
     }
+
+    /// <summary><c>SpDrugsetAntibioticIntermediate</c> (<c>EPR.QA.SQL.pas:445-457</c>).</summary>
+    /// <returns>The statement, with <see cref="QaSql.PidList"/> still in place.</returns>
+    /// <remarks>
+    /// <para>
+    /// The only collector whose selection lives in the database rather than in this repository: it
+    /// has no ATC clause at all and takes whatever <see cref="AntibioticResistanceKnowledgeBase"/>
+    /// classifies as intermediate. That also makes it the only one that needs
+    /// <see cref="CollectorAvailability"/>.
+    /// </para>
+    /// <para>
+    /// The join sits <b>between</b> the ATC-index join and the <c>WHERE</c>, which is unusual for
+    /// this file and is upstream. So is the trailing space, which comes from
+    /// <see cref="QaSql.WherePersonList"/> ending the statement
+    /// (<c>Docs/Port/03-collectors.md</c> §E.1).
+    /// </para>
+    /// </remarks>
+    public static string DrugSetAntibioticIntermediate() =>
+        "SELECT PersonId, 'INTERMEDIATE_AB' AS VarName, " + NameChecksum + ", StartAt, TreatId, ai.AtcName AS Caption " +
+        QaSql.FromOngoingTreatment +
+        QaSql.JoinAtcIndex +
+        "JOIN " + AntibioticResistanceKnowledgeBase + " r2 ON r2.AtcCode = ot.ATC " +
+        QaSql.WherePersonList;
 
     /// <summary><c>QRY_DRUGSET_BASIC</c> / <c>QRY_DRUGSET_CHECKSUM</c> for one ATC pattern.</summary>
     /// <param name="atcPattern">The ATC <c>LIKE</c> pattern, e.g. <c>C0[23789]%</c>.</param>

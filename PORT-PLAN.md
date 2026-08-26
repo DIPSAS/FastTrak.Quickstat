@@ -523,6 +523,14 @@ Notes carried from analysis — read `Docs/Port/03-collectors.md` §E before wri
   from many customer databases. This requires a concept that does not exist today: an *optional
   collector*, gated at registration on `OBJECT_ID(...) IS NOT NULL`. Build that gate as part of this
   step — it is the only genuinely new machinery the four features need.
+- **Exactly one collector needs that gate: `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`.** `JOIN
+  KB.AntibioticResistance2` occurs once in the whole library, at `EPR.QA.SQL.pas:453`, inside
+  `SpDrugsetAntibioticIntermediate` — which has no ATC clause at all and delegates its entire
+  selection to that table. `SpDrugsetAntibioticRecommended` (`EPR.QA.SQL.pas:431`) is a plain
+  `ot.ATC IN ( … nine codes … )` and touches no `KB` object, so
+  `QS_DRUG_ANTIBIOTIC_RECOMMENDED` is registered unconditionally. Gating it as well would make a
+  perfectly working collector vanish on every database without the knowledge-base schema — a
+  functional regression, not a safety measure.
 - **Do not take the `J01FF%` removal.** Commit `9f4a5ed4f` also drops `J01FF%` (lincosamides /
   clindamycin) from the *existing* resistance-driving set and renames its caption. That is a
   clinical-definition change to a collector already in production, not part of adding the new ones.
@@ -855,7 +863,7 @@ grid (current cell) — three colours, one screen each.
 | R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | Byte-comparison tests against fixtures from the Delphi build |
 | R5 | Custom grid control is the largest single piece of UI work | Time-boxed; `DataGrid` fallback documented with a ~150-column ceiling |
 | R6 | Privacy regressions around anonymisation | Dedicated tests; treated as release-blocking |
-| R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL` |
+| R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
 | R10 | Most `maxint`-batch collectors carry **no `{IdList}` at all** and scan the whole database, discarding non-cohort rows client-side | Pre-existing behaviour, preserved for parity; recorded as a separate performance follow-up, not fixed during the port |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |

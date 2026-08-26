@@ -3,7 +3,7 @@ using QuickStat.Collectors.Sql;
 namespace QuickStat.Collectors.Registry;
 
 /// <content>
-/// <c>AddCollectorsDrug</c> - 35 collectors, called from inside the
+/// <c>AddCollectorsDrug</c> - 36 collectors, called from inside the
 /// <c>GBD|LANGTID|KORTTID</c> block only (<c>QuickStat.Collectors.pas:313-385</c>).
 /// </content>
 /// <remarks>
@@ -97,15 +97,23 @@ public static partial class CollectorCatalog
             DrugSql.AnticholinergicsAb),
 
         // PORT-PLAN.md §8.4: the caption is the shipping lineage's "Antibiotika: Resistendrivende"
-        // and the ATC set has no J01FF%. Phase 4 slots QS_DRUG_ANTIBIOTIC_INTERMEDIATE,
-        // QS_DRUG_ANTIBIOTIC_RECOMMENDED and QS_DRUG_J01XX05 in immediately after this line, which
-        // is where the commented-out registrations sit (QuickStat.Collectors.pas:381-383). The first
-        // two need CollectorAvailability for KB.AntibioticResistance2 (R7).
+        // and the ATC set has no J01FF%. The three antibiotic collectors that follow are Phase 4's,
+        // registered in the order the commented-out lines sat in
+        // (QuickStat.Collectors.pas:381-383) - position is the column order of every export.
+        // Exactly one of them, QS_DRUG_ANTIBIOTIC_INTERMEDIATE, needs CollectorAvailability for
+        // KB.AntibioticResistance2 (R7): it is the only one that joins the table
+        // (EPR.QA.SQL.pas:453).
         Make.DrugSetCollector(
             CollectorNames.DrugAntibioticResistance,
             CollectorTitles.DrugAntibioticResistance,
             CollectorNames.DrugSetVariablePrefix,
             DrugSql.DrugSetAntibioticResistance()),
+        Make.DrugSetCollector(
+            CollectorNames.DrugAntibioticIntermediate,
+            CollectorTitles.DrugAntibioticIntermediate,
+            CollectorNames.DrugSetVariablePrefix,
+            DrugSql.DrugSetAntibioticIntermediate(),
+            CollectorAvailability.RequiringDatabaseObject(DrugSql.AntibioticResistanceKnowledgeBase)),
 
         Make.DrugSetCollector(
             CollectorNames.DrugNorGeP,

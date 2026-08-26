@@ -380,6 +380,9 @@ public static class CollectorNames
     /// <summary><c>QS_DRUG_ANTIBIOTIC_RESISTANCE</c>.</summary>
     public const string DrugAntibioticResistance = DrugPrefix + "RESISTANCE_DRIVING";
 
+    /// <summary><c>QS_DRUG_ANTIBIOTIC_INTERMEDIATE</c> (<c>EPR.QA.Collector.Names.pas:345</c>).</summary>
+    public const string DrugAntibioticIntermediate = DrugPrefix + "INTERMEDIATE";
+
     /// <summary><c>QS_DRUG_NorGeP</c> - note the mixed case, which is part of the stored name.</summary>
     public const string DrugNorGeP = DrugPrefix + "NorGEP";
 

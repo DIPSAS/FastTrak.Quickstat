@@ -1,4 +1,5 @@
 using QuickStat.Collectors;
+using QuickStat.Collectors.Registry;
 
 namespace QuickStat.Tests.Collectors;
 
@@ -25,8 +26,36 @@ internal static class CollectorTestContext
     /// <summary>A fixed study id, so study-scoped statements are deterministic too.</summary>
     public const int StudyId = 42;
 
+    /// <summary>Distinct collector names in the catalog. PORT-PLAN.md §10.3.</summary>
+    public const int DistinctNameCount = 127;
+
+    /// <summary>Always-on static collectors - the ones no gate guards.</summary>
+    public const int AlwaysCount = 36;
+
+    /// <summary>
+    /// Static collectors a fully gated study registers on a database that resolves every object the
+    /// catalog asks for. PORT-PLAN.md §10.4.
+    /// </summary>
+    public const int FullyGatedCount = 121;
+
+    /// <summary>
+    /// The same study on a database that resolves none of them.
+    /// </summary>
+    /// <remarks>
+    /// The difference is <see cref="CollectorNames.DrugAntibioticIntermediate"/> and nothing else -
+    /// pinned by <c>CollectorRegistryCountTests</c> rather than asserted here, so that adding a
+    /// second optional collector fails a test instead of quietly changing a constant.
+    /// </remarks>
+    public const int FullyGatedWithoutOptionalObjects = FullyGatedCount - 1;
+
     /// <summary>The SQL context every test builds statements with.</summary>
     public static CollectorSqlContext SqlContext { get; } = new(StudyId, IdListToken);
+
+    /// <summary>
+    /// Every database object the catalog asks for - the probe outcome of a fully provisioned
+    /// database.
+    /// </summary>
+    public static string[] EveryDatabaseObject { get; } = [.. CollectorRegistryBuilder.RequiredDatabaseObjects];
 
     /// <summary>Builds an availability context.</summary>
     /// <param name="studyName">Study short name.</param>
@@ -40,12 +69,29 @@ internal static class CollectorTestContext
             ResolvedDatabaseObjects = new HashSet<string>(resolvedObjects, StringComparer.OrdinalIgnoreCase),
         };
 
-    /// <summary>Builds the registry for a study with the given form classes.</summary>
+    /// <summary>
+    /// Builds the registry for a study against a database that resolves <b>no</b> optional object.
+    /// </summary>
     /// <param name="studyName">Study short name.</param>
     /// <param name="formClasses">Rows of <c>Report.GetFormClasses</c>.</param>
     /// <returns>The collectors, in registration order.</returns>
+    /// <remarks>
+    /// The pessimistic probe outcome, because it is the one a customer without the <c>KB</c> schema
+    /// gets. Counts taken from this overload are
+    /// <see cref="FullyGatedWithoutOptionalObjects"/>, not <see cref="FullyGatedCount"/>.
+    /// </remarks>
     public static IReadOnlyList<ICollector> Build(string studyName, params FormClass[] formClasses) =>
         CollectorRegistryBuilder.Build(studyName, formClasses, Availability(studyName));
+
+    /// <summary>
+    /// Builds the registry for a study against a database that resolves <b>every</b> object the
+    /// catalog asks for.
+    /// </summary>
+    /// <param name="studyName">Study short name.</param>
+    /// <param name="formClasses">Rows of <c>Report.GetFormClasses</c>.</param>
+    /// <returns>The collectors, in registration order.</returns>
+    public static IReadOnlyList<ICollector> BuildComplete(string studyName, params FormClass[] formClasses) =>
+        CollectorRegistryBuilder.Build(studyName, formClasses, Availability(studyName, EveryDatabaseObject));
 
     /// <summary>The names of a collector list, in order.</summary>
     /// <param name="collectors">The collectors.</param>
