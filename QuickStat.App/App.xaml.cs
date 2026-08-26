@@ -27,8 +27,14 @@ namespace QuickStat;
 /// </remarks>
 public partial class App : Application
 {
+    /// <summary>Caption of the crash dialog. Matches the window title.</summary>
+    private const string AppTitle = "FastTrak QuickStat";
+
     private IHost? _host;
     private ILogger? _logger;
+
+    /// <summary>Non-zero once a fault has been shown to the user. See <see cref="Report"/>.</summary>
+    private int _reportedToUser;
 
     /// <summary>
     /// ===================================================================================
@@ -192,8 +198,9 @@ public partial class App : Application
     {
         Report("Unhandled exception on the UI thread.", e.Exception);
 
-        // Left unhandled on purpose. Phase 3 owns the recovery policy and the real error dialog;
-        // until then a fault should be loud rather than quietly swallowed.
+        // Left unhandled on purpose. Nothing here knows whether the application is still in a state
+        // worth continuing in, and swallowing a fault to keep a corrupted window alive is worse than
+        // stopping; a per-operation recovery policy belongs at the call site, not here.
         e.Handled = false;
     }
 
@@ -214,20 +221,50 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Logs a failure and shows a bare placeholder dialog. Phase 3 step 3.6 replaces the dialog.
+    /// Logs an unrecoverable failure and, once per process, puts it in front of the user.
     /// </summary>
+    /// <param name="headline">What happened, in one line.</param>
+    /// <param name="exception">The fault, if there is one.</param>
+    /// <remarks>
+    /// <para>
+    /// <b>This is the last-resort crash handler, not the application's error dialog.</b> Everything a
+    /// user is meant to see during normal work - <c>05-ui-spec.md</c> §D.4's warnings, confirmations
+    /// and messages - goes through <see cref="Diagnostics.IUserNotifier"/> and the WPF
+    /// <see cref="Services.WpfNotificationPresenter"/>, which owns severity, redaction and the
+    /// never-fail-open rule. This path deliberately does not: it has to work when the container is
+    /// half-built or the dispatcher is already unwinding, which is exactly when resolving a service
+    /// or awaiting a task would hang instead of reporting.
+    /// </para>
+    /// <para>
+    /// <b>At most one dialog per process.</b> A single startup fault reaches this three times over -
+    /// the dispatcher handler, then the app-domain handler as the process terminates - and each one
+    /// used to stack another modal box that somebody had to dismiss by hand before the process could
+    /// die. The log keeps every occurrence; the screen shows the first.
+    /// </para>
+    /// </remarks>
     private void Report(string headline, Exception? exception)
     {
         try
         {
-            if (_logger is not null)
+            _logger?.LogCritical(exception, "{Headline}", headline);
+
+            if (Interlocked.Exchange(ref _reportedToUser, 1) != 0)
             {
-                _logger.LogCritical(exception, "{Headline}", headline);
+                return;
             }
 
             MessageBox.Show(
-                string.Concat(headline, Environment.NewLine, Environment.NewLine, exception?.Message ?? "(no exception detail)"),
-                "QuickStat",
+                string.Concat(
+                    headline,
+                    Environment.NewLine,
+                    Environment.NewLine,
+                    exception?.Message ?? "(no exception detail)",
+                    Environment.NewLine,
+                    Environment.NewLine,
+                    "The details are in ",
+                    Logging.FileLoggerProvider.DefaultLogDirectory,
+                    "."),
+                AppTitle,
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
