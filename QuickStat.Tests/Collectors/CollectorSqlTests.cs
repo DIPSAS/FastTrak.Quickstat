@@ -112,6 +112,7 @@ public class CollectorSqlTests
                 CollectorNames.DrugAnticholinergicAb,
                 CollectorNames.DrugAntibioticResistance,
                 CollectorNames.DrugAntibioticIntermediate,
+                CollectorNames.DrugAntibioticRecommended,
             },
             wholeCohortWithIdList);
     }
@@ -186,6 +187,47 @@ public class CollectorSqlTests
             "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
             "JOIN KB.AntibioticResistance2 r2 ON r2.AtcCode = ot.ATC " +
             "WHERE ( PersonId IN (/*PIDS*/) ) ");
+
+    [Fact]
+    public void RecommendedAntibioticStatementListsNineExactCodesWithNoCollation()
+    {
+        // Docs/Port/03-collectors.md §E.2, resolved verbatim. The plain IN is the point: every other
+        // drug query wraps its comparison in COLLATE Latin1_General_CI_AI and this one does not.
+        AssertSql(
+            CollectorNames.DrugAntibioticRecommended,
+            "SELECT PersonId, 'RECOMMENDED_AB' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) " +
+            "AND ( ot.ATC IN ( 'J01CE01', 'J01CE02', 'J01CF01', 'J01CF02', 'J01CA08', 'J01CA11', 'J01EA01', 'J01EE01', 'J01XE01' ) )");
+
+        Assert.Equal(
+            new[] { "J01CE01", "J01CE02", "J01CF01", "J01CF02", "J01CA08", "J01CA11", "J01EA01", "J01EE01", "J01XE01" },
+            DrugSql.RecommendedAntibioticAtcCodes);
+
+        Assert.DoesNotContain(
+            QaSql.Collation,
+            CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.DrugAntibioticRecommended).BuildSql(Context),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetenamineStatementEmitsTheLiteralOneAndMatchesOneExactCode()
+    {
+        // Docs/Port/03-collectors.md §E.2.2. TDrugCollector.CreateBasic, so the value column is the
+        // literal 1 rather than a drug-name checksum, and the pattern carries no % - an exact match
+        // written with LIKE so the collation behaviour is identical to every other drug query.
+        AssertSql(
+            CollectorNames.DrugJ01Xx05,
+            "SELECT ot.PersonId, CONCAT('J01XX05','.',ot.TreatType) AS VarName, 1 AS DpValue, ot.StartAt, ot.TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) " +
+            "AND ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01XX05' COLLATE Latin1_General_CI_AI ");
+
+        Assert.Equal("J01XX05", AtcPatterns.J01Xx05);
+        Assert.Equal("DRUG.J01XX05", CollectorNames.DrugPrefix + SqlLiteral.AtcPatternToVariableName(AtcPatterns.J01Xx05));
+    }
 
     [Fact]
     public void OnlyTheIntermediateAntibioticStatementTouchesTheKbSchema()

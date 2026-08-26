@@ -3,7 +3,7 @@ using QuickStat.Collectors.Sql;
 namespace QuickStat.Collectors.Registry;
 
 /// <content>
-/// <c>AddCollectorsDrug</c> - 36 collectors, called from inside the
+/// <c>AddCollectorsDrug</c> - 38 collectors, called from inside the
 /// <c>GBD|LANGTID|KORTTID</c> block only (<c>QuickStat.Collectors.pas:313-385</c>).
 /// </content>
 /// <remarks>
@@ -114,6 +114,16 @@ public static partial class CollectorCatalog
             CollectorNames.DrugSetVariablePrefix,
             DrugSql.DrugSetAntibioticIntermediate(),
             CollectorAvailability.RequiringDatabaseObject(DrugSql.AntibioticResistanceKnowledgeBase)),
+        Make.DrugSetCollector(
+            CollectorNames.DrugAntibioticRecommended,
+            CollectorTitles.DrugAntibioticRecommended,
+            CollectorNames.DrugSetVariablePrefix,
+            DrugSql.DrugSetAntibioticRecommended()),
+
+        // TDrugCollector.CreateBasic, not CreateChecksum: the value column is the literal 1 rather
+        // than a drug-name checksum, because methenamine is one product. Registered last of the
+        // four antibiotic collectors and still before NorGeP.
+        Make.Drug(CollectorTitles.DrugAntibioticMetenamine, AtcPatterns.J01Xx05, useNameChecksum: false),
 
         Make.DrugSetCollector(
             CollectorNames.DrugNorGeP,

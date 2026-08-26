@@ -105,8 +105,8 @@ public class CollectorRegistryCountTests
         Assert.Equal(35, CollectorCatalog.AlwaysBeforeFormCollectors.Count);
         Assert.Single(CollectorCatalog.AlwaysAfterFormCollectors);
 
-        // 77 = 24 GBD var-sets + 17 diagnoses + 36 drugs.
-        Assert.Equal(77, CollectorCatalog.GbdFamily.Count);
+        // 79 = 24 GBD var-sets + 17 diagnoses + 38 drugs.
+        Assert.Equal(79, CollectorCatalog.GbdFamily.Count);
         Assert.Equal(8, CollectorCatalog.NdvFamily.Count);
         Assert.Equal(3, CollectorCatalog.GwasFamily.Count);
         Assert.Equal(2, CollectorCatalog.RoasFamily.Count);
@@ -148,7 +148,7 @@ public class CollectorRegistryCountTests
         // PORT-PLAN.md §10.4, the single easiest thing to lose in transcription: KORTTID must be in
         // BOTH regex literals. Comparing the ordered name lists catches "present in one of them",
         // which a bare count would not - a KORTTID study missing only the NDV block would still
-        // differ from GBD by 8, but a study missing only the GBD block by 77, and either mistake is
+        // differ from GBD by 8, but a study missing only the GBD block by 79, and either mistake is
         // silent at runtime.
         IReadOnlyList<string> gbd = CollectorTestContext.Names(CollectorTestContext.BuildComplete("GBD"));
         IReadOnlyList<string> langtid = CollectorTestContext.Names(CollectorTestContext.BuildComplete("LANGTID"));
@@ -228,7 +228,9 @@ public class CollectorRegistryCountTests
         Assert.True(resistance >= 0, "The resistance collector is not registered.");
         Assert.Equal(names.IndexOf(CollectorNames.DrugAnticholinergicAb) + 1, resistance);
         Assert.Equal(resistance + 1, names.IndexOf(CollectorNames.DrugAntibioticIntermediate));
-        Assert.Equal(resistance + 2, names.IndexOf(CollectorNames.DrugNorGeP));
+        Assert.Equal(resistance + 2, names.IndexOf(CollectorNames.DrugAntibioticRecommended));
+        Assert.Equal(resistance + 3, names.IndexOf(CollectorNames.DrugJ01Xx05));
+        Assert.Equal(resistance + 4, names.IndexOf(CollectorNames.DrugNorGeP));
     }
 
     [Fact]
@@ -239,9 +241,9 @@ public class CollectorRegistryCountTests
         HashSet<string> names = [.. CollectorTestContext.Names(CollectorCatalog.All)];
 
         Assert.Contains(CollectorNames.DrugAntibioticIntermediate, names);
+        Assert.Contains(CollectorNames.DrugAntibioticRecommended, names);
+        Assert.Contains(CollectorNames.DrugJ01Xx05, names);
 
-        Assert.DoesNotContain("DRUG.RECOMMENDED", names);
-        Assert.DoesNotContain("DRUG.J01XX05", names);
         Assert.DoesNotContain("ROAS.BASE", names);
         Assert.DoesNotContain("LAB.INTERLEUKINS", names);
     }

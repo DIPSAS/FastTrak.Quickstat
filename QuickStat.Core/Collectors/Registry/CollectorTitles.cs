@@ -416,6 +416,17 @@ public static class CollectorTitles
     /// </summary>
     public const string DrugAntibioticIntermediate = "Antibiotika: Intermediære";
 
+    /// <summary>
+    /// <c>StrTitleDrugAntibioticRecommended</c> (<c>EPR.QA.Collector.Names.pas:191</c>).
+    /// </summary>
+    public const string DrugAntibioticRecommended = "Antibiotika: Anbefalte";
+
+    /// <summary>
+    /// <c>StrTitleDrugAntibioticMetenamine</c> (<c>EPR.QA.Collector.Names.pas:192</c>). The spaces
+    /// around the slash are upstream.
+    /// </summary>
+    public const string DrugAntibioticMetenamine = "Antibiotika: Metenamin / Hiprex";
+
     /// <summary><c>StrTitleDrugNorGeP</c>.</summary>
     public const string DrugNorGeP = "Medisin: NorGeP avvik";
 

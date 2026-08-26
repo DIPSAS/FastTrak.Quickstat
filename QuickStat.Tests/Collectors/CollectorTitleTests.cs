@@ -89,6 +89,8 @@ public class CollectorTitleTests
         // "Resistendrivende", which is upstream (PORT-PLAN.md §8.4).
         AssertTitle(CollectorNames.DrugAntibioticResistance, "Antibiotika: Resistendrivende");
         AssertTitle(CollectorNames.DrugAntibioticIntermediate, "Antibiotika: Intermediære");
+        AssertTitle(CollectorNames.DrugAntibioticRecommended, "Antibiotika: Anbefalte");
+        AssertTitle(CollectorNames.DrugJ01Xx05, "Antibiotika: Metenamin / Hiprex");
     }
 
     [Fact]

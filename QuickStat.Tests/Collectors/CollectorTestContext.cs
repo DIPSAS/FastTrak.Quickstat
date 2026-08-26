@@ -27,7 +27,7 @@ internal static class CollectorTestContext
     public const int StudyId = 42;
 
     /// <summary>Distinct collector names in the catalog. PORT-PLAN.md §10.3.</summary>
-    public const int DistinctNameCount = 127;
+    public const int DistinctNameCount = 129;
 
     /// <summary>Always-on static collectors - the ones no gate guards.</summary>
     public const int AlwaysCount = 36;
@@ -36,7 +36,7 @@ internal static class CollectorTestContext
     /// Static collectors a fully gated study registers on a database that resolves every object the
     /// catalog asks for. PORT-PLAN.md §10.4.
     /// </summary>
-    public const int FullyGatedCount = 121;
+    public const int FullyGatedCount = 123;
 
     /// <summary>
     /// The same study on a database that resolves none of them.

@@ -26,12 +26,11 @@ namespace QuickStat.Collectors.Registry;
 /// partial files.
 /// </para>
 /// <para>
-/// <b>Four collectors are still absent</b>: <c>QS_DRUG_ANTIBIOTIC_RECOMMENDED</c>,
-/// <c>QS_DRUG_J01XX05</c>, <c>QS_ROAS_BASE</c> and <c>QST_LAB_INTERLEUKINS</c>. They are commented
-/// out in this repository's <c>QuickStat.Collectors.pas</c> and they also need library-side
-/// implementations brought across from the pinned ref, which is Phase 4's job (PORT-PLAN.md §5).
-/// Restoring them takes the registry from 127 to 131 distinct names; each is one line in the family
-/// file it belongs to.
+/// <b>Two collectors are still absent</b>: <c>QS_ROAS_BASE</c> and <c>QST_LAB_INTERLEUKINS</c>.
+/// They are commented out in this repository's <c>QuickStat.Collectors.pas</c> and they also need
+/// library-side implementations brought across from the pinned ref, which is Phase 4's job
+/// (PORT-PLAN.md §5). Restoring them takes the registry from 129 to 131 distinct names; each is one
+/// line in the family file it belongs to.
 /// </para>
 /// </remarks>
 public static partial class CollectorCatalog
@@ -49,8 +48,8 @@ public static partial class CollectorCatalog
     public static IReadOnlyList<ICollector> AlwaysAfterFormCollectors { get; } = CreateAlwaysAfterFormCollectors();
 
     /// <summary>
-    /// Gate <b>G</b>: 24 GBD var-sets, then the 17 diagnosis collectors, then the 36 drug
-    /// collectors - 77 in all.
+    /// Gate <b>G</b>: 24 GBD var-sets, then the 17 diagnosis collectors, then the 38 drug
+    /// collectors - 79 in all.
     /// </summary>
     /// <remarks>
     /// <c>AddCollectorsDiagnose</c> and <c>AddCollectorsDrug</c> are called from inside the
@@ -85,7 +84,7 @@ public static partial class CollectorCatalog
     ];
 
     /// <summary>
-    /// All 127 static collectors, in registration order, with every gate treated as open.
+    /// All 129 static collectors, in registration order, with every gate treated as open.
     /// </summary>
     /// <remarks>
     /// <para>

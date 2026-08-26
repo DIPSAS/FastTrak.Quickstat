@@ -175,6 +175,44 @@ public static class DrugSql
             ")";
     }
 
+    /// <summary>
+    /// The nine ATC codes that count as recommended first-line antibiotics, as one named array.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// In order: <c>J01CE01</c> benzylpenicillin, <c>J01CE02</c> phenoxymethylpenicillin,
+    /// <c>J01CF01</c> dicloxacillin, <c>J01CF02</c> cloxacillin, <c>J01CA08</c> pivmecillinam,
+    /// <c>J01CA11</c> mecillinam, <c>J01EA01</c> trimethoprim, <c>J01EE01</c>
+    /// sulfamethoxazole+trimethoprim, <c>J01XE01</c> nitrofurantoin.
+    /// </para>
+    /// <para>
+    /// These are exact codes matched with a plain <c>IN</c>, with <b>no</b>
+    /// <see cref="QaSql.Collation"/> - the only drug query in the subsystem that omits it. Order is
+    /// observable in the generated list, so it is the source order
+    /// (<c>EPR.QA.SQL.pas:441</c>).
+    /// </para>
+    /// <para>
+    /// A named array for the same reason as <see cref="ResistanceDrivingAtcPatterns"/>: it is a
+    /// clinical definition, and revising one is a one-line edit plus a regenerated golden file.
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<string> RecommendedAntibioticAtcCodes { get; } =
+        ["J01CE01", "J01CE02", "J01CF01", "J01CF02", "J01CA08", "J01CA11", "J01EA01", "J01EE01", "J01XE01"];
+
+    /// <summary><c>SpDrugsetAntibioticRecommended</c> (<c>EPR.QA.SQL.pas:431-443</c>).</summary>
+    /// <returns>The statement, with <see cref="QaSql.PidList"/> still in place.</returns>
+    /// <remarks>
+    /// Built from <see cref="RecommendedAntibioticAtcCodes"/>. Unlike its neighbour
+    /// <see cref="DrugSetAntibioticIntermediate"/> this needs nothing from the database beyond
+    /// <c>dbo</c>, so it carries no <see cref="CollectorAvailability"/> gate.
+    /// </remarks>
+    public static string DrugSetAntibioticRecommended() =>
+        "SELECT PersonId, 'RECOMMENDED_AB' AS VarName, " + NameChecksum + ", StartAt, TreatId, ai.AtcName AS Caption " +
+        QaSql.FromOngoingTreatment +
+        QaSql.JoinAtcIndex +
+        QaSql.WherePersonList +
+        "AND ( ot.ATC IN ( " + string.Join(", ", RecommendedAntibioticAtcCodes.Select(SqlLiteral.Quote)) + " ) )";
+
     /// <summary><c>SpDrugsetAntibioticIntermediate</c> (<c>EPR.QA.SQL.pas:445-457</c>).</summary>
     /// <returns>The statement, with <see cref="QaSql.PidList"/> still in place.</returns>
     /// <remarks>
