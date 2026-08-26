@@ -221,6 +221,37 @@ public class MatrixGridRenderTests
     }
 
     [Fact]
+    public void TheMissingObjectColourNeverReachesAPixel()
+    {
+        StaTestRunner.Run(() =>
+        {
+            // #FFFAFA is one shade off white and would be invisible if it did leak, so it is set to
+            // magenta for this test. The Delphi painted it wherever its sparse cell array had no
+            // object; the port has no such array, and the one place it is still computed - a header
+            // cell, which has no MatrixCell behind it, exactly as the Delphi's fixed headers had no
+            // TObject - is immediately overpainted by the fixed fill, as it was there.
+            Color magenta = Color.FromRgb(0xFF, 0x00, 0xFF);
+
+            MatrixGridHarness harness = MatrixGridHarness.RenderMatrix(
+                MatrixGridTestData.SmallMatrix(),
+                configure: grid =>
+                {
+                    grid.MissingObjectBackground = new SolidColorBrush(magenta);
+                    grid.CurrentRowIndex = 0;
+                    grid.CurrentColumnIndex = 0;
+                });
+
+            for (int y = 0; y < harness.Height; y++)
+            {
+                for (int x = 0; x < harness.Width; x++)
+                {
+                    Assert.NotEqual(magenta, harness.PixelAt(x, y));
+                }
+            }
+        });
+    }
+
+    [Fact]
     public void ANullMatrixRendersAnEmptyBackgroundRatherThanThrowing()
     {
         StaTestRunner.Run(() =>

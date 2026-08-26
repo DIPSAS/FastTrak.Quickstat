@@ -87,6 +87,7 @@ public class DependencyPropertyRegistrationTests
     [InlineData("FontFamily")]
     [InlineData("FontSize")]
     [InlineData("Foreground")]
+    [InlineData("FontWeight")]
     public void TheReOwnedTextPropertiesKeepTheirMetadataFlags(string propertyName)
     {
         // The second, quieter half of the same bug, and the half that survives a careless fix.

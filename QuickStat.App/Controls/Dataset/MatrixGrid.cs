@@ -233,11 +233,12 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
                 | FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="FontWeight"/> dependency property.</summary>
+    /// <remarks>A fourth re-owned text property; same two-argument overload, same reasoning.</remarks>
     public static readonly DependencyProperty FontWeightProperty =
         TextElement.FontWeightProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
-                FontWeights.Normal,
+                TextElement.FontWeightProperty.DefaultMetadata.DefaultValue,
                 FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="EmphasisFontWeight"/> dependency property.</summary>
@@ -479,7 +480,13 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     /// with either a datapoint or the column object. The port has no sparse array, no phantom
     /// row or column and no unlocked intermediate state - the renderer only ever addresses
     /// <c>0 … Rows.Count-1</c> × <c>0 … Columns.Count-1</c>, and <see cref="PersonMatrix.GetCell"/>
-    /// answers every one of those with a real colour. Nothing assigns this brush.
+    /// answers every one of those with a real colour.
+    /// </para>
+    /// <para>
+    /// It is still <i>computed</i> in one place, faithfully: a header cell has no
+    /// <see cref="MatrixCell"/> behind it, just as the Delphi's fixed headers had no <c>TObject</c>
+    /// - and there, as here, the fixed fill immediately overpaints it. No pixel ever shows it, which
+    /// is asserted rather than assumed.
     /// </para>
     /// </remarks>
     public Brush MissingObjectBackground

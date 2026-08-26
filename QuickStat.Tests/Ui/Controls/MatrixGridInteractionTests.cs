@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using QuickStat.Controls.Dataset;
 using QuickStat.Domain.Anonymisation;
 using QuickStat.Domain.Matrix;
@@ -200,6 +201,91 @@ public class MatrixGridInteractionTests
 
             // The hint panel hides itself rather than parking outside the window.
             Assert.False(grid.TryGetCellBounds(0, 0, out _));
+        });
+    }
+
+    [Fact]
+    public void CellBoundsGiveTheFloatingHintSomethingToAnchorTo()
+    {
+        StaTestRunner.Run(() =>
+        {
+            MatrixGrid grid = MatrixGridHarness.CreateGrid(MatrixGridTestData.SmallMatrix());
+
+            // §G.2: the hint sits at the cell's left edge, one row height below its top, offset by
+            // 3,3. All the Dataset tab needs from this control is the cell rectangle.
+            Assert.True(grid.TryGetCellBounds(1, 1, out Rect bounds));
+
+            // Data column 1 starts at 44 + 64; data row 1 starts at 18 + 17.
+            Assert.Equal(new Rect(108, 35, 64, 17), bounds);
+        });
+    }
+
+    [Fact]
+    public void CellBoundsForTheHeaderRowResolveToTheHeaderCell()
+    {
+        StaTestRunner.Run(() =>
+        {
+            MatrixGrid grid = MatrixGridHarness.CreateGrid(MatrixGridTestData.SmallMatrix());
+
+            Assert.True(grid.TryGetCellBounds(MatrixGrid.NoIndex, 0, out Rect bounds));
+
+            Assert.Equal(new Rect(44, 0, 64, 18), bounds);
+        });
+    }
+
+    [Fact]
+    public void CellBoundsAreRefusedForACellThatDoesNotExist()
+    {
+        StaTestRunner.Run(() =>
+        {
+            MatrixGrid grid = MatrixGridHarness.CreateGrid(MatrixGridTestData.SmallMatrix());
+
+            Assert.False(grid.TryGetCellBounds(99, 0, out _));
+            Assert.False(grid.TryGetCellBounds(0, 99, out _));
+            Assert.False(MatrixGridHarness.CreateGrid(null).TryGetCellBounds(0, 0, out _));
+        });
+    }
+
+    [Fact]
+    public void MakeVisibleScrollsARectangleInsideTheBands()
+    {
+        StaTestRunner.Run(() =>
+        {
+            MatrixGrid grid = MatrixGridHarness.CreateGrid(
+                MatrixGridTestData.LargeMatrix(rows: 200, columns: 200),
+                width: 300,
+                height: 120);
+
+            grid.SetHorizontalOffset(1_000);
+            grid.SetVerticalOffset(1_000);
+
+            // A rectangle above the header and left of the frozen block pulls the view back.
+            _ = grid.MakeVisible(grid, new Rect(0, 0, 10, 10));
+
+            Assert.Equal(1_000 - 44, grid.HorizontalOffset);
+            Assert.Equal(1_000 - 18, grid.VerticalOffset);
+        });
+    }
+
+    [Fact]
+    public void ThePointerShowsAResizeCursorOnlyOverAHeaderEdge()
+    {
+        StaTestRunner.Run(() =>
+        {
+            MatrixGrid grid = MatrixGridHarness.CreateGrid(MatrixGridTestData.SmallMatrix());
+
+            grid.MoveTo(new Point(108, 9));
+
+            Assert.Equal(Cursors.SizeWE, grid.Cursor);
+
+            grid.MoveTo(new Point(75, 9));
+
+            Assert.Null(grid.Cursor);
+
+            // The grip is a header-row affordance only: goColSizing does not size from the body.
+            grid.MoveTo(new Point(108, 40));
+
+            Assert.Null(grid.Cursor);
         });
     }
 
