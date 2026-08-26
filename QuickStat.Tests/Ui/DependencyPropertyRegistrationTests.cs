@@ -81,6 +81,34 @@ public class DependencyPropertyRegistrationTests
         Assert.Contains(types, type => type == typeof(MainWindow));
     }
 
+    [Theory]
+    [InlineData("FontFamily")]
+    [InlineData("FontSize")]
+    [InlineData("Foreground")]
+    public void TheReOwnedTextPropertiesKeepTheirMetadataFlags(string propertyName)
+    {
+        // The second, quieter half of the same bug, and the half that survives a careless fix.
+        // Binding to the (object) overload did not just poison the default value - it meant the
+        // flags were never passed at all, so Inherits and AffectsRender were silently false. The
+        // control would then have compiled, started, and simply not repainted when the theme
+        // changed the font, with nothing to explain why.
+        StaTestRunner.Run(() =>
+        {
+            Type grid = typeof(Controls.Dataset.MatrixGrid);
+
+            DependencyProperty property = (DependencyProperty)grid
+                .GetField($"{propertyName}Property", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)!
+                .GetValue(null)!;
+
+            FrameworkPropertyMetadata metadata = Assert.IsType<FrameworkPropertyMetadata>(property.GetMetadata(grid));
+
+            Assert.True(metadata.Inherits, $"{propertyName} must inherit from the surrounding theme.");
+            Assert.True(metadata.AffectsRender, $"{propertyName} must repaint the grid when it changes.");
+            Assert.NotNull(metadata.DefaultValue);
+            Assert.IsAssignableFrom(property.PropertyType, metadata.DefaultValue);
+        });
+    }
+
     [Fact]
     public void EveryRegisteredPropertyAcceptsItsOwnDefaultValue()
     {
