@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using QuickStat.Domain.Populations;
 
 namespace QuickStat.ViewModels;
@@ -5,34 +6,47 @@ namespace QuickStat.ViewModels;
 /// <summary>One row of the population list.</summary>
 /// <remarks>
 /// <para>
-/// <b>OWNER: step 3.2. This is a compiling stub.</b> Created by step 3.1 so that the shell lays out
-/// and so 3.2 and 3.4 never have to open each other's files.
+/// <b>OWNER: step 3.2.</b> A thin, read-only projection of
+/// <see cref="QuickStat.Domain.Populations.Population"/> plus the one piece of view state a row
+/// owns: <see cref="IsExpanded"/>.
 /// </para>
-/// <para>
-/// <b>What is left to do</b> (<c>05-ui-spec.md</c> §B.1.1, §H.2):
-/// </para>
-/// <list type="bullet">
-///   <item><description>
-///     <c>IsExpanded</c>, driving whether <see cref="HelpText"/> is shown underneath. When
-///     <c>Simplified</c> is ticked only the selected row expands; when it is not, every row does.
-///     Client-side only - it changes nothing about what the filter matches.
-///   </description></item>
-///   <item><description>
-///     The row template: id in <c>QsCodeBrush</c>, title bold in <c>QsTitleBrush</c> with
-///     <c>TextTrimming="CharacterEllipsis"</c>, and <see cref="Group"/> right-aligned in
-///     <c>QsCategoryBrush</c>, one point smaller, <b>inside</b> the title column.
-///   </description></item>
-/// </list>
 /// <para>
 /// <see cref="Population.Group"/> and <see cref="Population.HelpText"/> are database content and
 /// Norwegian; they stay Norwegian.
 /// </para>
 /// </remarks>
-/// <param name="population">The catalogue row this wraps.</param>
-public sealed class PopulationViewModel(Population population)
+public sealed partial class PopulationViewModel : ObservableObject
 {
+    /// <summary>
+    /// Whether <see cref="HelpText"/> is shown underneath the title.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Delphi <c>TObjectListView.ExpandRow</c> (<c>Emetra.VclComp.ListView.pas:752-755</c>):
+    /// <c>(not FSimpleView) or (AIndex = Row)</c> - so with <c>Simplified</c> off every row is
+    /// expanded, and with it on only the selected one is. Purely client-side; it changes nothing
+    /// about what the filter matches.
+    /// </para>
+    /// <para>
+    /// Written by <see cref="PopulationPickerViewModel"/>, which owns the rule; a row does not know
+    /// whether it is selected.
+    /// </para>
+    /// </remarks>
+    [ObservableProperty]
+    private bool _isExpanded;
+
+    /// <summary>Wraps one catalogue row.</summary>
+    /// <param name="population">The catalogue row.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="population"/> is <see langword="null"/>.</exception>
+    public PopulationViewModel(Population population)
+    {
+        ArgumentNullException.ThrowIfNull(population);
+
+        Population = population;
+    }
+
     /// <summary>The underlying catalogue row.</summary>
-    public Population Population { get; } = population ?? throw new ArgumentNullException(nameof(population));
+    public Population Population { get; }
 
     /// <summary><c>ProcId</c>. The purple code column.</summary>
     public int ProcId => Population.ProcId;
