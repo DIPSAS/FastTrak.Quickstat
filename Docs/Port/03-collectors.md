@@ -173,7 +173,8 @@ function ConvertArrayToList( const AIdentifiers: array of integer ): string;
 **Counts.** The factory knows **126** distinct collector names. `PrepareStudy` can register at most
 **126 static** collectors (87 via the factory + 39 constructed directly), plus **2 × N dynamic**
 form collectors, where N = number of non-anonymous form classes in the study. Restoring the four
-lost features raises the static maximum to **131**.
+lost features raises the static maximum to **131**, which Phase 4 did — see the status box at the
+head of §E.
 
 Per study-name gate:
 
@@ -188,7 +189,8 @@ Per study-name gate:
 
 Legend for the *Gate* column: **A** = always, **G** = `GBD|LANGTID|KORTTID`,
 **N** = `NDV|ENDO|LANGTID|GBD|KORTTID`, **W** = `GWAS`, **R** = `ROAS`, **D** = `DOGFOOD`,
-**[recover]** = currently commented out, see §E.
+**[recover]** = commented out in this repository's Delphi, see §E. All five have been restored in
+the .NET port; the marker records why the Delphi row carries no number.
 
 Rows are in registration order (= order in the checkbox list).
 
@@ -1161,8 +1163,12 @@ SELECT PersonId, 'NOATC', COUNT(*) AS DpValue, MAX(StartAt) AS LastDate, MAX(Tre
 > Position 1 is still the literal `'NOATC'`, so `RunBatch` works. In C# give it an alias
 > (`AS VarName`) — that is safe and does not change behaviour.
 
+> ⚠ The next block is the **`develop_old`** wording, kept for comparison. It is *not* what the port
+> emits: `PORT-PLAN.md` §8.4 dropped `J01FF%` and took the `Antibiotika: Resistendrivende` caption,
+> so `DrugSql.DrugSetAntibioticResistance()` has three groups, not four. See §E.2.1.
+
 ```sql
--- SpDrugsetAntibiotic (current, pre-recovery), prefix 'DRUG_'
+-- SpDrugsetAntibiotic (develop_old, pre-recovery), prefix 'DRUG_'
 SELECT PersonId, 'RESISTANCE_DRIVING' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption FROM dbo.OngoingTreatment ot LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC WHERE ( PersonId IN {IdList} ) AND (   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01CR%' COLLATE Latin1_General_CI_AI ) OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01D[CDH]%' COLLATE Latin1_General_CI_AI ) OR   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01FF%' COLLATE Latin1_General_CI_AI ) OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01MA%' COLLATE Latin1_General_CI_AI ) )
 ```
 
@@ -1352,7 +1358,8 @@ Procedures: `Report.GetFormClasses`, `Report.GetFormData`, `Report.GetFormInstan
 `Report.AddSelectionMember`, `Report.AddQuickStat`, `QuickStat.DeletePackage`,
 `dbo.GetPopulations`.
 
-Plus, **only after recovery**: `KB.AntibioticResistance2` (§E.1).
+Plus, since §E.1 was recovered: `KB.AntibioticResistance2` — the one object the port probes for
+before registering its collector, rather than depending on unconditionally.
 
 ---
 
