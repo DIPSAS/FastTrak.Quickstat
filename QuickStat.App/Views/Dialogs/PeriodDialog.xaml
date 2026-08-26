@@ -6,74 +6,152 @@
         xmlns:vm="clr-namespace:QuickStat.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:PeriodViewModel}"
-        Title="Angi periode"
-        Width="527"
-        Height="374"
-        Background="{StaticResource QsFormFaceBrush}"
-        FontFamily="{StaticResource QsFontFamily}"
-        FontSize="{StaticResource QsFontSize}"
+        Title="{x:Static vm:PeriodViewModel.DialogHeader}"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        SizeToContent="Manual"
+        SizeToContent="WidthAndHeight"
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True"
         WindowStartupLocation="CenterOwner">
 
     <!--
-        OWNER: step 3.6.  Layout skeleton by step 3.1; 05-ui-spec.md §D.5.
+        OWNER: step 3.6.  05-ui-spec.md §D.5, Emetra.VclForm.Period.dfm.
 
         Fully Norwegian, unlike the rest of the chrome: this is a library form, and PORT-PLAN.md
         §8.6 keeps the English-chrome / Norwegian-data split exactly as it is.
 
-        Still to do: Monday-first calendars with FirstYear 1900, the tip label, the valid/invalid
-        bottom line, and the per-query round trip through ISettingsStore keyed with
-        PeriodSettingsKey.For - never the raw SQL.  The prompt that shows this window is
-        QuickStat.Services.WpfPeriodPrompt, which currently always cancels.
+        Metrics come from the .dfm, which is what a QuickStat user sees: MainQuickStat.pas:272
+        constructs TPeriodDictionary through the two-argument constructor, so fGuiStyle is nil and
+        UpdateStyle - the only thing that would have resized the form to 525 - never runs.
+        ClientWidth 527, ClientHeight 374; banner 45; button bar 50; two 241 x 227 calendars at 16
+        from the left with 11 between them.
+
+        SizeToContent, not Width/Height: those are the *outer* frame in WPF and the .dfm numbers are
+        the client area.  With NoResize the difference is roughly 16 x 39, which is a whole row of
+        the calendar.
+
+        The theme is merged here rather than inherited from Application.Resources so the window can
+        be loaded on its own - Application.Current is null under test (07-ui-contracts.md §6), and a
+        dialog that cannot be constructed without one cannot be checked at all.  For the same reason
+        no StaticResource appears on the Window element itself: the root panel below carries them,
+        where the resource dictionary is unambiguously already in scope.
     -->
 
-    <DockPanel>
-        <Border DockPanel.Dock="Top"
-                Height="41"
+    <Window.Resources>
+        <ResourceDictionary Source="/QuickStat;component/Theme/QuickStat.Styles.xaml" />
+    </Window.Resources>
+
+    <DockPanel Width="527"
+               Height="374"
+               Background="{StaticResource QsFormFaceBrush}"
+               TextElement.FontFamily="{StaticResource QsFontFamily}"
+               TextElement.FontSize="{StaticResource QsFontSize}"
+               TextElement.Foreground="{StaticResource QsTextBrush}">
+
+        <!-- panWhiteTop: header 19 px over the run-time sub-header, both 16 from the left. -->
+        <Border x:Name="Banner"
+                DockPanel.Dock="Top"
+                Height="45"
                 Background="{StaticResource QsBannerBrush}"
                 BorderBrush="{StaticResource QsBorderBrush}"
                 BorderThickness="0,0,0,1">
             <StackPanel Margin="16,0" VerticalAlignment="Center">
-                <TextBlock FontSize="19" FontWeight="Bold" Text="Angi periode" />
+                <TextBlock FontSize="19"
+                           FontWeight="SemiBold"
+                           Text="{x:Static vm:PeriodViewModel.DialogHeader}" />
+                <TextBlock Foreground="{StaticResource QsMutedTextBrush}"
+                           Text="{Binding SubHeaderText}"
+                           TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </Border>
 
+        <!--
+            panButtons.  lblBottomRightInfo is inside this bar despite its name: Align = alClient
+            with Margins.Left = 16 puts it at the *left*, vertically centred and word-wrapped, with
+            the two buttons docked right.  OK is the rightmost of the two (btnOk.Left = 427 against
+            btnCancel.Left = 335), which is the opposite of the usual Windows order.
+        -->
         <Border DockPanel.Dock="Bottom"
-                Height="56"
+                Height="50"
                 BorderBrush="{StaticResource QsBorderBrush}"
                 BorderThickness="0,1,0,0">
-            <StackPanel HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal">
-                <Button Width="84"
-                        Height="36"
-                        Margin="0,0,8,0"
-                        Content="OK"
-                        IsDefault="True"
-                        IsEnabled="{Binding CanAccept}"
-                        Click="OnAccept" />
-                <Button Width="84"
-                        Height="36"
-                        Margin="0,0,16,0"
-                        Content="Avbryt"
-                        IsCancel="True" />
-            </StackPanel>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                    <Button Width="84"
+                            Height="36"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource QsPrimaryButton}"
+                            Content="{x:Static vm:PeriodViewModel.CancelCaption}"
+                            IsCancel="True" />
+                    <Button x:Name="OkButton"
+                            Width="84"
+                            Height="36"
+                            Margin="0,0,16,0"
+                            Style="{StaticResource QsPrimaryButton}"
+                            Content="{x:Static vm:PeriodViewModel.AcceptCaption}"
+                            IsDefault="True"
+                            IsEnabled="{Binding CanAccept}"
+                            Click="OnAccept" />
+                </StackPanel>
+
+                <TextBlock x:Name="BottomInfo"
+                           Margin="16,0,8,0"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource QsMutedTextBrush}"
+                           Text="{Binding BottomInfoText}"
+                           TextWrapping="Wrap" />
+            </DockPanel>
         </Border>
 
-        <StackPanel Margin="16">
-            <TextBlock Text="{Binding SubHeaderText}" TextWrapping="Wrap" />
+        <Grid Margin="16,16,16,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-            <TextBlock Margin="0,8,0,0"
+            <TextBlock Grid.Row="0"
                        Foreground="{StaticResource QsMutedTextBrush}"
                        Text="{x:Static vm:PeriodViewModel.TipText}"
                        TextWrapping="Wrap" />
 
-            <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
-                <Calendar Margin="0,0,16,0" SelectedDate="{Binding Start, Mode=TwoWay}" />
-                <Calendar SelectedDate="{Binding Stop, Mode=TwoWay}" />
+            <!--
+                FirstDayOfWeek is pinned to Monday rather than left to the current culture, because
+                dwMonday is what the .dfm says and a build agent in en-US must render the same grid.
+                IsTodayHighlighted follows HighlightToday = False, which is set on both calendars.
+                ShowDayOfWeek = False, set on the left calendar only, has no WPF equivalent - the
+                day-of-week row is part of Calendar's template - and it is an inconsistency between
+                the two calendars in the original anyway.
+
+                The band is the .dfm's 241 x 227 so the calendars sit where they sat, but WPF's
+                Calendar has a fixed natural size that neither Width nor FontSize changes: its
+                template centres a fixed CalendarItem inside whatever it is given.  They are
+                therefore centred in the band rather than stretched, which puts the spare height
+                above and below instead of all of it underneath.
+            -->
+            <StackPanel Grid.Row="1" Margin="0,4,0,0" Orientation="Horizontal">
+                <Calendar x:Name="StartCalendar"
+                          Width="241"
+                          Margin="0,0,11,0"
+                          VerticalAlignment="Center"
+                          AutomationProperties.Name="Første dato"
+                          DisplayDateStart="{x:Static vm:PeriodViewModel.FirstDate}"
+                          FirstDayOfWeek="Monday"
+                          IsTodayHighlighted="False"
+                          SelectedDate="{Binding SelectedStart, Mode=TwoWay}"
+                          SelectionMode="SingleDate" />
+
+                <Calendar x:Name="StopCalendar"
+                          Width="241"
+                          VerticalAlignment="Center"
+                          AutomationProperties.Name="Siste dato"
+                          DisplayDateStart="{x:Static vm:PeriodViewModel.FirstDate}"
+                          FirstDayOfWeek="Monday"
+                          IsTodayHighlighted="False"
+                          SelectedDate="{Binding SelectedStop, Mode=TwoWay}"
+                          SelectionMode="SingleDate" />
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </DockPanel>
 </Window>

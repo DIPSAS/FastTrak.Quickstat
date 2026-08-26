@@ -7,36 +7,86 @@
              xmlns:vm="clr-namespace:QuickStat.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:BusyOverlayViewModel}"
+             Focusable="False"
              Visibility="{Binding IsBusy, Converter={conv:BoolToVisibilityConverter}}">
 
     <!--
-        OWNER: step 3.6.  A placeholder by step 3.1 - it appears and disappears at the right times
-        and says the right thing, and that is all.  Left to do: the visual, and a cancel affordance
-        for the operations that take a CancellationToken.
+        OWNER: step 3.6.  05-ui-spec.md §G.3 - the replacement for Screen.Cursor := crSqlWait, which
+        no longer says enough now that the window stays responsive while the work happens elsewhere.
 
         Background is deliberately a colour and not Transparent: a Transparent brush still hit-tests,
-        which is what makes the overlay block input to the window underneath - but an invisible
-        blocker is indistinguishable from a hang.  Dimming says "wait" out loud.
+        which is what makes the overlay block the mouse - but an invisible blocker is
+        indistinguishable from a hang.  Dimming says "wait" out loud.  It blocks the mouse only; the
+        keyboard is held off by every command's CanExecute instead.
+
+        The theme is merged here rather than inherited from Application.Resources so the control can
+        be constructed on its own: Application.Current is null under test (07-ui-contracts.md §6),
+        and a StaticResource that cannot be resolved is a XamlParseException, not a build error.
     -->
 
+    <UserControl.Resources>
+        <ResourceDictionary Source="/QuickStat;component/Theme/QuickStat.Styles.xaml" />
+    </UserControl.Resources>
+
     <Border Background="#66FFFFFF">
-        <Border MaxWidth="360"
-                Padding="24,16"
+        <Border MinWidth="280"
+                MaxWidth="420"
+                Padding="24,20"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="{StaticResource QsSurfaceBrush}"
-                BorderBrush="{StaticResource QsBorderBrush}"
-                BorderThickness="1">
+                BorderBrush="{StaticResource QsBorderStrongBrush}"
+                BorderThickness="1"
+                SnapsToDevicePixels="True">
             <StackPanel>
-                <TextBlock HorizontalAlignment="Center"
+                <!-- The teal rule ties the card to the section headers without adding a brush. -->
+                <Border Height="3"
+                        Margin="0,0,0,14"
+                        Background="{StaticResource QsTealBrush}" />
+
+                <TextBlock x:Name="MessageText"
+                           HorizontalAlignment="Center"
+                           FontSize="{StaticResource QsHeaderFontSize}"
                            FontWeight="SemiBold"
+                           Foreground="{StaticResource QsTextBrush}"
                            Text="{Binding Message}"
+                           TextAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            TextWrapping="Wrap" />
-                <ProgressBar Width="240"
-                             Margin="0,12,0,0"
+
+                <!--
+                    Determinate, bound to the same percentage the banner shows: a collect run
+                    reports one per patient (§G.6).  QsProgressBar has no indeterminate animation -
+                    its template is a plain track and indicator - so IsIndeterminate would render a
+                    bar that never moves and says nothing.
+                -->
+                <ProgressBar x:Name="ProgressIndicator"
+                             Width="260"
+                             Margin="0,14,0,0"
                              Style="{StaticResource QsProgressBar}"
-                             IsIndeterminate="True" />
+                             Value="{Binding Percent, Mode=OneWay}" />
+
+                <TextBlock x:Name="CancellingText"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"
+                           Foreground="{StaticResource QsMutedTextBrush}"
+                           Text="{x:Static vm:BusyOverlayViewModel.CancellingText}"
+                           Visibility="{Binding IsCancelling, Converter={conv:BoolToVisibilityConverter}}" />
+
+                <!--
+                    Shown only while an operation has offered a token - see
+                    BusyOverlayViewModel.OfferCancellation.  A Cancel button that cannot stop
+                    anything is worse than none.
+                -->
+                <Button x:Name="CancelButton"
+                        Width="92"
+                        Height="30"
+                        Margin="0,14,0,0"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource QsPrimaryButton}"
+                        Command="{Binding CancelCommand}"
+                        Content="{x:Static vm:BusyOverlayViewModel.CancelCaption}"
+                        Visibility="{Binding IsCancelOffered, Converter={conv:BoolToVisibilityConverter}}" />
             </StackPanel>
         </Border>
     </Border>

@@ -1,0 +1,148 @@
+using System.Runtime.ExceptionServices;
+using System.Windows;
+
+namespace QuickStat.Tests.Ui.Dialogs;
+
+/// <summary>
+/// Shows a window far off the desktop, runs a body against the realised tree, and closes it again.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Why this is necessary, established by experiment rather than assumed.</b> A binding written in
+/// XAML is compiled into BAML as an unattached <c>BindingExpression</c> and is only attached when the
+/// element is realised - <c>BindingExpression.Status</c> stays <c>Unattached</c> and the target keeps
+/// its default value until then, however many times the tree is measured. Constructing a window and
+/// reading a bound property therefore proves nothing: every assertion passes against the default. A
+/// binding created in code with <c>SetBinding</c> attaches immediately, which is what makes this look
+/// like an inconsistency rather than a rule.
+/// </para>
+/// <para>
+/// So a test that wants to know whether a view's bindings are right has to realise the view. The
+/// window is positioned at -10 000, -10 000 and never activated, so nothing appears on the desktop
+/// and nothing steals focus; it is closed in a <c>finally</c> so a failing assertion cannot leak an
+/// <c>HWND</c>.
+/// </para>
+/// <para>
+/// Use <see cref="QuickStat.Tests.Ui.StaTestRunner"/> around it: this needs an apartment like
+/// everything else in WPF. It deliberately creates no <see cref="Application"/>.
+/// </para>
+/// </remarks>
+internal static class RealisedWindow
+{
+    /// <summary>Far enough off-screen to be invisible on any plausible monitor arrangement.</summary>
+    private const double OffScreen = -10000;
+
+    /// <summary>Realises <paramref name="window"/> and runs <paramref name="body"/> against it.</summary>
+    /// <typeparam name="TWindow">The window type.</typeparam>
+    /// <param name="window">The window to show. Closed before this returns.</param>
+    /// <param name="body">What to assert once the tree is live.</param>
+    /// <exception cref="ArgumentNullException">Either argument is <see langword="null"/>.</exception>
+    internal static void Run<TWindow>(TWindow window, Action<TWindow> body)
+        where TWindow : Window
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(body);
+
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.ShowInTaskbar = false;
+        window.ShowActivated = false;
+        window.Left = OffScreen;
+        window.Top = OffScreen;
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+
+            body(window);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Shows <paramref name="window"/> as a modal, presses something in it, and returns the answer.
+    /// </summary>
+    /// <typeparam name="TWindow">The window type.</typeparam>
+    /// <param name="window">The modal.</param>
+    /// <param name="interact">
+    /// Run once the window has rendered, from inside the modal's own message pump. Whatever it does
+    /// has to end the dialog - set <see cref="Window.DialogResult"/>, or raise a click on a button
+    /// that does.
+    /// </param>
+    /// <returns>Whatever <see cref="Window.ShowDialog"/> returned.</returns>
+    /// <exception cref="ArgumentNullException">Either argument is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The window is closed and any failure inside <paramref name="interact"/> is rethrown after the
+    /// dialog has come down, so a wrong assertion fails the test instead of leaving a modal window
+    /// blocking the apartment until <see cref="StaTestRunner.DefaultTimeout"/> expires.
+    /// </remarks>
+    internal static bool? ShowModal<TWindow>(TWindow window, Action<TWindow> interact)
+        where TWindow : Window
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(interact);
+
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.ShowInTaskbar = false;
+        window.ShowActivated = false;
+        window.Left = OffScreen;
+        window.Top = OffScreen;
+
+        ExceptionDispatchInfo? failure = null;
+
+        window.ContentRendered += OnRendered;
+
+        try
+        {
+            return window.ShowDialog();
+        }
+        finally
+        {
+            window.ContentRendered -= OnRendered;
+
+            if (window.IsVisible)
+            {
+                window.Close();
+            }
+
+            failure?.Throw();
+        }
+
+        void OnRendered(object? sender, EventArgs e)
+        {
+            try
+            {
+                interact(window);
+            }
+            catch (Exception exception)
+            {
+                failure = ExceptionDispatchInfo.Capture(exception);
+            }
+            finally
+            {
+                if (window.IsVisible)
+                {
+                    window.Close();
+                }
+            }
+        }
+    }
+
+    /// <summary>Realises a stand-alone control by hosting it in a window of its own.</summary>
+    /// <typeparam name="TControl">The control type.</typeparam>
+    /// <param name="control">The control to realise.</param>
+    /// <param name="body">What to assert once the tree is live.</param>
+    /// <exception cref="ArgumentNullException">Either argument is <see langword="null"/>.</exception>
+    internal static void RunControl<TControl>(TControl control, Action<TControl> body)
+        where TControl : FrameworkElement
+    {
+        ArgumentNullException.ThrowIfNull(control);
+        ArgumentNullException.ThrowIfNull(body);
+
+        // The host carries no DataContext of its own, so the control keeps whatever the caller set.
+        Run(new Window { Width = 800, Height = 600, Content = control }, _ => body(control));
+    }
+}
