@@ -70,9 +70,18 @@
                  BorderBrush="{StaticResource QsBorderBrush}"
                  BorderThickness="1"
                  HorizontalContentAlignment="Stretch"
-                 ItemContainerStyle="{StaticResource QsCheckListItem}"
                  ItemsSource="{Binding DataElements}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle>
+                <!--
+                    QsCheckListItem's own Padding is moved onto the row's Border below, so the
+                    collecting highlight spans the whole row rather than stopping 4 px short of each
+                    edge.  The theme is not touched: this is BasedOn it and overrides one setter.
+                -->
+                <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsCheckListItem}">
+                    <Setter Property="Padding" Value="0" />
+                </Style>
+            </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:DataElementViewModel}">
                     <!--
@@ -82,7 +91,7 @@
                         colours are the theme's selection pair, which is what the highlight looks
                         like in Docs/Screenshots/QuickStat bilde 2.png.
                     -->
-                    <Border x:Name="CollectingHighlight" Background="Transparent" Padding="2,0">
+                    <Border x:Name="CollectingHighlight" Background="Transparent" Padding="4,2">
                         <CheckBox x:Name="ElementBox"
                                   Content="{Binding Title}"
                                   IsChecked="{Binding IsChecked, Mode=TwoWay}" />
