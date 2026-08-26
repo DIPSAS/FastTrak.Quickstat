@@ -1,0 +1,301 @@
+using QuickStat.Collectors;
+using QuickStat.Collectors.Registry;
+using QuickStat.Collectors.Sql;
+using Xunit;
+
+namespace QuickStat.Tests.Collectors;
+
+/// <summary>
+/// Generated SQL. <see cref="ICollector.BuildSql"/> is a pure function, so the whole subsystem is
+/// testable without a database (PORT-PLAN.md R9) - and it has to <em>stay</em> pure, because
+/// Phase 5's golden files compare its output byte for byte (R3).
+/// </summary>
+public class CollectorSqlTests
+{
+    private static readonly CollectorSqlContext Context = CollectorTestContext.SqlContext;
+
+    [Fact]
+    public void BuildSqlIsDeterministic()
+    {
+        foreach (ICollector collector in CollectorCatalog.All)
+        {
+            string first = collector.BuildSql(Context);
+            string second = collector.BuildSql(Context);
+
+            Assert.Equal(first, second);
+        }
+    }
+
+    [Fact]
+    public void BuildSqlNeverLeavesAPlaceholderBehind()
+    {
+        foreach (ICollector collector in CollectorCatalog.All)
+        {
+            string sql = collector.BuildSql(Context);
+
+            Assert.DoesNotContain(QaSql.PidList, sql, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(QaSql.ItemList, sql, StringComparison.Ordinal);
+            Assert.DoesNotContain(QaSql.LabList, sql, StringComparison.Ordinal);
+            Assert.DoesNotContain(QaSql.FormName, sql, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void PidBindingAgreesWithTheGeneratedStatement()
+    {
+        // The descriptor's binding is derived from the SQL rather than typed out per collector, and
+        // this is the assertion that keeps the derivation honest end to end.
+        List<ICollector> all = [.. CollectorCatalog.All, .. CollectorRegistryBuilder.CreateFormCollectors([new FormClass("BARTHEL", "Barthel")])];
+
+        foreach (ICollector collector in all)
+        {
+            string sql = collector.BuildSql(Context);
+            string name = collector.Descriptor.Name;
+
+            switch (collector.Descriptor.PidBinding)
+            {
+                case PidBinding.IdList:
+                    Assert.True(sql.Contains(CollectorTestContext.IdListToken, StringComparison.Ordinal), $"{name} claims IdList but its statement has no person-id fragment.");
+                    break;
+
+                case PidBinding.SinglePerson:
+                    Assert.True(sql.Contains(QaSql.PersonIdParameter, StringComparison.Ordinal), $"{name} claims SinglePerson but its statement has no :PersonId.");
+                    break;
+
+                case PidBinding.None:
+                    Assert.False(sql.Contains(CollectorTestContext.IdListToken, StringComparison.Ordinal), $"{name} claims None but its statement takes a person-id fragment.");
+                    Assert.False(sql.Contains(QaSql.PersonIdParameter, StringComparison.Ordinal), $"{name} claims None but its statement takes :PersonId.");
+                    break;
+
+                default:
+                    Assert.Fail($"{name} has an unknown PidBinding.");
+                    break;
+            }
+        }
+    }
+
+    [Fact]
+    public void OnlyTheFormInstanceCollectorTakesOneRoundTripPerPatient()
+    {
+        // TFormDataCollector joined it upstream until SpSnapshotFormDataAll replaced its query;
+        // PORT-PLAN.md §8.5 takes that change, so the form-instance collector is the last one left.
+        List<string> singlePerson =
+        [
+            .. System.Linq.Enumerable.Select(
+                System.Linq.Enumerable.Where(CollectorCatalog.All, c => c.Descriptor.PidBinding == PidBinding.SinglePerson),
+                c => c.Descriptor.Name),
+        ];
+
+        Assert.Equal([CollectorNames.FormFrequency], singlePerson);
+        Assert.Equal(1, CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.FormFrequency).Descriptor.BatchSize);
+    }
+
+    [Fact]
+    public void MostWholeCohortCollectorsCarryNoPersonIdFragmentAtAll()
+    {
+        // PORT-PLAN.md R10: preserved for parity, recorded as a performance follow-up. The four
+        // exceptions are the drug-set collectors built on SQL_WHERE_PERSON_LIST.
+        List<string> wholeCohortWithIdList =
+        [
+            .. System.Linq.Enumerable.Select(
+                System.Linq.Enumerable.Where(
+                    CollectorCatalog.All,
+                    c => c.Descriptor.BatchSize == int.MaxValue && c.Descriptor.PidBinding == PidBinding.IdList),
+                c => c.Descriptor.Name),
+        ];
+
+        Assert.Equal(
+            new[]
+            {
+                CollectorNames.DrugMetformin,
+                CollectorNames.DrugAnticholinergicN05,
+                CollectorNames.DrugAnticholinergicAb,
+                CollectorNames.DrugAntibioticResistance,
+            },
+            wholeCohortWithIdList);
+    }
+
+    [Fact]
+    public void EveryStatementProjectsSomething()
+    {
+        foreach (ICollector collector in CollectorCatalog.All)
+        {
+            string sql = collector.BuildSql(Context).TrimStart();
+
+            Assert.True(
+                sql.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) || sql.StartsWith("EXEC", StringComparison.OrdinalIgnoreCase),
+                $"{collector.Descriptor.Name} generated a statement that is neither a SELECT nor an EXEC: {sql}");
+        }
+    }
+
+    [Fact]
+    public void DemographicsStatementIsVerbatim() =>
+        AssertSql(
+            CollectorNames.PatientAge,
+            "SELECT PersonId,'AGE' AS VarName, DATEDIFF(YYYY,DOB,GETDATE()) AS DpValue, GETDATE() AS VarDate, PersonId AS ResultId " +
+            "FROM dbo.Person WHERE (PersonId IN (/*PIDS*/))");
+
+    [Fact]
+    public void StudyScopedStatementFoldsInTheStudyId() =>
+        AssertSql(
+            CollectorNames.StudyStatus,
+            "SELECT sc.PersonId, 'StatusId' AS VarName, sc.FinState AS DpValue, GETDATE(), sc.StudCaseId AS RowId " +
+            "FROM dbo.StudCase sc " +
+            "WHERE sc.StudyId = 42");
+
+    [Fact]
+    public void DrugChecksumStatementIsVerbatimIncludingItsTrailingSpace() =>
+        AssertSql(
+            "DRUG.A10",
+            "SELECT ot.PersonId, CONCAT('A10','.',ot.TreatType) AS VarName, ABS(CHECKSUM(ot.DrugName)) % 100000 AS DpValue, ot.StartAt, ot.TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) " +
+            "AND ot.ATC COLLATE Latin1_General_CI_AI LIKE 'A10%' COLLATE Latin1_General_CI_AI ");
+
+    [Fact]
+    public void ResistanceDrivingStatementHasThreeAtcGroupsAndNoJ01Ff()
+    {
+        // PORT-PLAN.md §8.4. Release-blocking for this collector until a protocol owner confirms,
+        // but the evidence is that J01FF is absent from all nine baselines capable of building the
+        // application. Pinned as an exact string so that changing it back is a visible diff.
+        AssertSql(
+            CollectorNames.DrugAntibioticResistance,
+            "SELECT PersonId, 'RESISTANCE_DRIVING' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption " +
+            "FROM dbo.OngoingTreatment ot " +
+            "LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC " +
+            "WHERE ( PersonId IN (/*PIDS*/) ) " +
+            "AND (   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01CR%' COLLATE Latin1_General_CI_AI ) " +
+            "OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01D[CDH]%' COLLATE Latin1_General_CI_AI ) " +
+            "OR   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01MA%' COLLATE Latin1_General_CI_AI ) )");
+
+        Assert.Equal(
+            new[] { "J01CR%", "J01D[CDH]%", "J01MA%" },
+            DrugSql.ResistanceDrivingAtcPatterns);
+    }
+
+    [Fact]
+    public void LabCountStatementNamesItsOwnWindow() =>
+        AssertSql(
+            CollectorNames.LabCount24M,
+            "SELECT PersonId,'LABCOUNT24M' AS VarName, COUNT(*) AS n, MAX(LabDate) AS MaxLabDate, MAX(ResultId) AS MaxResultId " +
+            "FROM LabData " +
+            "WHERE DATEDIFF(MM,LabDate,GETDATE()) < 24 " +
+            "GROUP BY PersonId");
+
+    [Fact]
+    public void KidneyLabSetResolvesTheDelphiSetToAscendingOrdinals()
+    {
+        // LABSET_KIDNEY is the only set expressed as a Delphi "set of TLabTest". Docs/Port §B.7's
+        // ordinal table is one too high for the kidney members; 49 / 50 / 53 / 54 are corroborated
+        // by LABCLASSES_KIDNEY and by the eGFR colour registrations in QuickStat.Collectors.pas.
+        Assert.Equal(new[] { 3, 4, 5, 6, 7, 49, 50, 53, 54, 90, 91 }, LabClassSets.Kidney);
+        AssertContains(CollectorNames.LabKidney, "la.LabClassId IN (3, 4, 5, 6, 7, 49, 50, 53, 54, 90, 91)");
+    }
+
+    [Fact]
+    public void ThresholdIsRenderedWithAnInvariantDecimalSeparator()
+    {
+        // SpSnapshotQuantityIfBelowThreshold passes explicit en-US format settings so that a
+        // Norwegian machine does not emit "120,0".
+        AssertContains(CollectorNames.GbdLowBp, "WHERE v.Quantity < 120");
+        AssertContains(CollectorNames.GbdLowBp, "dbo.GetLastQuantityTable( 3556, NULL )");
+        Assert.DoesNotContain(",0", CollectorTestContext.ByName(CollectorCatalog.All, CollectorNames.GbdLowBp).BuildSql(Context));
+    }
+
+    [Fact]
+    public void DoctorNoteGroupExpandsToFourQuotedFormNames() =>
+        AssertContains(
+            CollectorNames.GbdDoctorNotes3M,
+            "UPPER('GBDLEGE') AS VarName");
+
+    [Fact]
+    public void DoctorNoteGroupListsItsFourForms() =>
+        AssertContains(
+            CollectorNames.GbdDoctorNotes3M,
+            "mf.FormName IN ( 'GBD_NOTAT_LEGE','GBD_STATUS_PRESENS','GBD_INFECTION','GBD_BESLUTNINGER' )");
+
+    [Fact]
+    public void DiagnosePatternBecomesBothTheNameAndTheEmittedVariable()
+    {
+        ICollector stroke = CollectorTestContext.ByName(CollectorCatalog.All, "DX.I6x01234");
+
+        Assert.Equal("DX.", stroke.Descriptor.VarPrefix);
+        AssertContains("DX.I6x01234", "'I6x01234' AS VarName");
+        AssertContains("DX.I6x01234", "mni.ItemCode LIKE 'I6[01234]%'");
+    }
+
+    [Fact]
+    public void DruidPatternsSurviveTheDelphiFormatEscaping()
+    {
+        // 'DRUID#%%' goes through Format and comes out as 'DRUID#%'; 'DRUID%' does not.
+        AssertContains(CollectorNames.DruidSpecific, "AlertClass LIKE 'DRUID#%'");
+        AssertContains(CollectorNames.DruidCount, "AlertClass LIKE 'DRUID%'");
+    }
+
+    [Fact]
+    public void NumericVarSetDiscardsMinusOneAsWellAsNull() =>
+        // Deliberate defect, reproduced: a genuine quantity of exactly -1 is dropped.
+        AssertContains(CollectorNames.GbdScores, "ISNULL(cdp.Quantity,-1) <> -1");
+
+    [Fact]
+    public void TextVarSetMeasuresTheLengthOfTheText() =>
+        AssertContains(CollectorNames.GbdPrimaryContact, "DATALENGTH(cdp.TextVal) AS DpValue");
+
+    [Fact]
+    public void FormDataQueryCarriesTheDeterministicTieBreaker()
+    {
+        // PORT-PLAN.md §8.5: take RANK -> ROW_NUMBER "with a deterministic tie-breaker". Upstream
+        // orders by ce.EventNum DESC alone, so which row wins among same-event duplicates is
+        // arbitrary and two runs can disagree. This is the port's only change to that statement.
+        string sql = CollectorRegistryBuilder.CreateFormCollectors([new FormClass("BARTHEL", "Barthel")])[1]
+            .BuildSql(Context);
+
+        Assert.Contains("ROW_NUMBER() OVER ( PARTITION BY ce.PersonId, mi.ItemId ORDER BY ce.EventNum DESC, dp.RowId DESC )", sql, StringComparison.Ordinal);
+        Assert.Contains("dp.TextVal AS Caption", sql, StringComparison.Ordinal);
+        Assert.Contains("ORDER BY agg.OrderNumber", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheIdListFragmentIsSubstitutedCaseInsensitivelyAndEverywhere()
+    {
+        // Delphi: StringReplace( …, [rfIgnoreCase, rfReplaceAll] ).
+        const string Template = "A {IdList} B {idlist} C {IDLIST}";
+
+        Assert.Equal("A X B X C X", Make.BindIdList(Template, new CollectorSqlContext(1, "X")));
+    }
+
+    [Theory]
+    // Docs/Port/03-collectors.md §0.6.
+    [InlineData("C0[23789]%", "C0x23789")]
+    [InlineData("E1[014]%", "E1x014")]
+    [InlineData("A10%", "A10")]
+    [InlineData("A10BA02", "A10BA02")]
+    [InlineData("I6[01234]%", "I6x01234")]
+    [InlineData("F[123456789]%", "Fx123456789")]
+    [InlineData("J01D[CDH]%", "J01DxCDH")]
+    public void AtcPatternToVariableNameMatchesTheDelphiRegexes(string pattern, string expected) =>
+        Assert.Equal(expected, SqlLiteral.AtcPatternToVariableName(pattern));
+
+    [Fact]
+    public void ListSeparatorIsACommaAndASpace()
+    {
+        Assert.Equal("3224, 3225, 3310", SqlLiteral.List([3224, 3225, 3310]));
+        Assert.Equal("4771", SqlLiteral.List([4771]));
+        Assert.Equal(string.Empty, SqlLiteral.List([]));
+    }
+
+    [Fact]
+    public void QuoteDoublesEmbeddedApostrophes()
+    {
+        Assert.Equal("'BARTHEL'", SqlLiteral.Quote("BARTHEL"));
+        Assert.Equal("'O''BRIEN'", SqlLiteral.Quote("O'BRIEN"));
+        Assert.Equal("''''", SqlLiteral.Quote("'"));
+    }
+
+    private static void AssertSql(string collectorName, string expected) =>
+        Assert.Equal(expected, CollectorTestContext.ByName(CollectorCatalog.All, collectorName).BuildSql(Context));
+
+    private static void AssertContains(string collectorName, string expected) =>
+        Assert.Contains(expected, CollectorTestContext.ByName(CollectorCatalog.All, collectorName).BuildSql(Context), StringComparison.Ordinal);
+}

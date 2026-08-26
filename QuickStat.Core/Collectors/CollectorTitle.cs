@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace QuickStat.Collectors;
 
 /// <summary>
@@ -38,12 +40,12 @@ public static class CollectorTitle
     /// <summary>Applies <see cref="LastSuffix"/>.</summary>
     /// <param name="title">Registered title, without the suffix.</param>
     /// <returns>The displayed title.</returns>
-    public static string WithLastSuffix(string title) => throw new NotImplementedException();
+    public static string WithLastSuffix(string title) => title + LastSuffix;
 
     /// <summary>Applies <see cref="MaxSuffix"/>.</summary>
     /// <param name="title">Registered title, without the suffix.</param>
     /// <returns>The displayed title.</returns>
-    public static string WithMaxSuffix(string title) => throw new NotImplementedException();
+    public static string WithMaxSuffix(string title) => title + MaxSuffix;
 
     /// <summary>Applies the lab-set wrapper, conditionally.</summary>
     /// <param name="groupName">The group name passed at registration.</param>
@@ -57,5 +59,8 @@ public static class CollectorTitle
     /// <c>Labdata: GBD: … (siste)</c> (<c>EPR.QA.Collector.Labdata.pas:48-53</c>). Any group name
     /// that already carries a prefix opts itself out of the wrapper by having a colon in it.
     /// </remarks>
-    public static string ForLabSet(string groupName) => throw new NotImplementedException();
+    public static string ForLabSet(string groupName) =>
+        groupName.Contains(':', StringComparison.Ordinal)
+            ? groupName
+            : string.Format(CultureInfo.InvariantCulture, LabSetTemplate, groupName);
 }
