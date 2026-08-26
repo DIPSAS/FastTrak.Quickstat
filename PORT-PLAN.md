@@ -77,8 +77,8 @@ relevant document before writing code**; they contain verbatim SQL, exact captio
 ### 2.1 The parity baseline is **not** this repository
 
 `C:\work\FastTrakApps\App.QuickStat\` holds the canonical QuickStat source. **This repository is a
-degraded copy of it.** The complete set of differences is the damage done during extraction
-("Hentet ut fra FastTrakApps og develop_old"):
+reduced copy of it.** The complete set of differences comes from the pairing chosen during
+extraction (`9935ea9`, "Hentet ut fra FastTrakApps og develop_old"):
 
 | | FastTrakApps (canonical) | This repo |
 |---|---|---|
@@ -89,12 +89,46 @@ degraded copy of it.** The complete set of differences is the damage done during
 Nothing else differs. Whoever extracted this repo paired the canonical app with the `develop_old`
 library, hit five symbols that do not exist there, and commented them out to make it compile.
 
-This has a hard consequence. The canonical app references `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`,
-`AddNationalIds` and the antibiotic collectors — symbols that exist **only** on the tarmscreening
-lineage. `develop_old` therefore *cannot build this application at all*. The only self-consistent
-baseline is:
+**That pairing was a deliberate choice, not accidental damage.** `develop_old` is not a side branch:
+it is one commit of its own and 252 behind `develop` — a stale snapshot of *mainline*. Tarmscreening
+is the side branch, and it is absent from `develop`, `develop_old` and `master` alike. So `9935ea9`
+reads as "canonical app + mainline library", and the five comment-outs are the price of that choice.
+Read this section as recording which pairing the **port** should follow, not as an accusation.
 
-> **FastTrakApps `App.QuickStat` (application) + tarmscreening-lineage FastTrak (library).**
+#### Which library baseline, and how confident
+
+The canonical app references `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`, `AddNationalIds` and the
+antibiotic collectors. Those symbols are absent from `develop`, `develop_old` and `master`, so
+**`develop_old` cannot build this application at all** — that part is verified, not inferred.
+
+What is *inferred* is the next step: that the distributed binaries were therefore built against a
+tarmscreening-lineage branch. Counter-evidence exists and is not resolved — no CI definition that
+builds QuickStat against such a branch has been produced, and the reviewer reports the build server
+pointing `FastTrakDir` at mainline, which could never have compiled this app since 2022. The honest
+statement is: **someone built it by hand, against a branch nobody has positively identified.**
+
+"The tarmscreening lineage" is also **not one ref.** Two candidates carry the features, and they are
+siblings, not ancestor and descendant — they forked at `84d0c2b83` (2022-11-23) and diverged 5 / 64:
+
+| Ref | Tip | Date | Interleukins | Target |
+|---|---|---|---|---|
+| `origin/tarmscreening/develop` | `249ac2d16` | 2023-09-01 | **yes** | 131 collectors |
+| `origin/release/tarmscreening` | `54b91549e` | 2023-09-27 | **no** | 130 collectors |
+
+`release/tarmscreening` is 26 days newer and its tip message is *"Versjon som er testet i HSØ"*, so
+on a "what did a customer actually run" criterion it is the stronger candidate. The diff between the
+two over `EPR/QA/` is **exactly 6 insertions in 3 files** — the interleukins feature and nothing
+else.
+
+**Decision: pin `origin/tarmscreening/develop`, target 131.** The reason is narrow and specific: the
+canonical app *as it stands today* registers `QST_LAB_INTERLEUKINS`, so it cannot compile against
+`release/tarmscreening`, which lacks the symbol. Porting the canonical source therefore forces the
+ref that can build it. Choosing `release/tarmscreening` would mean porting some older, unidentified
+revision of the app as well — a baseline nobody has in hand.
+
+> If a protocol owner says interleukins were never in the field, the change is small and localised:
+> drop `QST_LAB_INTERLEUKINS` from the registry, 131 → 130, and Phase 4's fourth row disappears.
+> Nothing else differs between the two refs.
 
 Implementation agents must read app-level source from `C:\work\FastTrakApps\App.QuickStat\`, and
 library source from the tarmscreening tip. Where the reference documents in `Docs/Port/` say "what
@@ -113,6 +147,15 @@ the extraction — not a shipping baseline.
 > `git -C C:\work\FastTrak worktree remove C:\work\FastTrak-tarmscreening`.
 
 The Delphi source remains the final authority while it is still in the tree.
+
+### 2.2 Repository state
+
+- **Nothing on this branch is pushed.** `origin` (`github.com/DIPSAS/FastTrak.Quickstat`) has exactly
+  one branch, `main` @ `ad80437`. `feature/dotnet` is local-only, and that includes `5502b72` — the
+  KORTTID fix is *not* published from here. Push before relying on any of it surviving this machine.
+- **The KORTTID fix has a twin.** `FastTrakApps/App.QuickStat` carries the identical change on
+  `feature/739506_GBD_utvalet_i_Korttid`, which is that repo's currently checked-out branch. The two
+  agree; see §10.4 for why the *totals* still differ between the trees.
 
 ---
 
@@ -286,8 +329,10 @@ main accessibility cost of a custom control, and it must not be skipped.
 This phase is **not archaeology** — see §2.1. The canonical application already registers all four
 collectors and already calls `AddNationalIds`; only *this* repository has them commented out. The
 work is to make sure the port does not reproduce the extraction damage, and to bring across the
-*library-side* implementations, which exist only on the tarmscreening lineage and were never merged
-into `develop`. Take each from `C:\work\FastTrak`:
+*library-side* implementations, which were never merged into `develop`. Take each from the ref
+pinned in §2.1 — `origin/tarmscreening/develop`, via the worktree at
+`C:\work\FastTrak-tarmscreening`. Note the fourth row below (interleukins) is the **only** one that
+depends on that choice; the other three are present on `release/tarmscreening` as well:
 
 | Feature | Upstream commit | Date | Displayed title |
 |---|---|---|---|
@@ -431,16 +476,28 @@ Not blocking; each has a working default so implementation can proceed.
    collector only.** Commit `9f4a5ed4f` bundles the two new antibiotic collectors together with
    *removing* `J01FF%` (lincosamides / clindamycin) from the existing resistance-driving set, and
    renaming its caption from `Medisin: Resistensdrivende antibiotika` to
-   `Antibiotika: Resistendrivende`. Per §2.1 the real builds must have used the tarmscreening
-   library, so users are most likely already seeing the **narrower** set without `J01FF%`.
-   Provisional default therefore **flips to following tarmscreening** (drop `J01FF%`, take the new
-   caption) — but this is a clinical definition, so confirm before release rather than before
-   implementation.
+   `Antibiotika: Resistendrivende`.
+
+   The evidence does **not** depend on identifying which ref shipped. `J01FF` is absent from
+   **all 9** refs that carry the symbols this application needs, and present only on mainline, which
+   cannot build the app at all. So every baseline capable of producing a working QuickStat binary
+   lacks `J01FF%`. Implementation default: **drop `J01FF%`, take the new caption.**
+
+   **This remains release-blocking for this collector.** It is a clinical definition — which
+   antibiotics count as resistance-driving — and "the code has been this way" is not clinical
+   sign-off. A protocol owner must confirm before release. It does not block implementation: the ATC
+   list is one array, changing it later is a one-line edit plus a golden-file update.
 5. **Drift items in `Docs/Port/03-collectors.md` §F — re-decided; §F now carries a correction
    block that overrides its own per-item verdicts.** Those verdicts were computed against
    `develop_old`; the shipping binaries were built against tarmscreening (§2.1), and all seven
-   commits §F discusses are on that lineage and on no other. Verified at the branch **tip**, the
-   resolved defaults are: **take** `SpSnapshotFormDataAll` + batch 200 (free-text form export has
+   commits §F discusses are on that lineage. Rather than rest on which single ref shipped, each
+   verdict was re-checked across **all 9 refs** that carry `QS_ROAS_BASE` — i.e. every candidate
+   baseline capable of building this application. Three of the four are **unanimous** across all 9:
+   `VarNames` returns `FVarOrder` (9/9), `J01FF` absent (9/9), `GFR` not `eGFR` (9/9).
+   `SpSnapshotFormDataAll` is present on 5 of 9, including **both** tarmscreening refs and every
+   candidate newer than 2022-05. So these defaults hold regardless of how R12 is decided.
+   Verified at the branch **tip**, the resolved defaults are: **take** `SpSnapshotFormDataAll` +
+   batch 200 (free-text form export has
    shipped since 2022 — declining it would remove a live feature); **take** `FVarOrder`
    insertion-order columns (alphabetical would reorder every existing export), still behind a
    `ColumnOrder` policy flip; **take** `RANK` → `ROW_NUMBER` with a deterministic tie-breaker;
@@ -468,7 +525,8 @@ Not blocking; each has a working default so implementation can proceed.
 | R10 | Most `maxint`-batch collectors carry **no `{IdList}` at all** and scan the whole database, discarding non-cohort rows client-side | Pre-existing behaviour, preserved for parity; recorded as a separate performance follow-up, not fixed during the port |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
-| R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a degraded copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25): all seven cited commits confirmed ancestors of `origin/tarmscreening/develop` and of no other branch; four verdicts inverted at the branch tip and are corrected in the block at the head of §F and in §8.5. The collector inventory, SQL and UI spec are unaffected. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — an implementation agent that relies on one must confirm it against `origin/tarmscreening/develop` first |
+| R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
+| R12 | **The baseline ref is a judgement call, not a fact.** Two sibling refs carry the features and disagree on interleukins (§2.1); no CI definition has been found that builds this app against either | Pinned to `origin/tarmscreening/develop` for a specific reason (the canonical app registers `QST_LAB_INTERLEUKINS` and so cannot compile against the alternative). Consequence isolated to one collector: 131 vs 130. Flagged for a protocol owner alongside §8.4 |
 
 ---
 
@@ -477,11 +535,31 @@ Not blocking; each has a working default so implementation can proceed.
 1. `dotnet build QuickStat.slnx` and `dotnet test` pass with warnings as errors.
 2. `QuickStat.exe` starts, reads an unmodified `QuickStat.config.xml`, and connects.
 3. Every collector in the `03-collectors.md` inventory appears in the list with its exact title,
-   including class-applied suffixes, and the four recovered collectors are present (126 → 131).
-4. Study gating is exact: a `KORTTID` study registers **120** static collectors, matching `GBD` and
-   `LANGTID`. This is commit `5502b72`, the newest functional change in the repo, and it lives in
-   *two* near-identical regex literals — it is the single easiest thing to lose in transcription.
-   Gate matching is case-**sensitive** except `DOGFOOD`.
+   including class-applied suffixes, and the five restored registrations are present (126 → **131**
+   distinct names, from four features). 131 assumes the ref pinned in §2.1; it is 130 if R12 is
+   re-decided toward `release/tarmscreening`.
+4. Study gating is exact: a `KORTTID` study registers the same static collectors as `GBD` and
+   `LANGTID`. This is commit `5502b72`, and it lives in *two* near-identical regex literals — the
+   single easiest thing to lose in transcription. Gate matching is case-**sensitive** except
+   `DOGFOOD`.
+
+   **The target is 124, not 120.** Counted per registration procedure in both trees:
+
+   | | always | gate **G** | gate **N** | `KORTTID` total | distinct names |
+   |---|---|---|---|---|---|
+   | This repo (reduced) | 36 | 76 | 8 | **120** | 126 |
+   | FastTrakApps (canonical) | 37 | 79 | 8 | **124** | 131 |
+
+   The `120` quoted in earlier revisions of this plan and in `Docs/Port/03-collectors.md` §D.2 is
+   *this repo's* number and therefore describes the reduced build. The +4 are the three antibiotic
+   collectors (inside `AddCollectorsDrug`, which the **G** block calls) plus interleukins
+   (always-on). `QS_ROAS_BASE` is `ROAS`-gated and so does not move the `KORTTID` count. If R12 is
+   ever re-decided toward `release/tarmscreening`, this becomes 123 / 130.
+
+   Note `5502b72` has a twin: the identical fix also sits on
+   `feature/739506_GBD_utvalet_i_Korttid` in `FastTrakApps/App.QuickStat` (its current branch). The
+   two agree, so the gating regexes are not in doubt — only the totals above depend on which tree
+   you count.
 5. "Fully identified patients" produces national IDs.
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
 7. The three identification modes behave exactly as specified in §6.

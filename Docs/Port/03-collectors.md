@@ -1560,6 +1560,13 @@ static readonly Regex DogfoodGate = new(@"DOGFOOD",  RegexOptions.Compiled | Reg
 | `GBD` | always, G, N | 36 + 76 + 8 = **120** |
 | `LANGTID` | always, G, N | **120** |
 | `KORTTID` | always, G, N | **120** ← changed by 5502b72 |
+
+> **These totals count *this* repo, which is the reduced build.** The canonical FastTrakApps source
+> registers five more (37 always / 79 G / 8 N = **124** for `GBD`, `LANGTID` and `KORTTID`; 131
+> distinct names). The +4 on a gated study are the three antibiotic collectors — inside
+> `AddCollectorsDrug`, which the **G** block calls — plus interleukins, which is always-on.
+> `QS_ROAS_BASE` is `ROAS`-gated and does not move these numbers. The port targets **124**; see
+> `PORT-PLAN.md` §10.4.
 | `ROAS` | always, R | 36 + 2 = **38** |
 | `ROAS_GWAS` | always, W, R | 36 + 3 + 2 = **41** |
 | `DOGFOOD` / `dogfood` | always, D | 36 + 1 = **37** |
@@ -2080,8 +2087,27 @@ below are everything else, minus the four confirmed features.
 > | `StrTitleGbdAceLowGFR` | `'GBD: ACE/A2 og GFR < 35'` (**no** `e`) |
 >
 > All seven commits cited in this section (`8486b3d09`, `e59a06d3f`, `fefc8a809`, `4c96c3c3b`,
-> `9f4a5ed4f`, `8a9954c13`, `109a31c7c`) are ancestors of `origin/tarmscreening/develop` and of
-> **none** of them is `origin/develop` an ancestor. So the shipping binary contains all of them.
+> `9f4a5ed4f`, `8a9954c13`, `109a31c7c`) are ancestors of `origin/tarmscreening/develop`, and none
+> of them is an ancestor of `origin/develop`.
+>
+> **Correction (do not repeat the earlier claim).** An earlier revision of this block said they were
+> ancestors of that ref "and of no other branch". That was false — only two refs had been tested.
+> `4c96c3c3b` is contained by 27 refs, and 9 remote tips carry `QS_ROAS_BASE`. Only `fefc8a809`
+> (interleukins) is narrow, at 3 remote tips.
+>
+> The verdicts below survive that error because they were re-checked across **all 9** refs that
+> carry `QS_ROAS_BASE` — every candidate baseline that could build this application:
+>
+> | Check | Result across the 9 candidates |
+> |---|---|
+> | `VarNames` returns `FVarOrder` (insertion order) | **9 / 9** |
+> | `J01FF` absent from the resistance set | **9 / 9** |
+> | `GFR`, not `eGFR`, in the two GBD renal titles | **9 / 9** |
+> | `TFormDataCollector` uses `SpSnapshotFormDataAll` | 5 / 9 — including **both** tarmscreening refs and every candidate newer than 2022-05 |
+>
+> So these four do not depend on identifying which ref shipped. See `PORT-PLAN.md` §2.1 for the one
+> item that *does* — interleukins, which splits `origin/tarmscreening/develop` (131 collectors) from
+> `origin/release/tarmscreening` (130).
 >
 > **Corrected verdicts — these override the per-item "Verdict / recommendation" lines below:**
 >
