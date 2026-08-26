@@ -1,0 +1,485 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:QuickStat.Controls"
+                    xmlns:system="clr-namespace:System;assembly=System.Runtime">
+
+    <!--
+        Named control styles.  Keys and their intent come from Docs/Port/05-ui-spec.md §F.4;
+        typography from §F.3.  Step 3.1 owns this file.
+
+        This dictionary merges the brushes itself rather than relying on the application to have
+        merged them first.  StaticResource is resolved when the dictionary is *parsed*, so a
+        stand-alone load - which is exactly what the theme test does - would otherwise throw
+        "Cannot find resource named 'QsTealBrush'".  App.xaml therefore merges only this file.
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/QuickStat;component/Theme/QuickStat.Brushes.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ===================================================================================
+         Typography (§F.3).  One system font stack; no Calibri, no Tahoma.
+         =================================================================================== -->
+    <FontFamily x:Key="QsFontFamily">Segoe UI</FontFamily>
+    <FontFamily x:Key="QsCodeFontFamily">Cascadia Mono, Consolas, Courier New</FontFamily>
+    <FontFamily x:Key="QsIconFontFamily">Segoe MDL2 Assets</FontFamily>
+
+    <system:Double x:Key="QsFontSize">12</system:Double>
+    <system:Double x:Key="QsHeaderFontSize">13</system:Double>
+    <system:Double x:Key="QsSmallFontSize">11</system:Double>
+    <system:Double x:Key="QsWordmarkFontSize">20</system:Double>
+
+    <!-- ===================================================================================
+         Section header (§F.4 QsSectionHeader / QsHeaderText)
+         =================================================================================== -->
+
+    <Style x:Key="QsHeaderText" TargetType="{x:Type TextBlock}">
+        <Setter Property="Foreground" Value="{StaticResource QsOnAccentBrush}" />
+        <Setter Property="FontSize" Value="{StaticResource QsHeaderFontSize}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="QsSectionHeader" TargetType="{x:Type controls:SectionHeader}">
+        <Setter Property="Background" Value="{StaticResource QsTealBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource QsOnAccentBrush}" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="HorizontalContentAlignment" Value="Right" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type controls:SectionHeader}">
+                    <Border Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!--
+                                The heading is a TextBlock rather than a ContentPresenter: every
+                                caller passes a string, and a presenter would render a non-string
+                                Header through the default template with black text on teal.
+                            -->
+                            <TextBlock Grid.Column="0"
+                                       Style="{StaticResource QsHeaderText}"
+                                       Text="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                            <!--
+                                The right-aligned slot: 'Wide columns' on the Dataset tab and
+                                'Simplified' in the population frame both live here.  One point
+                                smaller than the heading, as in the Delphi.
+                            -->
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="8,0,0,0"
+                                              TextElement.FontSize="{StaticResource QsSmallFontSize}"
+                                              TextElement.Foreground="{StaticResource QsOnAccentBrush}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Implicit, so <controls:SectionHeader Header="…"/> needs no Style attribute. -->
+    <Style TargetType="{x:Type controls:SectionHeader}" BasedOn="{StaticResource QsSectionHeader}" />
+
+    <!-- ===================================================================================
+         Tabs (§F.4 QsTabControl / QsTabItem)
+
+         Flat and square, page background QsPageBrush, and the selected tab carries a 3 px teal bar
+         along its TOP edge - which is what RzPageControl with TabColors.HighlightBar renders, and
+         what screenshot 1 shows.  No card frame, no border.
+         =================================================================================== -->
+
+    <Style x:Key="QsTabItem" TargetType="{x:Type TabItem}">
+        <Setter Property="FontSize" Value="{StaticResource QsHeaderFontSize}" />
+        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TabItem}">
+                    <Grid x:Name="Root" Background="Transparent" SnapsToDevicePixels="True">
+                        <Border x:Name="HighlightBar"
+                                Height="3"
+                                VerticalAlignment="Top"
+                                Background="Transparent" />
+                        <ContentPresenter x:Name="Label"
+                                          ContentSource="Header"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="HighlightBar" Property="Background" Value="{StaticResource QsTealBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource QsPageBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="False" />
+                                <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="HighlightBar" Property="Background" Value="{StaticResource QsTealHoverBrush}" />
+                        </MultiTrigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource QsTabItem}" />
+
+    <Style x:Key="QsTabControl" TargetType="{x:Type TabControl}">
+        <Setter Property="Background" Value="{StaticResource QsPageBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TabControl}">
+                    <DockPanel>
+                        <TabPanel DockPanel.Dock="Top"
+                                  IsItemsHost="True"
+                                  Margin="0"
+                                  Panel.ZIndex="1"
+                                  KeyboardNavigation.TabIndex="1" />
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0">
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              ContentSource="SelectedContent" />
+                        </Border>
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===================================================================================
+         Editors (§F.4 QsFlatTextBox / QsFlatComboBox)
+         =================================================================================== -->
+
+    <Style x:Key="QsFlatTextBox" TargetType="{x:Type TextBox}">
+        <Setter Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource QsBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="FontSize" Value="{StaticResource QsFontSize}" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter Property="BorderBrush" Value="{StaticResource QsTealBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="QsFlatComboBox" TargetType="{x:Type ComboBox}">
+        <Setter Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource QsBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="FontSize" Value="{StaticResource QsFontSize}" />
+        <!-- DropDownCount = 24 in the .dfm; 24 items at roughly 22 px each. -->
+        <Setter Property="MaxDropDownHeight" Value="528" />
+    </Style>
+
+    <!-- ===================================================================================
+         Buttons (§F.4 QsPrimaryButton / QsToolButton)
+         =================================================================================== -->
+
+    <Style x:Key="QsPrimaryButton" TargetType="{x:Type Button}">
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource QsBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="{StaticResource QsHeaderFontSize}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#EAF6F7" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#DCF0F1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="QsToolButton" TargetType="{x:Type Button}">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#EAF6F7" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#DCF0F1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Icon glyph, Segoe MDL2 Assets.  §I.10, decided in favour of glyphs over .dfm image blobs. -->
+    <Style x:Key="QsIconGlyph" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontFamily" Value="{StaticResource QsIconFontFamily}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+    </Style>
+
+    <!-- ===================================================================================
+         List items (§F.4 QsPopulationItem / QsPackageItem / QsCheckListItem)
+
+         Declared here because wave 2 binds to these keys.  The row *content* is each step's own
+         DataTemplate; only the chrome - alternation, selection colours, divider - is shared.
+         =================================================================================== -->
+
+    <Style x:Key="QsPopulationItem" TargetType="{x:Type ListBoxItem}">
+        <Setter Property="Padding" Value="4,6" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Foreground" Value="{StaticResource QsTitleBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource QsDividerBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!--
+                            Inverted relative to the usual WPF convention on purpose: 05-ui-spec.md
+                            §B.1.1 records AlternationIndex 0 as the tinted row, not the white one.
+                        -->
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="0">
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsAltRowBrush}" />
+                        </Trigger>
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition Property="Selector.IsSelectionActive" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsTealBrush}" />
+                            <Setter Property="TextElement.Foreground" Value="{StaticResource QsOnAccentBrush}" />
+                        </MultiTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition Property="Selector.IsSelectionActive" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsTealUnfocusedBrush}" />
+                            <Setter Property="TextElement.Foreground" Value="{StaticResource QsOnAccentBrush}" />
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="QsPackageItem" TargetType="{x:Type ListBoxItem}">
+        <Setter Property="Padding" Value="2,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Foreground" Value="{StaticResource QsTitleBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                    <Border x:Name="Chrome"
+                            Background="{StaticResource QsSurfaceBrush}"
+                            BorderBrush="#F0F0F0"
+                            BorderThickness="0,0,0,1"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition Property="Selector.IsSelectionActive" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsCurrentCellBrush}" />
+                        </MultiTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition Property="Selector.IsSelectionActive" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsCurrentRowBrush}" />
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="QsCheckListItem" TargetType="{x:Type ListBoxItem}">
+        <Setter Property="Padding" Value="4,2" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="FontSize" Value="{StaticResource QsFontSize}" />
+    </Style>
+
+    <!-- ===================================================================================
+         DataGrid family (§F.4 QsDataGrid / QsDataGridColumnHeader / QsDataGridCell /
+         QsDataGridRow)
+
+         Present for inventory completeness only.  The dataset grid is the custom, virtualised
+         QuickStat.Controls.Dataset.MatrixGrid (PORT-PLAN.md §5 Phase 3, R5), which takes its
+         colours from its own brush dependency properties - the Dataset tab binds those to the same
+         Qs* brushes.  Nothing in the port uses a DataGrid today; these keys exist so that §F.4 and
+         this file cannot drift, and so a wave-2 step that reaches for a DataGrid at least gets the
+         right palette.
+         =================================================================================== -->
+
+    <Style x:Key="QsDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="Background" Value="{StaticResource QsPageBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource QsTealDarkBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="3,1" />
+        <Setter Property="BorderBrush" Value="{StaticResource QsGridLineBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,1,1" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+
+    <Style x:Key="QsDataGridCell" TargetType="{x:Type DataGridCell}">
+        <Setter Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="3,1" />
+        <Setter Property="HorizontalContentAlignment" Value="Right" />
+    </Style>
+
+    <Style x:Key="QsDataGridRow" TargetType="{x:Type DataGridRow}">
+        <Setter Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+        <Setter Property="MinHeight" Value="17" />
+    </Style>
+
+    <Style x:Key="QsDataGrid" TargetType="{x:Type DataGrid}">
+        <Setter Property="Background" Value="{StaticResource QsSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource QsBorderStrongBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="GridLinesVisibility" Value="Vertical" />
+        <Setter Property="VerticalGridLinesBrush" Value="{StaticResource QsGridLineBrush}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource QsGridLineBrush}" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+        <Setter Property="RowHeight" Value="17" />
+        <Setter Property="ColumnHeaderHeight" Value="18" />
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource QsDataGridColumnHeader}" />
+        <Setter Property="CellStyle" Value="{StaticResource QsDataGridCell}" />
+        <Setter Property="RowStyle" Value="{StaticResource QsDataGridRow}" />
+    </Style>
+
+    <!-- ===================================================================================
+         Progress, splitter, hint panel (§F.4 QsProgressBar / QsSplitter / QsHintPanel)
+         =================================================================================== -->
+
+    <Style x:Key="QsProgressBar" TargetType="{x:Type ProgressBar}">
+        <Setter Property="Height" Value="10" />
+        <Setter Property="Maximum" Value="100" />
+        <Setter Property="Foreground" Value="{StaticResource QsProgressBrush}" />
+        <Setter Property="Background" Value="{StaticResource QsProgressTrackBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ProgressBar}">
+                    <Grid SnapsToDevicePixels="True">
+                        <Border Background="{TemplateBinding Background}" />
+                        <Border x:Name="PART_Track" />
+                        <Border x:Name="PART_Indicator"
+                                Background="{TemplateBinding Foreground}"
+                                HorizontalAlignment="Left" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="QsSplitter" TargetType="{x:Type GridSplitter}">
+        <!--
+            Nine, not §F.4's eight: splMain.SplitterWidth = 9 in MainQuickStat.dfm, and §A.2 of the
+            same document says nine as well.  The .dfm wins.
+        -->
+        <Setter Property="Width" Value="9" />
+        <Setter Property="Background" Value="{StaticResource QsPageBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type GridSplitter}">
+                    <Border Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                        <!-- Two 20 px grip dots, centred. -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Rectangle Width="1" Height="20" Margin="0,0,0,4" Fill="{StaticResource QsBorderBrush}" />
+                            <Rectangle Width="1" Height="20" Fill="{StaticResource QsBorderBrush}" />
+                        </StackPanel>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="QsHintPanel" TargetType="{x:Type Border}">
+        <Setter Property="Background" Value="{StaticResource QsHintBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource QsHintBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,4" />
+        <!--
+            §G.2: the Delphi fixes the panel at 240 x ~116, which is far too tall for two lines.
+            Size to content, cap the width.
+        -->
+        <Setter Property="MaxWidth" Value="320" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+</ResourceDictionary>

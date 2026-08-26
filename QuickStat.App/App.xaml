@@ -6,8 +6,18 @@
         resolves MainWindow from DI and shows it.  A StartupUri here would open a second, un-injected
         window on top of it.
 
-        Application-level resources (theme, brushes, typography, control styles) are step 3.1's
-        file - QuickStat.App/Theme/**.  Do not start a theme here.
+        Only the styles dictionary is merged.  It pulls QuickStat.Brushes.xaml in itself, because
+        StaticResource is resolved when a dictionary is parsed and the styles would otherwise be
+        unloadable on their own - which is what the theme test does.  Listing both here would merge
+        the brushes twice and give every key two instances.
+
+        Theme/** is step 3.1's; see Docs/Port/07-ui-contracts.md before adding a key.
     -->
-    <Application.Resources />
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/QuickStat;component/Theme/QuickStat.Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

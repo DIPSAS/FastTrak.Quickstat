@@ -1,0 +1,35 @@
+<UserControl x:Class="QuickStat.Views.PopulationTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:q="clr-namespace:QuickStat.Controls"
+             xmlns:views="clr-namespace:QuickStat.Views"
+             xmlns:vm="clr-namespace:QuickStat.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:PopulationTabViewModel}">
+
+    <!--
+        OWNER: step 3.2.  Layout skeleton by step 3.1; 05-ui-spec.md §B.1.
+    -->
+
+    <DockPanel Margin="4">
+        <q:SectionHeader DockPanel.Dock="Top" Margin="3" Header="Select database" />
+
+        <ComboBox DockPanel.Dock="Top"
+                  Margin="3,0,3,3"
+                  Style="{StaticResource QsFlatComboBox}"
+                  DisplayMemberPath="Name"
+                  ItemsSource="{Binding Projects}"
+                  SelectedItem="{Binding SelectedProject, Mode=TwoWay}" />
+
+        <q:SectionHeader DockPanel.Dock="Top" Margin="3" Header="Select population" />
+
+        <TextBlock DockPanel.Dock="Bottom"
+                   Margin="3"
+                   Foreground="{StaticResource QsMutedTextBrush}"
+                   Text="Tip: Double click to prepare population" />
+
+        <views:PopulationPickerView Margin="3,0,3,3" DataContext="{Binding Picker}" />
+    </DockPanel>
+</UserControl>

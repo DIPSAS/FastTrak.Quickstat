@@ -1,0 +1,61 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    mc:Ignorable="po">
+
+    <!--
+        QuickStat palette.  Transcribed key for key and value for value from Docs/Port/05-ui-spec.md
+        §F.4; §F.1 records where each colour came from (a Delphi $00BBGGRR constant plus a pixel
+        sample of the shipped build).  Step 3.1 owns this file.
+
+        DO NOT add a key here without adding it to 05-ui-spec.md §F.4 as well:
+        QuickStat.Tests/Ui/Theme/ThemeResourceTests.cs asserts the inventory, and a brush that only
+        exists in one of the two places is a brush the next reader cannot trust.
+
+        Every brush is frozen.  They are shared across the whole application, so a consumer that
+        mutated one would change it for everybody; freezing turns that into an exception instead of
+        a rendering mystery, and lets WPF skip change tracking.
+    -->
+
+    <!-- Brand -->
+    <SolidColorBrush x:Key="QsTealBrush"           Color="#178891" po:Freeze="True" /><!-- section headers, selection -->
+    <SolidColorBrush x:Key="QsTealDarkBrush"       Color="#035F66" po:Freeze="True" /><!-- PID column text -->
+    <SolidColorBrush x:Key="QsTealHoverBrush"      Color="#1A9BA6" po:Freeze="True" /><!-- new: header hover -->
+    <SolidColorBrush x:Key="QsTealUnfocusedBrush"  Color="#50AEB6" po:Freeze="True" />
+
+    <!-- Surfaces -->
+    <SolidColorBrush x:Key="QsBannerBrush"         Color="#FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsPageBrush"           Color="#F4FBFB" po:Freeze="True" /><!-- tab pages, splitter -->
+    <SolidColorBrush x:Key="QsSurfaceBrush"        Color="#FFFFFF" po:Freeze="True" /><!-- lists, grid, editors -->
+    <SolidColorBrush x:Key="QsAltRowBrush"         Color="#F7F7F7" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsFormFaceBrush"       Color="#EEEEEE" po:Freeze="True" />
+
+    <!-- Lines -->
+    <SolidColorBrush x:Key="QsBorderBrush"         Color="#D0D6D6" po:Freeze="True" /><!-- modernised from #A0A0A0 -->
+    <SolidColorBrush x:Key="QsBorderStrongBrush"   Color="#9AA5A5" po:Freeze="True" /><!-- modernised from #646464 -->
+    <SolidColorBrush x:Key="QsGridLineBrush"       Color="#E2E6E6" po:Freeze="True" /><!-- modernised from #C0C0C0 -->
+    <SolidColorBrush x:Key="QsDividerBrush"        Color="#EDF1F1" po:Freeze="True" />
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="QsTextBrush"           Color="#202020" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsTitleBrush"          Color="#333333" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsMutedTextBrush"      Color="#5E6A6A" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsOnAccentBrush"       Color="#FFFFFF" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsCodeBrush"           Color="#4B29A4" po:Freeze="True" /><!-- population/package id -->
+    <SolidColorBrush x:Key="QsCategoryBrush"       Color="#B82E82" po:Freeze="True" /><!-- ProcGroup / Pop#n -->
+    <SolidColorBrush x:Key="QsAccentBrush"         Color="#0078D7" po:Freeze="True" /><!-- "version" label -->
+
+    <!-- Grid semantics -->
+    <SolidColorBrush x:Key="QsCellEmptyBrush"      Color="#F5F5F5" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsCellNoDataBrush"     Color="#FFFAFA" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsCurrentCellBrush"    Color="#FFFBD4" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsCurrentRowBrush"     Color="#F3F9FE" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsHintBackgroundBrush" Color="#FFFFE1" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsHintBorderBrush"     Color="#D8D2A8" po:Freeze="True" />
+
+    <!-- Progress -->
+    <SolidColorBrush x:Key="QsProgressBrush"       Color="#06B025" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsProgressTrackBrush"  Color="#E3E9E9" po:Freeze="True" />
+
+</ResourceDictionary>

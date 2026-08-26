@@ -1,0 +1,150 @@
+<UserControl x:Class="QuickStat.Views.DatasetTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:grid="clr-namespace:QuickStat.Controls.Dataset"
+             xmlns:q="clr-namespace:QuickStat.Controls"
+             xmlns:theme="clr-namespace:QuickStat.Theme"
+             xmlns:vm="clr-namespace:QuickStat.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:DatasetViewModel}"
+             Background="{StaticResource QsPageBrush}">
+
+    <!--
+        05-ui-spec.md §C.1: the teal caption bar with 'Wide columns' in its right-hand slot, the
+        bordered grid host, the floating data hint, and 'Show data hint' along the bottom.
+        Step 3.1 owns this file; the grid inside it is step 3.5's control and is only bound to.
+    -->
+
+    <UserControl.Resources>
+        <!--
+            The grid's context menu, §D.2, verified character for character against screenshot 4.
+            Two of the four captions are deliberately different from the actions' own: the .dfm
+            overrides them on the menu items.
+        -->
+        <ContextMenu x:Key="GridContextMenu" d:DataContext="{d:DesignInstance Type=vm:DatasetViewModel}">
+            <MenuItem Header="Package dataset specification for reuse"
+                      Command="{Binding SaveDataPackageCommand}">
+                <MenuItem.Icon>
+                    <TextBlock Style="{StaticResource QsIconGlyph}" Text="{x:Static theme:SegoeIcons.Package}" />
+                </MenuItem.Icon>
+            </MenuItem>
+
+            <Separator />
+
+            <MenuItem Header="Open this dataset in Excel"
+                      Command="{Binding OpenInExcelCommand}">
+                <MenuItem.Icon>
+                    <TextBlock Style="{StaticResource QsIconGlyph}"
+                               Foreground="#107C41"
+                               Text="{x:Static theme:SegoeIcons.Excel}" />
+                </MenuItem.Icon>
+            </MenuItem>
+
+            <MenuItem Header="Save this dataset to CSV file"
+                      Command="{Binding SaveDatasetToCsvCommand}">
+                <MenuItem.Icon>
+                    <TextBlock Style="{StaticResource QsIconGlyph}" Text="{x:Static theme:SegoeIcons.Save}" />
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <DockPanel Margin="4">
+
+        <!--
+            Delphi panHdrYourDataset: the caption label fills the bar and cbWideColumns is anchored
+            to its right edge with the caption to the LEFT of the box (Alignment = taLeftJustify),
+            one point smaller than the header text.
+        -->
+        <q:SectionHeader DockPanel.Dock="Top"
+                         Margin="3,3,3,0"
+                         Header="{Binding CaptionText}">
+            <CheckBox FlowDirection="RightToLeft"
+                      VerticalAlignment="Center"
+                      Foreground="{StaticResource QsOnAccentBrush}"
+                      IsChecked="{Binding WideColumns, Mode=TwoWay}">
+                <!--
+                    RightToLeft on the box is what puts the caption to its left; LeftToRight on the
+                    content stops the caption itself being mirrored.  Still one CheckBox, so the
+                    caption is clickable and the automation name is derived from it.
+                -->
+                <TextBlock FlowDirection="LeftToRight" Text="Wide columns" />
+            </CheckBox>
+        </q:SectionHeader>
+
+        <!--
+            Delphi panSettings, docked at the very bottom, checked by default.
+        -->
+        <CheckBox DockPanel.Dock="Bottom"
+                  Margin="3,4,3,3"
+                  Content="Show data hint"
+                  IsChecked="{Binding ShowDataHint, Mode=TwoWay}" />
+
+        <!--
+            Delphi panGrid: a one-pixel bordered container holding the grid and, on top of it, the
+            hint panel.  The hint is a Canvas child rather than a Popup: a Popup is a separate
+            top-level window, so it survives the owner moving, floats above other applications, and
+            has to be closed by hand on deactivation.  This is a panel parented to the grid host,
+            which is exactly what the Delphi does (panHint.Parent := panGrid).
+        -->
+        <Border Margin="3"
+                Background="{StaticResource QsSurfaceBrush}"
+                BorderBrush="{StaticResource QsBorderStrongBrush}"
+                BorderThickness="1">
+            <Grid ClipToBounds="True">
+                <grid:MatrixGrid x:Name="Grid"
+                                 Matrix="{Binding Matrix, Mode=OneWay}"
+                                 Identification="{Binding IdentificationMode, Mode=OneWay}"
+                                 DataColumnWidth="{Binding DataColumnWidth, Mode=OneWay}"
+                                 ContextMenu="{StaticResource GridContextMenu}"
+                                 GridLineBrush="{StaticResource QsGridLineBrush}"
+                                 FixedCellBackground="{StaticResource QsPageBrush}"
+                                 FixedCellForeground="{StaticResource QsTealDarkBrush}"
+                                 CurrentCellBackground="{StaticResource QsCurrentCellBrush}"
+                                 CurrentRowBackground="{StaticResource QsCurrentRowBrush}"
+                                 MissingObjectBackground="{StaticResource QsCellNoDataBrush}"
+                                 FontFamily="{StaticResource QsFontFamily}"
+                                 FontSize="{StaticResource QsFontSize}"
+                                 Foreground="{StaticResource QsTextBrush}" />
+
+                <Canvas IsHitTestVisible="False">
+                    <Border x:Name="HintPanel"
+                            Canvas.Left="{Binding Hint.Anchor.X, Mode=OneWay, FallbackValue=0}"
+                            Canvas.Top="{Binding Hint.Anchor.Y, Mode=OneWay, FallbackValue=0}">
+                        <Border.Style>
+                            <!--
+                                A DataTrigger rather than a converter: "no hint" is null, and there
+                                is no boolean in the view-model to convert.  Adding one would be a
+                                second way to say the same thing.
+                            -->
+                            <Style TargetType="Border" BasedOn="{StaticResource QsHintPanel}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Hint}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <!--
+                            §G.2: the Delphi fixes this at 240 x ~116, which leaves most of the panel
+                            empty for a two-line hint.  Size to content instead; QsHintPanel caps the
+                            width at 320.
+                        -->
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold"
+                                       Foreground="{StaticResource QsTextBrush}"
+                                       Text="{Binding Hint.Line1, Mode=OneWay}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Foreground="{StaticResource QsTextBrush}"
+                                       Text="{Binding Hint.Line2, Mode=OneWay}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </Canvas>
+            </Grid>
+        </Border>
+    </DockPanel>
+</UserControl>

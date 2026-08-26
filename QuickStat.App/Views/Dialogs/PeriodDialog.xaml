@@ -1,0 +1,79 @@
+<Window x:Class="QuickStat.Views.Dialogs.PeriodDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:QuickStat.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:PeriodViewModel}"
+        Title="Angi periode"
+        Width="527"
+        Height="374"
+        Background="{StaticResource QsFormFaceBrush}"
+        FontFamily="{StaticResource QsFontFamily}"
+        FontSize="{StaticResource QsFontSize}"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        SizeToContent="Manual"
+        WindowStartupLocation="CenterOwner">
+
+    <!--
+        OWNER: step 3.6.  Layout skeleton by step 3.1; 05-ui-spec.md §D.5.
+
+        Fully Norwegian, unlike the rest of the chrome: this is a library form, and PORT-PLAN.md
+        §8.6 keeps the English-chrome / Norwegian-data split exactly as it is.
+
+        Still to do: Monday-first calendars with FirstYear 1900, the tip label, the valid/invalid
+        bottom line, and the per-query round trip through ISettingsStore keyed with
+        PeriodSettingsKey.For - never the raw SQL.  The prompt that shows this window is
+        QuickStat.Services.WpfPeriodPrompt, which currently always cancels.
+    -->
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top"
+                Height="41"
+                Background="{StaticResource QsBannerBrush}"
+                BorderBrush="{StaticResource QsBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Margin="16,0" VerticalAlignment="Center">
+                <TextBlock FontSize="19" FontWeight="Bold" Text="Angi periode" />
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom"
+                Height="56"
+                BorderBrush="{StaticResource QsBorderBrush}"
+                BorderThickness="0,1,0,0">
+            <StackPanel HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                <Button Width="84"
+                        Height="36"
+                        Margin="0,0,8,0"
+                        Content="OK"
+                        IsDefault="True"
+                        IsEnabled="{Binding CanAccept}"
+                        Click="OnAccept" />
+                <Button Width="84"
+                        Height="36"
+                        Margin="0,0,16,0"
+                        Content="Avbryt"
+                        IsCancel="True" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Margin="16">
+            <TextBlock Text="{Binding SubHeaderText}" TextWrapping="Wrap" />
+
+            <TextBlock Margin="0,8,0,0"
+                       Foreground="{StaticResource QsMutedTextBrush}"
+                       Text="{x:Static vm:PeriodViewModel.TipText}"
+                       TextWrapping="Wrap" />
+
+            <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                <Calendar Margin="0,0,16,0" SelectedDate="{Binding Start, Mode=TwoWay}" />
+                <Calendar SelectedDate="{Binding Stop, Mode=TwoWay}" />
+            </StackPanel>
+        </StackPanel>
+    </DockPanel>
+</Window>
