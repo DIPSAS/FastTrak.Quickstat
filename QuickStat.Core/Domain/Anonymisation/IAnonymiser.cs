@@ -31,11 +31,38 @@ public interface IAnonymiser
     /// Number of people, which sets the digit count.
     /// </param>
     /// <remarks>
+    /// <para>
     /// The Delphi scale factor is the smallest power of ten at or above <c>1 + rowCount</c>, and
     /// pseudonyms fall in <c>[scale, 10 * scale - 1]</c>: 17 people give three-digit ids in
     /// 100-999. Reproduce the width, not the sequence.
+    /// </para>
+    /// <para>
+    /// <b>This is the dataset boundary, and calling it is a privacy decision.</b> Everything mapped
+    /// so far becomes unrecoverable and the next export of the same patient gets an unrelated
+    /// pseudonym. Call it when a <em>population</em> is loaded, never once per export - exporting
+    /// twice from one loaded dataset must give the same pseudonyms, which is the half of the Delphi
+    /// behaviour that was broken. An exporter that merely needs a space to exist calls
+    /// <see cref="EnsureSpaceFor"/>.
+    /// </para>
     /// </remarks>
     void Reset(int personCount);
+
+    /// <summary>
+    /// Guarantees that a pseudonym space wide enough for <paramref name="personCount"/> people
+    /// exists, without disturbing one that already does.
+    /// </summary>
+    /// <param name="personCount">Number of people about to be pseudonymised.</param>
+    /// <returns>
+    /// <see langword="true"/> when a new space had to be created, which a caller should log: it
+    /// means whoever loaded the dataset did not call <see cref="Reset"/>.
+    /// </returns>
+    /// <remarks>
+    /// Added over the Delphi's surface because <see cref="Reset"/> alone cannot express "make sure
+    /// there is one". The Delphi constructed a fresh <c>TMatrixAnonymizer</c> per <c>SaveToFile</c>,
+    /// which is exactly why the same patient got a different pseudonym in two exports of one loaded
+    /// dataset.
+    /// </remarks>
+    bool EnsureSpaceFor(int personCount);
 
     /// <summary>The pseudonym for a person, stable within the current dataset.</summary>
     /// <param name="personId">The real person id.</param>
