@@ -201,23 +201,23 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         typeof(MatrixGrid),
         new FrameworkPropertyMetadata(Frozen("#FFFAFA"), FrameworkPropertyMetadataOptions.AffectsRender));
 
-    /// <summary>Default font size for cell text. <c>05-ui-spec.md</c> §F.3: the port's grid is 12.</summary>
-    public const double DefaultFontSize = 12;
-
     /// <summary>Identifies the <see cref="FontFamily"/> dependency property.</summary>
     /// <remarks>
-    /// <b>Every <c>AddOwner</c> below passes an explicit default.</b> The obvious-looking
-    /// <c>new FrameworkPropertyMetadata(FrameworkPropertyMetadataOptions.Inherits | …)</c> compiles,
-    /// because it binds to the <c>(object defaultValue)</c> overload and boxes the flags - and then
-    /// throws <c>ArgumentException: Default value type does not match type of property</c> from the
-    /// static constructor the first time anything instantiates the control. There is no
-    /// flags-only overload.
+    /// The default value is taken from the property being re-owned rather than invented here. It is
+    /// also the reason these three declarations pass one explicitly: <see cref="FrameworkPropertyMetadata"/>
+    /// has <b>no constructor taking only</b> <see cref="FrameworkPropertyMetadataOptions"/>, so
+    /// <c>new FrameworkPropertyMetadata(SomeFlags)</c> silently binds to the
+    /// <c>(object defaultValue)</c> overload and boxes the flags <i>as the default value</i>. That
+    /// compiles, and then throws <see cref="ArgumentException"/> — "Default value type does not
+    /// match type of property" — from the static constructor, which surfaces as a
+    /// <see cref="System.Windows.Markup.XamlParseException"/> the first time any XAML mentions this
+    /// control.
     /// </remarks>
     public static readonly DependencyProperty FontFamilyProperty =
         TextElement.FontFamilyProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
-                SystemFonts.MessageFontFamily,
+                TextElement.FontFamilyProperty.DefaultMetadata.DefaultValue,
                 FrameworkPropertyMetadataOptions.Inherits
                 | FrameworkPropertyMetadataOptions.AffectsMeasure
                 | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -227,7 +227,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         TextElement.FontSizeProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
-                DefaultFontSize,
+                TextElement.FontSizeProperty.DefaultMetadata.DefaultValue,
                 FrameworkPropertyMetadataOptions.Inherits
                 | FrameworkPropertyMetadataOptions.AffectsMeasure
                 | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -252,7 +252,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         TextElement.ForegroundProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
-                Brushes.Black,
+                TextElement.ForegroundProperty.DefaultMetadata.DefaultValue,
                 FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="CellCulture"/> dependency property.</summary>
