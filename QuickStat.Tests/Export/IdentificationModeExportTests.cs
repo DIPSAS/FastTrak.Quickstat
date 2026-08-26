@@ -1,8 +1,11 @@
 using System.Globalization;
 using System.IO;
 using ClosedXML.Excel;
+using QuickStat.Collectors;
 using QuickStat.Domain.Anonymisation;
+using QuickStat.Domain.DataPoints;
 using QuickStat.Domain.Matrix;
+using QuickStat.Domain.Patients;
 using QuickStat.Export;
 using Xunit;
 
@@ -25,6 +28,16 @@ namespace QuickStat.Tests.Export;
 ///     whole byte stream is searched for the identifying strings.
 ///   </description></item>
 /// </list>
+/// <para>
+/// Most cases here drive a hand-built <see cref="ExportDataset"/>, because the writers are pure.
+/// <see cref="ANationalIdRecoveredAfterTheLoadStillCannotLeave"/> is the exception and starts from a
+/// real <see cref="PersonMatrix"/>: Phase 4 restored
+/// <see cref="QuickStat.Domain.Patients.NationalIdRecovery.EnsureNationalIdsAsync"/>
+/// (<c>MainQuickStat.pas:536-540</c>), which fills
+/// <see cref="QuickStat.Domain.Patients.Patient.NationalId"/> at load time <b>whatever the
+/// identification mode is</b>, so from now on <see cref="MatrixRow.NationalId"/> really is populated
+/// while an anonymous export runs. That is the field this suite exists to keep inside the process.
+/// </para>
 /// </remarks>
 public class IdentificationModeExportTests
 {
@@ -174,6 +187,102 @@ public class IdentificationModeExportTests
         Assert.DoesNotContain("Hansen", everything, StringComparison.Ordinal);
         Assert.DoesNotContain(LeakedNationalId, everything, StringComparison.Ordinal);
         Assert.DoesNotContain("1922-03-12", everything, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(PersonIdentification.PersonIdOnly, ExportFormat.Csv)]
+    [InlineData(PersonIdentification.PersonIdOnly, ExportFormat.Xlsx)]
+    [InlineData(PersonIdentification.RandomPersonId, ExportFormat.Csv)]
+    [InlineData(PersonIdentification.RandomPersonId, ExportFormat.Xlsx)]
+    public void ANationalIdRecoveredAfterTheLoadStillCannotLeave(
+        PersonIdentification identification,
+        ExportFormat format)
+    {
+        // The hazard Phase 4 introduces: the recovery query runs unconditionally, so MatrixRow
+        // .NationalId is now filled in even when the mode will never show it.  R6 is about what
+        // leaves the process, and this is the test that says so - both writers derive their identity
+        // columns from FixedColumns.VisibleOrdinals and neither can emit the field.
+        PersonMatrix matrix = RecoveredCohortMatrix();
+
+        var anonymiser = new MatrixAnonymiser();
+        anonymiser.Reset(matrix.Rows.Count);
+
+        ExportDataset dataset = ExportDataset.FromMatrix(matrix, includeAppearance: format == ExportFormat.Xlsx);
+
+        // It really is in the matrix and in the projection: the assertions below are about the file.
+        Assert.Equal(LeakedNationalId, Assert.Single(matrix.Rows).NationalId);
+        Assert.Equal(LeakedNationalId, Assert.Single(dataset.Rows).NationalId);
+
+        string written = format == ExportFormat.Csv
+            ? ExportFixtures.Cp1252.GetString(
+                ExportFixtures.WriteCsv(dataset, Options(identification), anonymiser))
+            : WorkbookText(dataset, Options(identification, format: ExportFormat.Xlsx), anonymiser);
+
+        Assert.DoesNotContain(LeakedNationalId, written, StringComparison.Ordinal);
+        Assert.DoesNotContain(FixedColumns.NationalIdHeader, written, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hansen", written, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A cohort whose national id was <em>not</em> returned by the population procedure and was
+    /// filled in afterwards, which is what <c>EnsureNationalIdsAsync</c> does to every load.
+    /// </summary>
+    private static PersonMatrix RecoveredCohortMatrix()
+    {
+        Patient patient = new()
+        {
+            PersonId = 8,
+            FirstName = "Ola",
+            LastName = "Hansen",
+            DateOfBirth = new DateTime(1922, 3, 12, 0, 0, 0, DateTimeKind.Unspecified),
+        };
+
+        Assert.Null(patient.NationalId);
+
+        // NationalIdRecovery.EnsureNationalIdsAsync, in one line: the id lands on the patient before
+        // PreparePopulation copies it onto the row.
+        patient.NationalId = LeakedNationalId;
+
+        PersonMatrix matrix = new(new DataPointFactory());
+
+        matrix.PreparePopulation([patient]);
+
+        VariableNameSet names = matrix.CreateVariableNameSet();
+
+        names.Add("AGE");
+        matrix.AddColumns(names);
+
+        matrix.Add("AGE", new CollectorResultRow
+        {
+            PersonId = 8,
+            VarName = "AGE",
+            Value = 97,
+            Timestamp = new DateTime(2019, 8, 14, 9, 30, 0, DateTimeKind.Unspecified),
+            RowId = 1,
+        });
+
+        matrix.Lock();
+
+        return matrix;
+    }
+
+    private static string WorkbookText(
+        ExportDataset dataset,
+        DatasetExportOptions options,
+        IAnonymiser anonymiser)
+    {
+        using var stream = new MemoryStream();
+
+        XlsxMatrixWriter.Write(dataset, stream, options, anonymiser);
+
+        stream.Position = 0;
+
+        using var workbook = new XLWorkbook(stream);
+
+        return string.Concat(
+            workbook.Worksheet(XlsxMatrixWriter.WorksheetName)
+                .CellsUsed()
+                .Select(cell => cell.GetFormattedString()));
     }
 
     [Fact]

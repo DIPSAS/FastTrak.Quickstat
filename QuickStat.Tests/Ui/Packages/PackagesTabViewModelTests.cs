@@ -5,6 +5,7 @@ using QuickStat.Diagnostics;
 using QuickStat.Domain.Anonymisation;
 using QuickStat.Domain.Matrix;
 using QuickStat.Domain.Packages;
+using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
 using QuickStat.Services;
 using QuickStat.Tests.Ui.Services;
@@ -25,6 +26,9 @@ namespace QuickStat.Tests.Ui.Packages;
 /// </remarks>
 public class PackagesTabViewModelTests
 {
+    private const string OlasNationalId = "12032212345";
+    private const string KarisNationalId = "01029912345";
+
     /// <summary>Forces a culture for the duration of a case, and puts it back afterwards.</summary>
     private sealed class CultureScope : IDisposable
     {
@@ -206,6 +210,16 @@ public class PackagesTabViewModelTests
 
     private static IReadOnlyList<string> VisibleTitles(PackagesTabViewModel viewModel) =>
         [.. viewModel.PackagesView.Cast<PackageViewModel>().Select(package => package.Title)];
+
+    /// <summary>A cohort member whose population procedure <em>did</em> return the national id.</summary>
+    private static Patient WithNationalId(int personId, string nationalId)
+    {
+        Patient patient = ShellWorkspaceTests.NewPatient(personId);
+
+        patient.NationalId = nationalId;
+
+        return patient;
+    }
 
     // ---------------------------------------------------------------------------------------
     //  Loading the list - Delphi LoadPackagedSelections, called from AfterLogin.
@@ -925,6 +939,83 @@ public class PackagesTabViewModelTests
         Assert.Equal(
             PackagesTabViewModel.NotConnectedMessage,
             Assert.Single(harness.Presenter.Notifications).Message);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    //  National ids - MainQuickStat.pas:536-540, PORT-PLAN.md §2.1 and §5 Phase 4.
+    // ---------------------------------------------------------------------------------------
+    //
+    //  The replay reaches AfterPopulationSelect through TrySelect (MainQuickStat.pas:789), so it
+    //  runs AddNationalIds too.  A replayed package that produced no Fødselsnummer while the same
+    //  population loaded from the Populations tab did would be a bug in one of the two halves -
+    //  PORT-PLAN.md §8.10 (b) is exactly that shape.
+
+    [Fact]
+    public async Task ReplayingRecoversTheNationalIdsThePopulationDidNotReturn()
+    {
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.AddPopulation(257, "Aktive diabetikere");
+        harness.Patients.Cohort.Add(ShellWorkspaceTests.NewPatient(52));
+        harness.Patients.Cohort.Add(ShellWorkspaceTests.NewPatient(53));
+        harness.Patients.NationalIds[52] = OlasNationalId;
+        harness.Patients.NationalIds[53] = KarisNationalId;
+
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+        Assert.Equal([52, 53], Assert.Single(harness.Patients.NationalIdRequests));
+
+        // Filled before PreparePopulation copies them onto the rows (PersonMatrix.cs:151).
+        Assert.Equal([OlasNationalId, KarisNationalId], harness.Matrix.Rows.Select(row => row.NationalId));
+    }
+
+    [Fact]
+    public async Task ReplayingAsksForNothingWhenThePopulationAlreadyReturnedTheNationalIds()
+    {
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.AddPopulation(257, "Aktive diabetikere");
+        harness.Patients.Cohort.Add(WithNationalId(52, OlasNationalId));
+
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+        Assert.Empty(harness.Patients.NationalIdRequests);
+        Assert.Equal(OlasNationalId, Assert.Single(harness.Matrix.Rows).NationalId);
+    }
+
+    [Fact]
+    public async Task AFailedNationalIdRecoveryStillLetsTheReplayCollect()
+    {
+        // Logged and degraded, as on the Populations tab: losing one column must not lose the
+        // cohort, the ticks and the collect run behind it.
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.AddPopulation(257, "Aktive diabetikere");
+        harness.Patients.Cohort.Add(ShellWorkspaceTests.NewPatient(52));
+        harness.Patients.NationalIdThrows = new InvalidOperationException("Invalid object name 'dbo.Person'.");
+
+        DataElementViewModel wanted = harness.AddElement("QS_HBA1C", "Labdata: HbA1c (siste)");
+
+        harness.Repository.Stored.Add(NewPackage(41, "Alfa", "", 257, "QS_HBA1C"));
+
+        await harness.SelectAsync("Alfa");
+        await harness.ViewModel.OpenPackageCommand.ExecuteAsync(null);
+
+        Assert.Equal(257, harness.Workspace.Population?.ProcId);
+        Assert.Null(Assert.Single(harness.Matrix.Rows).NationalId);
+        Assert.True(wanted.IsChecked);
+        Assert.Equal("Alfa", harness.Dataset.CaptionText);
+        Assert.Empty(harness.Presenter.Notifications);
+        Assert.False(harness.Progress.IsError);
     }
 
     // ---------------------------------------------------------------------------------------

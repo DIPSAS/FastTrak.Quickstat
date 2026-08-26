@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuickStat.Domain.Matrix;
+using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
 using QuickStat.Tests.Ui.Services;
 using QuickStat.ViewModels;
@@ -14,6 +15,9 @@ namespace QuickStat.Tests.Ui.Populations;
 /// </summary>
 public class PopulationPickerViewModelTests
 {
+    private const string OlasNationalId = "12032212345";
+    private const string KarisNationalId = "01029912345";
+
     private sealed class CultureScope : IDisposable
     {
         private readonly CultureInfo _previous = CultureInfo.CurrentCulture;
@@ -28,6 +32,16 @@ public class PopulationPickerViewModelTests
 
     private static List<int> VisibleIds(PopulationPickerViewModel picker) =>
         [.. Visible(picker).Select(row => row.ProcId)];
+
+    /// <summary>A cohort member whose population procedure <em>did</em> return the national id.</summary>
+    private static Patient WithNationalId(int personId, string nationalId)
+    {
+        Patient patient = ShellWorkspaceTests.NewPatient(personId);
+
+        patient.NationalId = nationalId;
+
+        return patient;
+    }
 
     // ---------------------------------------------------------------------------------------
     // Catalogue
@@ -781,6 +795,119 @@ public class PopulationPickerViewModelTests
         // The status line carries the population's own title, as a collect run carries the
         // collector's (§G.6). The Delphi sets nothing here and calls no Done().
         Assert.Equal("Aktive pasientar", harness.Progress.Info);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // National ids - MainQuickStat.pas:536-540, PORT-PLAN.md §2.1 and §5 Phase 4
+    // ---------------------------------------------------------------------------------------
+    //
+    // The canonical application calls AddNationalIds unconditionally between the cohort query and
+    // the grid; only this repository has it commented out, which is why the Fødselsnummer column is
+    // empty here in "Fully identified patients" mode.  The picker holds no IIdentificationPolicy at
+    // all, so the fetch structurally cannot depend on the mode - which is the point: the mode is
+    // switchable after a load, and IdentificationColumns.For decides what is shown and written.
+
+    [Fact]
+    public async Task PreparingRecoversTheNationalIdsThePopulationDidNotReturn()
+    {
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1), ShellWorkspaceTests.NewPatient(2)];
+        harness.Patients.NationalIds[1] = OlasNationalId;
+        harness.Patients.NationalIds[2] = KarisNationalId;
+
+        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
+
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+
+        await harness.Picker.PreparePopulationCommand.ExecuteAsync(null);
+
+        Assert.Equal([1, 2], Assert.Single(harness.Patients.NationalIdRequests));
+
+        // Before PreparePopulation, not after: it copies the id onto the row it builds
+        // (PersonMatrix.cs:151) and never looks at the patient again.
+        Assert.Equal([OlasNationalId, KarisNationalId], harness.Matrix.Rows.Select(row => row.NationalId));
+    }
+
+    [Fact]
+    public async Task PreparingAsksForNothingWhenThePopulationAlreadyReturnedTheNationalIds()
+    {
+        // TPatientList.IncludesNationalId: some population procedures do select the column.
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [WithNationalId(1, OlasNationalId), WithNationalId(2, KarisNationalId)];
+
+        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
+
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+
+        await harness.Picker.PreparePopulationCommand.ExecuteAsync(null);
+
+        Assert.Empty(harness.Patients.NationalIdRequests);
+        Assert.Equal([OlasNationalId, KarisNationalId], harness.Matrix.Rows.Select(row => row.NationalId));
+    }
+
+    [Fact]
+    public async Task AnEmptyCohortAsksForNoNationalIds()
+    {
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [];
+
+        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
+
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+
+        await harness.Picker.PreparePopulationCommand.ExecuteAsync(null);
+
+        Assert.Empty(harness.Patients.NationalIdRequests);
+    }
+
+    [Fact]
+    public async Task APatientTheRecoveryQueryDoesNotReturnKeepsANullNationalId()
+    {
+        // The statement filters NationalId IS NOT NULL, so a person with none on file is absent from
+        // the result rather than mapped to an empty string.
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1), ShellWorkspaceTests.NewPatient(2)];
+        harness.Patients.NationalIds[1] = OlasNationalId;
+
+        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein"));
+
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+
+        await harness.Picker.PreparePopulationCommand.ExecuteAsync(null);
+
+        Assert.Equal([OlasNationalId, null], harness.Matrix.Rows.Select(row => row.NationalId));
+        Assert.Empty(harness.Notifier.Errors);
+    }
+
+    [Fact]
+    public async Task AFailedNationalIdRecoveryDoesNotTakeTheWholeLoadDown()
+    {
+        // Logged and degraded, not fatal: the user asked for a cohort and the national id is one
+        // column of it.  The fetch is unconditional, so in an anonymous mode a fatal failure here
+        // would destroy a load whose result never needed the ids at all.
+        using PopulationHarness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1), ShellWorkspaceTests.NewPatient(2)];
+        harness.Patients.NationalIdThrows = new InvalidOperationException("Invalid object name 'dbo.Person'.");
+
+        await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(257, "Aktive pasientar"));
+
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+
+        await harness.Picker.PreparePopulationCommand.ExecuteAsync(null);
+
+        Assert.Equal(257, harness.Workspace.Population?.ProcId);
+        Assert.Equal(2, harness.Workspace.RowCount);
+        Assert.All(harness.Matrix.Rows, row => Assert.Null(row.NationalId));
+
+        // Nothing is shown, nothing fails, and the audit row is still written.
+        Assert.Empty(harness.Notifier.Errors);
+        Assert.False(harness.Progress.IsError);
+        Assert.Single(harness.Catalogue.AuditRows);
     }
 
     // ---------------------------------------------------------------------------------------
