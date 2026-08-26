@@ -1,3 +1,5 @@
+using QuickStat.Configuration;
+
 namespace QuickStat.Data;
 
 /// <summary>
@@ -30,4 +32,39 @@ public sealed record SqlTableParameter
 
     /// <summary>The values. Streamed rather than materialised into a table object.</summary>
     public required IReadOnlyCollection<int> Values { get; init; }
+
+    /// <summary>Builds a person-id list, taking the type and column names from configuration.</summary>
+    /// <param name="options">The process-wide SQL options.</param>
+    /// <param name="name">Placeholder name as it appears in the statement, without the marker.</param>
+    /// <param name="personIds">The ids.</param>
+    /// <returns>The table-valued argument.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="SqlOptions.PersonIdListTypeName"/> is <see langword="null"/>, i.e. the database has
+    /// no such table type and the caller must fall back to chunks of
+    /// <see cref="SqlOptions.MaxIdsPerBatch"/> literals.
+    /// </exception>
+    /// <remarks>
+    /// Declared here, not in each of the two consumers, so that "the type and column names come from
+    /// <see cref="SqlOptions"/>" is stated once. Steps 2.3 (national-id recovery) and 2.4 (every
+    /// <c>{IdList}</c> collector) both call it.
+    /// </remarks>
+    public static SqlTableParameter ForPersonIds(SqlOptions options, string name, IReadOnlyCollection<int> personIds)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(personIds);
+
+        string typeName = options.PersonIdListTypeName
+            ?? throw new InvalidOperationException(
+                "SqlOptions.PersonIdListTypeName is null, so this database has no person-id table type. " +
+                $"Fall back to chunks of {options.MaxIdsPerBatch} literals instead.");
+
+        return new SqlTableParameter
+        {
+            Name = name,
+            TypeName = typeName,
+            ColumnName = options.PersonIdListColumnName,
+            Values = personIds,
+        };
+    }
 }
