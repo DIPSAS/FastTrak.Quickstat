@@ -123,12 +123,18 @@
                 ShowDayOfWeek = False, set on the left calendar only, has no WPF equivalent - the
                 day-of-week row is part of Calendar's template - and it is an inconsistency between
                 the two calendars in the original anyway.
+
+                The band is the .dfm's 241 x 227 so the calendars sit where they sat, but WPF's
+                Calendar has a fixed natural size that neither Width nor FontSize changes: its
+                template centres a fixed CalendarItem inside whatever it is given.  They are
+                therefore centred in the band rather than stretched, which puts the spare height
+                above and below instead of all of it underneath.
             -->
             <StackPanel Grid.Row="1" Margin="0,4,0,0" Orientation="Horizontal">
                 <Calendar x:Name="StartCalendar"
                           Width="241"
                           Margin="0,0,11,0"
-                          VerticalAlignment="Top"
+                          VerticalAlignment="Center"
                           AutomationProperties.Name="Første dato"
                           DisplayDateStart="{x:Static vm:PeriodViewModel.FirstDate}"
                           FirstDayOfWeek="Monday"
@@ -138,7 +144,7 @@
 
                 <Calendar x:Name="StopCalendar"
                           Width="241"
-                          VerticalAlignment="Top"
+                          VerticalAlignment="Center"
                           AutomationProperties.Name="Siste dato"
                           DisplayDateStart="{x:Static vm:PeriodViewModel.FirstDate}"
                           FirstDayOfWeek="Monday"
