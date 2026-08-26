@@ -81,19 +81,17 @@ public class MatrixGridCellAutomationPeer : AutomationPeer, IGridItemProvider, I
     /// <inheritdoc />
     /// <remarks>
     /// The column's own header cell, which is what turns a bare number into "AGE 97" for a screen
-    /// reader. A header cell has no header of its own.
+    /// reader. A header cell has no header of its own. Empty until the grid is in a window, because
+    /// <c>ProviderFromPeer</c> needs a window handle; <see cref="ColumnHeaderPeer"/> is the part
+    /// that decides which cell that is.
     /// </remarks>
-    public IRawElementProviderSimple[] GetColumnHeaderItems()
-    {
-        if (RowIndex == MatrixGrid.NoIndex)
-        {
-            return [];
-        }
+    public IRawElementProviderSimple[] GetColumnHeaderItems() =>
+        ColumnHeaderPeer() is { } header && ProviderFromPeer(header) is { } provider ? [provider] : [];
 
-        MatrixGridCellAutomationPeer? header = _grid.CellPeer(MatrixGrid.NoIndex, DisplayColumnIndex);
-
-        return header is not null && ProviderFromPeer(header) is { } provider ? [provider] : [];
-    }
+    /// <summary>The header cell of this cell's column.</summary>
+    /// <returns>The header peer, or <see langword="null"/> when this cell <i>is</i> a header.</returns>
+    protected internal MatrixGridCellAutomationPeer? ColumnHeaderPeer() =>
+        RowIndex == MatrixGrid.NoIndex ? null : _grid.CellPeer(MatrixGrid.NoIndex, DisplayColumnIndex);
 
     /// <inheritdoc />
     /// <exception cref="InvalidOperationException">Always: the grid is read-only.</exception>

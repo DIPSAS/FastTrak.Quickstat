@@ -63,22 +63,43 @@ public class MatrixGridAutomationPeer : FrameworkElementAutomationPeer, IGridPro
     public IRawElementProviderSimple[] GetRowHeaders() => [];
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Returns an empty array until the grid is in a window: <c>ProviderFromPeer</c> needs a window
+    /// handle to wrap a peer in. <see cref="ColumnHeaderPeers"/> is the part that chooses <i>which</i>
+    /// cells are headers, and it works either way.
+    /// </remarks>
     public IRawElementProviderSimple[] GetColumnHeaders()
     {
-        int columns = Grid.DisplayColumnCount;
-        List<IRawElementProviderSimple> headers = new(columns);
+        IReadOnlyList<MatrixGridCellAutomationPeer> peers = ColumnHeaderPeers();
+        List<IRawElementProviderSimple> headers = new(peers.Count);
 
-        for (int column = 0; column < columns; column++)
+        foreach (MatrixGridCellAutomationPeer peer in peers)
         {
-            MatrixGridCellAutomationPeer? peer = CellPeer(MatrixGrid.NoIndex, column);
-
-            if (peer is not null && ProviderFromPeer(peer) is { } provider)
+            if (ProviderFromPeer(peer) is { } provider)
             {
                 headers.Add(provider);
             }
         }
 
         return [.. headers];
+    }
+
+    /// <summary>The header cell of every column, left to right.</summary>
+    /// <returns>One peer per display column.</returns>
+    protected internal IReadOnlyList<MatrixGridCellAutomationPeer> ColumnHeaderPeers()
+    {
+        int columns = Grid.DisplayColumnCount;
+        List<MatrixGridCellAutomationPeer> headers = new(columns);
+
+        for (int column = 0; column < columns; column++)
+        {
+            if (CellPeer(MatrixGrid.NoIndex, column) is { } peer)
+            {
+                headers.Add(peer);
+            }
+        }
+
+        return headers;
     }
 
     /// <summary>Drops the cached cell peers and tells UIA the structure changed.</summary>
