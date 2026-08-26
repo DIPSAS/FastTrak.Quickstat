@@ -60,5 +60,45 @@ public sealed record SessionContext
     /// rather than fail. <c>StartDate</c> and <c>StopDate</c> are <em>not</em> handled here; they
     /// come from the period prompt and are the only pair that asks the user anything.
     /// </remarks>
-    public bool TryGetParameterValue(string name, out object? value) => throw new NotImplementedException();
+    public bool TryGetParameterValue(string name, out object? value)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        switch (name)
+        {
+            case not null when Matches(name, "StudyId"):
+                value = StudyId;
+                return true;
+
+            case not null when Matches(name, "StudyName"):
+                value = StudyName;
+                return true;
+
+            case not null when Matches(name, "UserId"):
+                value = User.UserId;
+                return true;
+
+            case not null when Matches(name, "SessId"):
+                value = SessionId;
+                return true;
+
+            case not null when Matches(name, "CenterId"):
+                value = User.CenterId;
+                return true;
+
+            case not null when Matches(name, "CaseId"):
+                // Always zero: QuickStat never calls TCRFSimpleContext.Select(personId), so
+                // TActiveCase never has a case. It still has to resolve, because a population may
+                // reference it and the Delphi's RTTI lookup would have answered.
+                value = 0;
+                return true;
+
+            default:
+                value = null;
+                return false;
+        }
+    }
+
+    private static bool Matches(string name, string candidate) =>
+        string.Equals(name, candidate, StringComparison.OrdinalIgnoreCase);
 }
