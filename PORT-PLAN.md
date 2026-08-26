@@ -101,11 +101,18 @@ The canonical app references `QST_LAB_INTERLEUKINS`, `QS_ROAS_BASE`, `AddNationa
 antibiotic collectors. Those symbols are absent from `develop`, `develop_old` and `master`, so
 **`develop_old` cannot build this application at all** — that part is verified, not inferred.
 
-What is *inferred* is the next step: that the distributed binaries were therefore built against a
-tarmscreening-lineage branch. Counter-evidence exists and is not resolved — no CI definition that
-builds QuickStat against such a branch has been produced, and the reviewer reports the build server
-pointing `FastTrakDir` at mainline, which could never have compiled this app since 2022. The honest
-statement is: **someone built it by hand, against a branch nobody has positively identified.**
+**CI cannot build this application today — verified in `C:\work\FastTrak.BuildServer`.**
+`QuickStat.fbp8` sets `QuickStatDir = %Source%\App.QuickStat` and compiles with search path
+`..\FastTrak\EPR\QA` (it does **not** use the `$(FastTrakDir)` variable that other build projects
+use). So it builds against `%Source%\FastTrak` — which in FastTrakApps is a **git submodule**,
+pinned at `eb50824cf` (2025-10-14). That commit is on `develop`, `master` and `release/v2026`, i.e.
+mainline, and **all five collector symbols plus `TPatientList.AddNationalIds` are absent from it.**
+
+The timing explains itself: FastTrak only *became* a submodule on 2025-08-14 (`1b31f22`, "Overgang
+til FastTrak-modulen"). Before that, `%Source%\FastTrak` was whatever the build agent happened to
+have checked out — exactly the unenforced pairing described below. Pinning it to mainline is the
+moment QuickStat's CI build became impossible, and nobody noticed, because nobody had touched
+`App.QuickStat` since 2023.
 
 "The tarmscreening lineage" is also **not one ref.** Two candidates carry the features, and they are
 siblings, not ancestor and descendant — they forked at `84d0c2b83` (2022-11-23) and diverged 5 / 64:
@@ -116,18 +123,29 @@ siblings, not ancestor and descendant — they forked at `84d0c2b83` (2022-11-23
 | `origin/release/tarmscreening` | `54b91549e` | 2023-09-27 | **no** | 130 collectors |
 
 `release/tarmscreening` is 26 days newer and its tip message is *"Versjon som er testet i HSØ"*, so
-on a "what did a customer actually run" criterion it is the stronger candidate. The diff between the
-two over `EPR/QA/` is **exactly 6 insertions in 3 files** — the interleukins feature and nothing
+on a bare "what did a customer run" reading it looks like the stronger candidate. The diff between
+the two over `EPR/QA/` is **exactly 6 insertions in 3 files** — the interleukins feature, nothing
 else.
 
-**Decision: pin `origin/tarmscreening/develop`, target 131.** The reason is narrow and specific: the
-canonical app *as it stands today* registers `QST_LAB_INTERLEUKINS`, so it cannot compile against
-`release/tarmscreening`, which lacks the symbol. Porting the canonical source therefore forces the
-ref that can build it. Choosing `release/tarmscreening` would mean porting some older, unidentified
-revision of the app as well — a baseline nobody has in hand.
+**Decision: `origin/tarmscreening/develop`, target 131.** This is settled by a dated commit chain,
+not by preference:
 
-> If a protocol owner says interleukins were never in the field, the change is small and localised:
-> drop `QST_LAB_INTERLEUKINS` from the registry, 131 → 130, and Phase 4's fourth row disappears.
+| When | Where | What |
+|---|---|---|
+| 2022-11-23 | FastTrak | `84d0c2b83` — `release/tarmscreening` forks here, three weeks *before* interleukins exist |
+| 2022-12-13 | FastTrak | `fefc8a809` adds `QST_LAB_INTERLEUKINS` (tarmscreening/develop only) |
+| 2022-12-13 | FastTrakApps | `abd4e44` "#531377: Støtte for interleukin" adds the matching `AddCollector( … QST_LAB_INTERLEUKINS )` — **same day, coordinated** |
+| 2022-12-21 | FastTrakApps | `313a15c` "Tar opp programversjon for QuickStat" |
+| — | shipped exe | **v22.12.21.547** |
+
+The exe's own version number is the date of the version-bump commit, eight days after the app and
+library gained interleukins together. `release/tarmscreening` had already forked three weeks earlier
+and never received the feature, so the shipped binary cannot have been built from it. The
+`QST_LAB_INTERLEUKINS` registration is also still present in the canonical source today, which
+independently rules that ref out as a compilation target.
+
+> If a protocol owner nonetheless says interleukins were never used in the field, the change is
+> small and localised: drop `QST_LAB_INTERLEUKINS`, 131 → 130, and Phase 4's fourth row disappears.
 > Nothing else differs between the two refs.
 
 Implementation agents must read app-level source from `C:\work\FastTrakApps\App.QuickStat\`, and
@@ -156,6 +174,11 @@ The Delphi source remains the final authority while it is still in the tree.
 - **The KORTTID fix has a twin.** `FastTrakApps/App.QuickStat` carries the identical change on
   `feature/739506_GBD_utvalet_i_Korttid`, which is that repo's currently checked-out branch. The two
   agree; see §10.4 for why the *totals* still differ between the trees.
+- **`App.QuickStat` had no functional change between 2023-01-05 and 2026-08-24.** The last
+  substantive work before that gap is the interleukin support and version bump of December 2022.
+  Anything describing "recent" QuickStat behaviour is describing a 2022 build.
+- **Build definitions live in `C:\work\FastTrak.BuildServer`** (FinalBuilder, Continua CI).
+  `QuickStat.fbp8` is the QuickStat build; see R13 for why it cannot currently succeed.
 
 ---
 
@@ -526,7 +549,8 @@ Not blocking; each has a working default so implementation can proceed.
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
-| R12 | **The baseline ref is a judgement call, not a fact.** Two sibling refs carry the features and disagree on interleukins (§2.1); no CI definition has been found that builds this app against either | Pinned to `origin/tarmscreening/develop` for a specific reason (the canonical app registers `QST_LAB_INTERLEUKINS` and so cannot compile against the alternative). Consequence isolated to one collector: 131 vs 130. Flagged for a protocol owner alongside §8.4 |
+| R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
+| R13 | **QuickStat has no working CI build.** `QuickStat.fbp8` compiles against `%Source%\FastTrak`, a submodule pinned to mainline (`eb50824cf`), where all five symbols are absent — verified, not inferred | Out of scope for the port, but it means *no automated build validates the Delphi reference app*, so "does the Delphi build still work" is never a usable check during parity work. Phase 5's parity pass must run against the **existing deployed exe**, not a freshly built one. Worth fixing on the Delphi side independently |
 
 ---
 
