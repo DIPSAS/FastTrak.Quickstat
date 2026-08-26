@@ -152,18 +152,24 @@ public class PopulationViewMarkupTests
     [Fact]
     public void SimplifiedPutsItsCaptionToTheLeftOfTheBox()
     {
-        // Alignment = taLeftJustify, done with the paired FlowDirection of 07-ui-contracts.md §3.6 so
-        // it stays one clickable CheckBox with a usable automation name.
+        // Alignment = taLeftJustify, through the theme's QsCaptionLeftCheckBox rather than a
+        // hand-rolled FlowDirection: RightToLeft mirrors the whole visual subtree, including the
+        // tick, which the default template draws as a Path.
         XElement box = Assert.Single(
             Named(Picker(), "CheckBox"),
-            element => Attribute(element, "FlowDirection") == "RightToLeft");
+            element => Attribute(element, "Style") == "{StaticResource QsCaptionLeftCheckBox}");
 
         Assert.Equal("{Binding Simplified, Mode=TwoWay}", Attribute(box, "IsChecked"));
+
+        // A local value beats a style setter, so setting either of these here would reinstate the
+        // backwards checkmark the style exists to fix.
+        Assert.Null(Attribute(box, "FlowDirection"));
+        Assert.Null(Attribute(box, "VerticalAlignment"));
 
         XElement caption = Assert.Single(box.Descendants(Wpf + "TextBlock"));
 
         Assert.Equal("LeftToRight", Attribute(caption, "FlowDirection"));
-        Assert.Equal("Simplified", Attribute(caption, "Text"));
+        Assert.Equal(PopulationPickerViewModel.SimplifiedCaption, Attribute(caption, "Text"));
     }
 
     // ---------------------------------------------------------------------------------------
