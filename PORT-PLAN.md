@@ -200,7 +200,7 @@ The Delphi source remains the final authority while it is still in the tree.
   not code. The last substantive work is the interleukin support and version bump of December 2022,
   so anything describing "recent" QuickStat behaviour is describing a 2022 build.
 - **Build definitions live in `C:\work\FastTrak.BuildServer`** (FinalBuilder, Continua CI).
-  `QuickStat.fbp8` is the QuickStat build; see R13 for why it cannot succeed.
+  `QuickStat.fbp8` is the QuickStat build; see R13 for why it is unlikely to succeed.
 - **Both of those repos have uncommitted changes right now** — `QuickStat.fbp8` in the build server,
   the `.dproj` in FastTrakApps. Quote them only via `git show HEAD:<path>`. See R14.
 
