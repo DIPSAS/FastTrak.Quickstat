@@ -129,10 +129,22 @@ public class MatrixGrid : FrameworkElement
         new FrameworkPropertyMetadata(Frozen("#FFFAFA"), FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="FontFamily"/> dependency property.</summary>
+    /// <remarks>
+    /// The default value is taken from the property being re-owned rather than invented here. It is
+    /// also the reason these three declarations pass one explicitly: <see cref="FrameworkPropertyMetadata"/>
+    /// has <b>no constructor taking only</b> <see cref="FrameworkPropertyMetadataOptions"/>, so
+    /// <c>new FrameworkPropertyMetadata(SomeFlags)</c> silently binds to the
+    /// <c>(object defaultValue)</c> overload and boxes the flags <i>as the default value</i>. That
+    /// compiles, and then throws <see cref="ArgumentException"/> — "Default value type does not
+    /// match type of property" — from the static constructor, which surfaces as a
+    /// <see cref="System.Windows.Markup.XamlParseException"/> the first time any XAML mentions this
+    /// control.
+    /// </remarks>
     public static readonly DependencyProperty FontFamilyProperty =
         TextElement.FontFamilyProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
+                TextElement.FontFamilyProperty.DefaultMetadata.DefaultValue,
                 FrameworkPropertyMetadataOptions.Inherits
                 | FrameworkPropertyMetadataOptions.AffectsMeasure
                 | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -142,6 +154,7 @@ public class MatrixGrid : FrameworkElement
         TextElement.FontSizeProperty.AddOwner(
             typeof(MatrixGrid),
             new FrameworkPropertyMetadata(
+                TextElement.FontSizeProperty.DefaultMetadata.DefaultValue,
                 FrameworkPropertyMetadataOptions.Inherits
                 | FrameworkPropertyMetadataOptions.AffectsMeasure
                 | FrameworkPropertyMetadataOptions.AffectsRender));
@@ -150,7 +163,9 @@ public class MatrixGrid : FrameworkElement
     public static readonly DependencyProperty ForegroundProperty =
         TextElement.ForegroundProperty.AddOwner(
             typeof(MatrixGrid),
-            new FrameworkPropertyMetadata(FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(
+                TextElement.ForegroundProperty.DefaultMetadata.DefaultValue,
+                FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Raised when the user activates a cell, which in this control means a single click.</summary>
     /// <remarks>
