@@ -13,7 +13,7 @@ namespace QuickStat.Domain.Matrix;
 /// </remarks>
 public static class MatrixServiceCollectionExtensions
 {
-    /// <summary>Adds the result matrix, the datapoint factory and the caption dictionary.</summary>
+    /// <summary>Adds the result matrix, the datapoint factory and the caption machinery.</summary>
     /// <param name="services">The container.</param>
     /// <returns><paramref name="services"/>, for chaining.</returns>
     public static IServiceCollection AddQuickStatMatrix(this IServiceCollection services)
@@ -21,7 +21,18 @@ public static class MatrixServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton<IDataPointFactory, DataPointFactory>();
-        services.TryAddSingleton<ITitleDictionary>(static _ => CaptionDictionary.WithQuickStatDefaults());
+
+        // The concrete dictionary is registered as well as the interface, and ITitleDictionary
+        // resolves to the very same instance.  ITitleDictionary is read-only by design, so a loader
+        // needs the class to write into it - and if the two were registered independently the
+        // matrix would read one dictionary while the loader filled another, which fails silently as
+        // "every column shows its raw variable name".
+        services.TryAddSingleton(static _ => CaptionDictionary.WithQuickStatDefaults());
+        services.TryAddSingleton<ITitleDictionary>(static provider => provider.GetRequiredService<CaptionDictionary>());
+
+        services.TryAddSingleton<ICaptionRepository, CaptionRepository>();
+        services.TryAddSingleton<ICaptionLoader, CaptionLoader>();
+
         services.TryAddSingleton<PersonMatrix>();
 
         return services;
