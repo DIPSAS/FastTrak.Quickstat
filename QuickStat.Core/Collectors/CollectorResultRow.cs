@@ -67,10 +67,26 @@ public readonly record struct CollectorResultRow
     /// Optional <c>Caption</c> column; <see langword="null"/> when absent.
     /// </summary>
     /// <remarks>
-    /// Where free-text form answers and ATC names arrive. A datapoint with a caption is drawn
-    /// left-aligned and displays the caption truncated to six characters instead of the numeric
-    /// value - but the CSV export still writes the raw number
-    /// (<c>Docs/Port/04-matrix-export.md</c> §5.2).
+    /// <para>
+    /// Where free-text form answers and ATC names arrive, and it is not merely cosmetic: a non-empty
+    /// caption is written to the file <em>instead of</em> the number, in both the CSV and the xlsx
+    /// writer. The grid draws it left-aligned and truncated to six characters; the export writes it
+    /// in full.
+    /// </para>
+    /// <para>
+    /// That is the point of <c>8486b3d09</c> (2022-05-06, "#489525: QuickStat skal kunne vise og
+    /// eksportere tekstdata fra skjema"), the same commit that gave
+    /// <c>SpSnapshotFormDataAll</c> its <c>dp.TextVal AS Caption</c> column, and it is how free-text
+    /// form answers reach a file at all. <c>TPersonGridData.GetCellText</c> tests the caption first
+    /// (<c>EPR.QA.Matrix.pas:242-246</c> on <c>origin/tarmscreening/develop</c>). The commit is on
+    /// <b>both</b> tarmscreening refs, so the behaviour does not depend on how R12 was decided.
+    /// </para>
+    /// <para>
+    /// <c>Docs/Port/04-matrix-export.md</c> §5.2 says the raw number always wins. It was written
+    /// against this repository's <c>develop_old</c> copy, which predates the feature, and is the
+    /// parity-baseline error PORT-PLAN.md R11 warns about. An earlier revision of this remark
+    /// repeated it; do not restore it.
+    /// </para>
     /// </remarks>
     public string? Caption { get; init; }
 

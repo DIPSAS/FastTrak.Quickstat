@@ -160,10 +160,17 @@ public static class QaSql
     /// pre-existing production behaviour, not a port regression.
     /// </para>
     /// <para>
-    /// The <c>, dp.RowId DESC</c> tie-breaker is <em>added</em> by the port (PORT-PLAN.md §8.5,
-    /// <c>Docs/Port/03-collectors.md</c> §F.3): the upstream window function orders by
-    /// <c>ce.EventNum DESC</c> alone, so which row wins among same-event duplicates is arbitrary and
-    /// reruns can disagree. This is the only deviation from the upstream text in this method.
+    /// The <c>, dp.RowId DESC</c> tie-breaker is <em>added</em> by the port and is the only
+    /// deviation from the upstream text in this method. PORT-PLAN.md §8.5 settles taking
+    /// <c>RANK</c> to <c>ROW_NUMBER</c> "with a deterministic tie-breaker", and
+    /// <c>Docs/Port/03-collectors.md</c> §F.3 spells that tie-breaker out - but §F.3's diff covers
+    /// <c>SpSnapshotFormDataNumeric</c>, which feeds <c>TFormDataNumericCollector</c>, a class
+    /// nothing instantiates. Applying it only there would have been the literal reading and the
+    /// wrong one: <c>ROW_NUMBER</c> with no tie-breaker picks arbitrarily among rows that share an
+    /// <c>EventNum</c>, so two runs of the <em>live</em> collector can put different values in a
+    /// cell and Phase 5's golden files would not be stable. Determinism is the entire point of the
+    /// §8.5 decision, so it is applied where it can actually be observed. Five characters of
+    /// divergence buys a reproducible export.
     /// </para>
     /// </remarks>
     public static string SnapshotFormDataAll(string formName) =>
