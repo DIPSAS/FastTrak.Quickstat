@@ -249,6 +249,9 @@ packages/
 !/QuickStat.Core/Domain/Packages/
 !/QuickStat.Tests/Domain/Packages/
 
+# Agent worktrees created inside the repo during the port.  Transient; never committed.
+/.claude/worktrees/
+
 # Test and coverage output
 [Tt]est[Rr]esult*/
 *.trx
