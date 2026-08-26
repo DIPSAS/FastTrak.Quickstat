@@ -1,20 +1,23 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0, 1 and 2 complete. Resume at Phase 3 (six parallel UI agents).**
+Status: **in implementation — Phases 0, 1 and 2 complete. Phase 3 in progress (two waves; see §5).**
 Branch: `feature/dotnet`
 Last updated: 2026-08-26
 
 > **Resume here.** Phases 0, 1 and 2 have all landed, each verified independently rather than on the
 > implementing agent's report: from-scratch Debug and Release builds with zero warnings,
-> **1554 tests passing**, `QuickStat.exe` at x64, launches from a foreign working directory with the
+> **1566 tests passing**, `QuickStat.exe` at x64, launches from a foreign working directory with the
 > full DI graph and exits 0 through the real `OnExit`, `LOGS\` created beside the exe.
 >
 > **`QuickStat.Core` is now functionally complete.** All seven Phase 2 steps are merged. The
 > composition root in `QuickStat.App/App.xaml.cs` calls the seven `AddQuickStat*` extension methods;
 > every one registers with `TryAdd`, so order does not matter and a later `Replace` wins.
 >
-> **Phase 3 must read `Docs/Port/06-contracts.md`** for the type surface, and `Docs/Port/05-ui-spec.md`
-> for the window layout. Two things Phase 3 owns that Phase 2 deliberately left as seams:
+> **Phase 3 must read `Docs/Port/06-contracts.md`** for the type surface, `Docs/Port/05-ui-spec.md`
+> for the window layout, and — from wave 2 onward — `Docs/Port/07-ui-contracts.md`, which step 3.1
+> writes as the UI ownership map. §5 explains why the six steps run in two waves and lists the WPF
+> testing facts that were measured rather than assumed. Two things Phase 3 owns that Phase 2
+> deliberately left as seams:
 > - **`IUserNotificationPresenter`** — implement it and install with
 >   `services.Replace(ServiceDescriptor.Singleton<IUserNotificationPresenter, WpfNotificationPresenter>())`.
 >   Do **not** reimplement `IUserNotifier`: severity mapping, PII redaction and the never-fail-open
@@ -225,9 +228,12 @@ The Delphi source remains the final authority while it is still in the tree.
 
 ### 2.2 Repository state
 
-- **Nothing on this branch is pushed.** `origin` (`github.com/DIPSAS/FastTrak.Quickstat`) has exactly
-  one branch, `main` @ `ad80437`. `feature/dotnet` is local-only, and that includes `5502b72` — the
-  KORTTID fix is *not* published from here. Push before relying on any of it surviving this machine.
+- **Everything from Phase 1 onward is unpushed.** `origin`
+  (`github.com/DIPSAS/FastTrak.Quickstat`) carries `main` and `feature/dotnet`, the latter at
+  `7518e36` — the plan, the five reference analyses and the Phase 0 skeleton, including `5502b72`.
+  Phases 1 and 2 are **33 commits and 262 files** ahead of that and exist only on this machine. The
+  remote tip is an ancestor of the local branch, so publishing is a fast-forward with nothing to
+  reconcile. Push before relying on any of it surviving this machine.
 - **The KORTTID fix has a twin.** `FastTrakApps/App.QuickStat` carries the identical change on
   `feature/739506_GBD_utvalet_i_Korttid`, which is that repo's currently checked-out branch. The two
   agree; see §10.4 for why the *totals* still differ between the trees.
@@ -391,16 +397,59 @@ Three contract details that are easy to lose and change what the user sees:
   `' (høyeste)'` for max collectors, and `TLabSetCollector` wraps as `'Labdata: %s (siste)'` **only
   when the title contains no colon**. Centralise these rules in one place.
 
-### Phase 3 — User interface  *(parallel; six agents; needs Phase 1, and Phase 2 for live data)*
+### Phase 3 — User interface  *(six agents in two waves; needs Phase 1, and Phase 2 for live data)*
 
-| Step | Scope | Owns |
-|---|---|---|
-| 3.1 | Theme: resource dictionary, brushes, typography, control styles, shell window with banner + progress + splitter | `QuickStat.App/Theme/**`, `QuickStat.App/Views/ShellView.xaml{,.cs}` |
-| 3.2 | Population tab | `QuickStat.App/Views/PopulationView.*`, `QuickStat.App/ViewModels/PopulationViewModel.cs` |
-| 3.3 | Collections tab (data elements, Collect data, export options) | `QuickStat.App/Views/CollectionsView.*`, `.../CollectionsViewModel.cs` |
-| 3.4 | Packages tab | `QuickStat.App/Views/PackagesView.*`, `.../PackagesViewModel.cs` |
-| 3.5 | Dataset grid control | `QuickStat.App/Controls/MatrixGrid/**` |
-| 3.6 | Save-specification dialog, period dialog, busy/progress overlay | `QuickStat.App/Views/Dialogs/**` |
+Still six steps, but **sequenced into two waves rather than run as one flat fan-out.** Phase 2 was
+safely parallel because Phase 1 had already fixed every shared type; Phase 3 has no equivalent, and
+six agents writing views, view-models, a theme and a shell would have had to invent the same seams
+independently — brush keys, converters, the section-header control, the cross-tab state, and who
+owns `App.xaml`. Step 3.1 is therefore promoted to "Phase 1 of the UI": it writes the theme, the
+shell and the shared contracts, and it creates every other step's view and view-model as a
+compiling stub, which that step then owns and fills in. That is the same handover that made Phase 2
+work, and it means the application runs and shows real chrome at the end of wave 1.
+
+| Wave | Step | Scope | Owns |
+|---|---|---|---|
+| 1 | 3.1 | Theme, shell, banner + progress, **Dataset tab**, shared contracts, and the stub views/view-models the other steps inherit | `QuickStat.App/Theme/**`, `Converters/**`, `Services/**`, `ViewModels/**`, `Views/**` (all created here), `MainWindow.xaml{,.cs}`, `App.xaml{,.cs}`, `Docs/Port/07-ui-contracts.md` |
+| 1 | 3.5 | Dataset grid control only — the virtualised renderer, scrolling, hit-testing, tooltips, automation peer | `QuickStat.App/Controls/Dataset/**` |
+| 2 | 3.2 | Population tab + embedded population picker | `Views/PopulationTabView.*`, `Views/PopulationPickerView.*`, `ViewModels/Population*ViewModel.cs` |
+| 2 | 3.3 | Collections tab: data elements, **the collect run**, export options | `Views/CollectionsTabView.*`, `ViewModels/CollectionsTabViewModel.cs` |
+| 2 | 3.4 | Packages tab, including the package replay | `Views/PackagesTabView.*`, `ViewModels/Packages*ViewModel.cs` |
+| 2 | 3.6 | Save-specification dialog, period dialog, busy overlay, and the two WPF seams Phase 2 left | `Views/Dialogs/**`, `Services/Wpf*Prompt.cs`, `Services/WpfNotificationPresenter.cs` |
+
+Three corrections to the earlier version of this table, each found while preparing the phase:
+
+- **The Dataset tab had no owner.** 3.5 was scoped as "dataset grid control" and 3.1 as "shell", so
+  §C.1 — the caption bar, *Wide columns*, the floating hint panel, the grid context menu and *Show
+  data hint* — belonged to neither. It goes to **3.1**, which already owns the shared workspace the
+  tab reads. 3.5 keeps only the control, which is the hard part (R5).
+- **`Controls/MatrixGrid/` is renamed `Controls/Dataset/`.** `IDE0130` forces namespace to follow
+  folder, so the old name would have produced `QuickStat.Controls.MatrixGrid.MatrixGrid` — a type
+  whose name equals its own namespace's last segment, which is legal but resolves ambiguously from
+  C# (`CS0118`) for every later consumer.
+- **`App.xaml{,.cs}` is 3.1's**, because it is alone in wave 1 and the theme has to be merged into
+  `Application.Resources` somewhere. Wave-2 steps each write their own `AddQuickStat*` extension
+  method in a file they own, exactly as in Phase 2, and the composition root is wired at merge.
+
+Two contract files are written **before** wave 1 starts, because they are the one seam that crosses
+the two wave-1 agents: `QuickStat.App/Controls/Dataset/MatrixGrid.cs` (dependency properties,
+`CellActivated`, `Refresh`, `TryGetCellBounds`) and `MatrixGridCellEventArgs.cs`. 3.1 binds to that
+surface; 3.5 owns the files and implements them, and may add members but must not rename or remove
+one.
+
+**WPF testing facts, established by experiment on this machine rather than assumed:**
+
+- The xUnit v2 / VSTest thread is **MTA**. `new Window()` and `FrameworkElement.Measure` both throw
+  `InvalidOperationException: The calling thread must be STA`. Use
+  `QuickStat.Tests/Ui/StaTestRunner.cs` — shared, read-only, and proved by its own twelve tests.
+- **`FormattedText` works on the MTA test thread.** Text metrics need no ceremony; reach for the STA
+  helper only for things that genuinely require an apartment.
+- **`Application.Current` is `null` under test**, and WPF allows exactly one `Application` per
+  `AppDomain` — so the helper deliberately creates none, and production code must never dereference
+  `Application.Current` without a null check.
+- Many STA threads per process are fine, so tests stay independent.
+- This machine's culture is **nb-NO**; a display-format assertion written without an explicit culture
+  passes here and fails on an English build agent. Same rule as Phase 2.
 
 Grid rendering: build a **virtualised custom control** (`FrameworkElement` + `IScrollInfo`,
 `OnRender` with cached brushes and `FormattedText`, frozen leading columns via transforms).
