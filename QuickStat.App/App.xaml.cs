@@ -4,6 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using QuickStat.Collectors;
+using QuickStat.Configuration;
+using QuickStat.Data;
+using QuickStat.Diagnostics;
+using QuickStat.Domain.Matrix;
+using QuickStat.Domain.Populations;
+using QuickStat.Export;
 using QuickStat.Logging;
 
 namespace QuickStat;
@@ -38,29 +45,24 @@ public partial class App : Application
         // --- Phase 0: skeleton -----------------------------------------------------------
         services.AddSingleton<MainWindow>();
 
-        // --- Phase 2.1: configuration + connection strings -------------------------------
-        // (QuickStat.Configuration)
-
-        // --- Phase 2.2: SQL execution + login pipeline -----------------------------------
-        // (QuickStat.Data)
-
-        // --- Phase 2.3: populations + patients + packaged selections ---------------------
-        // (QuickStat.Domain.Populations, QuickStat.Domain.Patients, QuickStat.Domain.Packages)
-
-        // --- Phase 2.4: collector framework + registry -----------------------------------
-        // (QuickStat.Collectors)
-
-        // --- Phase 2.5: matrix, datapoints, cell colouring -------------------------------
-        // (QuickStat.Domain.Matrix, QuickStat.Domain.DataPoints)
-
-        // --- Phase 2.6: anonymisation + CSV/xlsx export ----------------------------------
-        // (QuickStat.Domain.Anonymisation, QuickStat.Export)
-
-        // --- Phase 2.7: settings store + notification service ----------------------------
-        // (QuickStat.Configuration.Settings, QuickStat.Diagnostics)
+        // Each Phase 2 step contributes one extension method from a folder it owned, so seven
+        // parallel agents never had to edit this file. Every one of them registers with TryAdd,
+        // so the order below does not matter and a later Replace wins.
+        services.AddQuickStatConfiguration();   // 2.1  config file, UDL, OLE DB -> ADO.NET
+        services.AddQuickStatData();            // 2.2  SQL execution, login pipeline
+        services.AddQuickStatDomain();          // 2.3  populations, patients, packages
+        services.AddQuickStatCollectors();      // 2.4  collector framework + registry
+        services.AddQuickStatMatrix();          // 2.5  matrix, datapoints, colouring
+        services.AddQuickStatExport();          // 2.6  anonymisation, CSV/xlsx export
+        services.AddQuickStatDiagnostics();     // 2.7  settings store, user notifier
 
         // --- Phase 3: views and view models ----------------------------------------------
         // (QuickStat.Views, QuickStat.ViewModels)
+        //
+        // Phase 3 also replaces the headless notification presenter with the WPF one:
+        //   services.Replace(ServiceDescriptor.Singleton<IUserNotificationPresenter, WpfNotificationPresenter>());
+        // IUserNotifier itself is not reimplemented - severity mapping, PII redaction and the
+        // never-fail-open rule stay in QuickStat.Core.
     }
 
     /// <inheritdoc />
@@ -121,22 +123,61 @@ public partial class App : Application
 
         if (_host is not null)
         {
-            try
+            // Both of these run on the thread pool rather than inline. This is the WPF UI thread
+            // and its dispatcher is shutting down, so a continuation that captures the
+            // synchronisation context would deadlock rather than fail - a hang on exit, which is
+            // worse than a crash because it leaves the process holding the SQL connection.
+            RunOnPool(() => _host.StopAsync(TimeSpan.FromSeconds(5)), "Host did not stop cleanly.");
+
+            // Dispose asynchronously when the host supports it. ServiceProvider.Dispose() throws
+            // InvalidOperationException for any singleton implementing ONLY IAsyncDisposable, so
+            // the synchronous path turns every clean exit into a crash as soon as such a service
+            // is registered - and QuickStat.Core registers several. Found by step 2.2's DI test.
+            if (_host is IAsyncDisposable asyncDisposable)
             {
-                _host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+                RunOnPool(() => asyncDisposable.DisposeAsync().AsTask(), "Host did not dispose cleanly.");
             }
-            catch (Exception ex)
+            else
             {
-                _logger?.LogError(ex, "Host did not stop cleanly.");
+                try
+                {
+                    _host.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Host did not dispose cleanly.");
+                }
             }
 
-            _host.Dispose();
             _host = null;
         }
 
         _logger = null;
 
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Runs a shutdown step on the thread pool with a hard ceiling, logging rather than throwing.
+    /// </summary>
+    /// <remarks>
+    /// Nothing during shutdown may propagate: an exception out of <see cref="OnExit"/> replaces a
+    /// clean exit with a crash dialog after the user has already closed the window. The timeout is
+    /// a backstop for a step that never completes at all.
+    /// </remarks>
+    private void RunOnPool(Func<Task> step, string failureMessage)
+    {
+        try
+        {
+            if (!Task.Run(step).Wait(TimeSpan.FromSeconds(10)))
+            {
+                _logger?.LogError("{FailureMessage} It timed out.", failureMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "{FailureMessage}", failureMessage);
+        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

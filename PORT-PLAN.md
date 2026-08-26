@@ -1,18 +1,40 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0–1 complete. Resume at Phase 2 (seven parallel agents).**
+Status: **in implementation — Phases 0, 1 and 2 complete. Resume at Phase 3 (six parallel UI agents).**
 Branch: `feature/dotnet`
 Last updated: 2026-08-26
 
-> **Resume here.** Phase 0 (`3b1f8c0`) and Phase 1 (contracts) have both landed, each verified
-> independently rather than on the implementing agent's report: from-scratch Debug and Release builds
-> with zero warnings, `dotnet test` 4/4 in both, `QuickStat.exe` at x64, launches with a foreign
-> working directory and exits 0, `LOGS\` created beside the exe.
+> **Resume here.** Phases 0, 1 and 2 have all landed, each verified independently rather than on the
+> implementing agent's report: from-scratch Debug and Release builds with zero warnings,
+> **1554 tests passing**, `QuickStat.exe` at x64, launches from a foreign working directory with the
+> full DI graph and exits 0 through the real `OnExit`, `LOGS\` created beside the exe.
 >
-> **Phase 1 produced 79 contract files under `QuickStat.Core/`. Before writing anything, read
-> `Docs/Port/06-contracts.md`** — it maps every file to its single Phase 2 owner, and that map was
-> mechanically checked: 79 files on disk, 79 in the map, no file with two owners. A Phase 2 agent
-> changes a contract **only** in a file it owns; anything else is reported, not edited.
+> **`QuickStat.Core` is now functionally complete.** All seven Phase 2 steps are merged. The
+> composition root in `QuickStat.App/App.xaml.cs` calls the seven `AddQuickStat*` extension methods;
+> every one registers with `TryAdd`, so order does not matter and a later `Replace` wins.
+>
+> **Phase 3 must read `Docs/Port/06-contracts.md`** for the type surface, and `Docs/Port/05-ui-spec.md`
+> for the window layout. Two things Phase 3 owns that Phase 2 deliberately left as seams:
+> - **`IUserNotificationPresenter`** — implement it and install with
+>   `services.Replace(ServiceDescriptor.Singleton<IUserNotificationPresenter, WpfNotificationPresenter>())`.
+>   Do **not** reimplement `IUserNotifier`: severity mapping, PII redaction and the never-fail-open
+>   rule live in `QuickStat.Core` and are enforced by tests, including one asserting `UserNotifier`
+>   is the only non-abstract `IUserNotifier` in the assembly.
+> - **`IPeriodPrompt`** — shows a window, so step 2.3 declared it but did not register it.
+>
+> Things established during Phase 2 that later phases depend on:
+> - **`ServiceProvider.Dispose()` throws for a singleton implementing only `IAsyncDisposable`.**
+>   `OnExit` therefore disposes asynchronously, on the thread pool, with a 10 s ceiling. Registering
+>   an async-only disposable is safe now; disposing the host synchronously is not.
+> - **Every test must be culture-independent.** The whole suite was swept under a forced `en-US`
+>   ambient culture and passes; a display-format assertion that depends on the machine's decimal
+>   comma will pass here and fail on a build agent.
+> - **`ICollectorResultSink.CreateVariableNameSet()`** is a default interface member. The sink, not
+>   the runner, decides column order — `PersonMatrix.ColumnOrder` was otherwise a property nobody
+>   read, and setting it to `Alphabetical` silently did nothing.
+> - Library source for Phase 4 is still the pinned worktree. Note
+>   **`EPR.QA.Collector.Names.pas` is the only Windows-1252 file** under `EPR\QA\`; every other unit
+>   is UTF-8 with BOM, and converting the wrong one produces plausible-looking mojibake.
 >
 > Things established during Phase 1 that later steps depend on:
 > - Study-gate regexes are frozen verbatim in `Collectors/StudyGatePatterns.cs`, including `KORTTID`
@@ -571,6 +593,31 @@ Not blocking; each has a working default so implementation can proceed.
    Norwegian. Default: keep that split exactly.
 7. **Deployment.** Default: framework-dependent x64, matching today's xcopy deployment into
    `.\bin`. Self-contained single-file is a one-line change if preferred.
+
+### 8.8 Surfaced during Phase 2 — implemented as stated, each reversible
+
+Every one of these is a place where a Phase 2 step had to choose and the plan did not say. All are
+implemented, tested and cheap to reverse; none blocks Phase 3. The first three change behaviour a
+customer could notice, so they are the ones worth a human decision.
+
+| # | Decision | Chosen | Reversal cost |
+|---|---|---|---|
+| a | Connection string with no `Initial Catalog` | **Rejected at translation.** The Delphi would have connected and used the login's default database | One line in `OleDbConnectionStringTranslator` |
+| b | `TrustServerCertificate` when `Encrypt=True` is set **explicitly** | **Still injected**, per §8.2's wording. This silently weakens a deliberately requested verified TLS — §8.2's rationale was about strings carrying *no* encryption settings | One condition |
+| c | `DatabaseVersionTooOldException` | **Now actually fires.** In the Delphi the check raises inside the `try..except` that sets `DbVersion := -1`, so it has never once reached a user. A customer on a pre-510 schema now sees an error instead of a silent fallback | Move the check back inside the guard |
+| d | Unknown date of birth in an identified export | **Empty field.** The Delphi wrote its `TDate` zero sentinel as `30.12.1899`, i.e. a false date of birth in a clinical export. 2.5 and 2.6 chose empty independently and now agree by construction | One line, byte-test pinned |
+| e | Empty population | **Header row only.** The Delphi wrote a phantom `"nil";"nil";…` row | One line |
+| f | xlsx shading for cells with no datapoint | **Not shaded.** Materialising `EmptyCell` for every hole would blow up a sparse matrix whose documented worst case is 1500 × 1000. The screen shades them; the workbook does not | — |
+| g | `ROW_NUMBER` tie-breaker on the **live** `SpSnapshotFormDataAll` | **Applied.** §F.3's diff only covered the dead `SpSnapshotFormDataNumeric`, but `ROW_NUMBER` without a tie-breaker is non-deterministic across ties, which would destabilise exports *and* Phase 5's golden files. Five characters of divergence from upstream text | One line |
+| h | Settings file location | `<exedir>\Settings\QuickStat.ini` **if it already exists**, else `%APPDATA%\DIPS\QuickStat\`. Portable mode cannot happen by accident | — |
+| i | `Population.Matches` culture (`nb-NO` vs invariant for `Ø`/`ø`) | **Deferred to Phase 3.2**, which owns the filter box | Open |
+
+Also recorded, not decisions: `03-collectors.md` §B.7's kidney ordinals were one too high and are
+corrected (the Delphi enum member is `lFibrinogen`, not `ltFibrinogen`, so any `lt`-prefix filter
+drops it and shifts every later ordinal); `01-data-access.md` §3.1 lists nine SQL privilege error
+numbers where the Delphi has seven; `04-matrix-export.md` §5.2 describes `develop_old` — a non-empty
+`DataPoint.Caption` exports as text, in full, on **both** tarmscreening refs (`8486b3d09`), so that
+behaviour does not depend on R12.
 
 ---
 
