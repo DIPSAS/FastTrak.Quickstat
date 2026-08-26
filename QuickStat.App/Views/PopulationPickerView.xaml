@@ -1,0 +1,105 @@
+<UserControl x:Class="QuickStat.Views.PopulationPickerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:QuickStat.Converters"
+             xmlns:vm="clr-namespace:QuickStat.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:PopulationPickerViewModel}">
+
+    <!--
+        OWNER: step 3.2.  A layout skeleton written by step 3.1 so the shell lays out; the row
+        template, the filter, the SQL preview gate and the double-click command are all still to do.
+        See PopulationPickerViewModel for the list, and 05-ui-spec.md §B.1.1 for the detail.
+    -->
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="120" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Margin="0,0,0,2" Text="Filter / search text" />
+
+        <TextBox Grid.Row="1"
+                 Style="{StaticResource QsFlatTextBox}"
+                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+
+        <Grid Grid.Row="2" Height="28">
+            <CheckBox VerticalAlignment="Center"
+                      Content="Frequently used only"
+                      IsChecked="{Binding FrequentlyUsedOnly, Mode=TwoWay}"
+                      IsEnabled="{Binding CanFilterFrequentlyUsed}" />
+
+            <!-- Caption to the LEFT of the box; see DatasetTabView for why FlowDirection is paired. -->
+            <CheckBox HorizontalAlignment="Right"
+                      VerticalAlignment="Center"
+                      FlowDirection="RightToLeft"
+                      FontSize="{StaticResource QsSmallFontSize}"
+                      IsChecked="{Binding Simplified, Mode=TwoWay}">
+                <TextBlock FlowDirection="LeftToRight" Text="Simplified" />
+            </CheckBox>
+        </Grid>
+
+        <ListBox Grid.Row="3"
+                 AlternationCount="2"
+                 BorderBrush="{StaticResource QsBorderBrush}"
+                 BorderThickness="1"
+                 HorizontalContentAlignment="Stretch"
+                 ItemContainerStyle="{StaticResource QsPopulationItem}"
+                 ItemsSource="{Binding Populations}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 SelectedItem="{Binding SelectedPopulation, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:PopulationViewModel}">
+                    <!-- TODO 3.2: three runs, expansion, ellipsis - §B.1.1. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" MinWidth="32" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Foreground="{StaticResource QsCodeBrush}"
+                                   Text="{Binding ProcId}" />
+                        <TextBlock Grid.Column="1"
+                                   Margin="6,0"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding Title}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2"
+                                   FontSize="{StaticResource QsSmallFontSize}"
+                                   Foreground="{StaticResource QsCategoryBrush}"
+                                   Text="{Binding Group}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <GridSplitter Grid.Row="4"
+                      Height="9"
+                      HorizontalAlignment="Stretch"
+                      Background="{StaticResource QsPageBrush}"
+                      ResizeBehavior="PreviousAndNext" />
+
+        <TextBox Grid.Row="5"
+                 Height="120"
+                 AcceptsReturn="True"
+                 BorderBrush="{StaticResource QsBorderBrush}"
+                 BorderThickness="1"
+                 FontFamily="{StaticResource QsCodeFontFamily}"
+                 FontSize="{StaticResource QsSmallFontSize}"
+                 HorizontalScrollBarVisibility="Auto"
+                 IsReadOnly="True"
+                 Text="{Binding SqlPreview, Mode=OneWay}"
+                 TextWrapping="NoWrap"
+                 VerticalScrollBarVisibility="Auto"
+                 Visibility="{Binding IsSqlPreviewVisible, Converter={conv:BoolToVisibilityConverter}}" />
+    </Grid>
+</UserControl>

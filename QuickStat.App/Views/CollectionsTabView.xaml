@@ -1,0 +1,87 @@
+<UserControl x:Class="QuickStat.Views.CollectionsTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:anon="clr-namespace:QuickStat.Domain.Anonymisation;assembly=QuickStat.Core"
+             xmlns:conv="clr-namespace:QuickStat.Converters"
+             xmlns:q="clr-namespace:QuickStat.Controls"
+             xmlns:theme="clr-namespace:QuickStat.Theme"
+             xmlns:vm="clr-namespace:QuickStat.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:CollectionsTabViewModel}">
+
+    <!--
+        OWNER: step 3.3.  Layout skeleton by step 3.1; 05-ui-spec.md §B.2.
+
+        The radio group and the timestamp box are wired to their real, shared homes already -
+        IIdentificationPolicy and IShellWorkspace - because a second copy of either is a privacy or
+        a data-format defect rather than a layout detail.  Everything else is still to do; see
+        CollectionsTabViewModel.
+    -->
+
+    <DockPanel Margin="4">
+        <q:SectionHeader DockPanel.Dock="Top" Margin="3" Header="Select data elements" />
+
+        <TextBlock DockPanel.Dock="Top"
+                   Margin="6,0,6,6"
+                   LineHeight="17"
+                   Text="{x:Static vm:CollectionsTabViewModel.InfoParagraph}"
+                   TextWrapping="Wrap" />
+
+        <StackPanel DockPanel.Dock="Bottom" Margin="3,0,3,3">
+            <q:SectionHeader Margin="0,3" Header="Export options" />
+
+            <RadioButton Margin="0,3"
+                         Content="Fully identified patients"
+                         GroupName="Identification"
+                         IsChecked="{Binding Identification, Converter={conv:EnumToBooleanConverter}, ConverterParameter={x:Static anon:PersonIdentification.Full}}" />
+
+            <RadioButton Margin="0,3"
+                         Content="Identified with PID only"
+                         GroupName="Identification"
+                         IsChecked="{Binding Identification, Converter={conv:EnumToBooleanConverter}, ConverterParameter={x:Static anon:PersonIdentification.PersonIdOnly}}" />
+
+            <!-- The .dfm caption has a trailing space; §B.2 says to drop it. -->
+            <RadioButton Margin="0,3"
+                         Content="Generate new random PIDs"
+                         GroupName="Identification"
+                         IsChecked="{Binding Identification, Converter={conv:EnumToBooleanConverter}, ConverterParameter={x:Static anon:PersonIdentification.RandomPersonId}}" />
+
+            <CheckBox Margin="0,8"
+                      Content="Export timestamp for every data element"
+                      IsChecked="{Binding ExportTimestamps, Mode=TwoWay}" />
+        </StackPanel>
+
+        <Button DockPanel.Dock="Bottom"
+                Margin="3"
+                Style="{StaticResource QsPrimaryButton}"
+                Command="{Binding CollectDataCommand}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource QsIconGlyph}"
+                           Margin="0,0,8,0"
+                           FontSize="20"
+                           Text="{x:Static theme:SegoeIcons.Collect}" />
+                <TextBlock VerticalAlignment="Center" Text="Collect data" />
+            </StackPanel>
+        </Button>
+
+        <ListBox Margin="3,0,3,3"
+                 BorderBrush="{StaticResource QsBorderBrush}"
+                 BorderThickness="1"
+                 HorizontalContentAlignment="Stretch"
+                 ItemContainerStyle="{StaticResource QsCheckListItem}"
+                 ItemsSource="{Binding DataElements}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:DataElementViewModel}">
+                    <!--
+                        TODO 3.3: highlight DataElementViewModel.IsCollecting during a run (§G.4),
+                        without moving SelectedItem, and restore the scroll offset afterwards.
+                    -->
+                    <CheckBox Content="{Binding Title}" IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,91 @@
+<UserControl x:Class="QuickStat.Views.PackagesTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:q="clr-namespace:QuickStat.Controls"
+             xmlns:theme="clr-namespace:QuickStat.Theme"
+             xmlns:vm="clr-namespace:QuickStat.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:PackagesTabViewModel}">
+
+    <!--
+        OWNER: step 3.4.  Layout skeleton by step 3.1; 05-ui-spec.md §B.3, §D.3.
+        The teal header says "Packaged datasets", not "Packages" - that is only the tab caption.
+    -->
+
+    <DockPanel Margin="4">
+        <q:SectionHeader DockPanel.Dock="Top" Margin="3" Header="Packaged datasets" />
+
+        <TextBox DockPanel.Dock="Top"
+                 Margin="3,0,3,3"
+                 Style="{StaticResource QsFlatTextBox}"
+                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+
+        <StackPanel DockPanel.Dock="Top" Margin="3,0,3,3" Orientation="Horizontal">
+            <Button Style="{StaticResource QsToolButton}"
+                    Command="{Binding DeletePackageCommand}"
+                    ToolTip="Delete this package">
+                <TextBlock Style="{StaticResource QsIconGlyph}" Text="{x:Static theme:SegoeIcons.Delete}" />
+            </Button>
+        </StackPanel>
+
+        <ListBox Margin="3,0,3,3"
+                 BorderBrush="{StaticResource QsBorderBrush}"
+                 BorderThickness="1"
+                 HorizontalContentAlignment="Stretch"
+                 ItemContainerStyle="{StaticResource QsPackageItem}"
+                 ItemsSource="{Binding Packages}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 SelectedItem="{Binding SelectedPackage, Mode=TwoWay}">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Command="{Binding PlacementTarget.DataContext.DeletePackageCommand,
+                                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              Header="Delete this package">
+                        <MenuItem.Icon>
+                            <TextBlock Style="{StaticResource QsIconGlyph}"
+                                       Text="{x:Static theme:SegoeIcons.Delete}" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:PackageViewModel}">
+                    <!-- TODO 3.4: two-line row, word-wrapped comment, divider - §B.3. -->
+                    <StackPanel Margin="0,2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" MinWidth="32" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Foreground="{StaticResource QsCodeBrush}"
+                                       Text="{Binding RowId}" />
+                            <TextBlock Grid.Column="1"
+                                       Margin="6,0"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding Title}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="2"
+                                       FontSize="{StaticResource QsSmallFontSize}"
+                                       Foreground="{StaticResource QsCategoryBrush}"
+                                       Text="{Binding PopulationLabel}" />
+                        </Grid>
+
+                        <TextBlock Foreground="{StaticResource QsTitleBrush}"
+                                   Text="{Binding Comment}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+
+            <ListBox.InputBindings>
+                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenPackageCommand}" />
+            </ListBox.InputBindings>
+        </ListBox>
+    </DockPanel>
+</UserControl>

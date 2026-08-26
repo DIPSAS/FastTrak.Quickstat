@@ -1,0 +1,43 @@
+<UserControl x:Class="QuickStat.Views.Dialogs.BusyOverlayView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:QuickStat.Converters"
+             xmlns:vm="clr-namespace:QuickStat.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:BusyOverlayViewModel}"
+             Visibility="{Binding IsBusy, Converter={conv:BoolToVisibilityConverter}}">
+
+    <!--
+        OWNER: step 3.6.  A placeholder by step 3.1 - it appears and disappears at the right times
+        and says the right thing, and that is all.  Left to do: the visual, and a cancel affordance
+        for the operations that take a CancellationToken.
+
+        Background is deliberately a colour and not Transparent: a Transparent brush still hit-tests,
+        which is what makes the overlay block input to the window underneath - but an invisible
+        blocker is indistinguishable from a hang.  Dimming says "wait" out loud.
+    -->
+
+    <Border Background="#66FFFFFF">
+        <Border MaxWidth="360"
+                Padding="24,16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{StaticResource QsSurfaceBrush}"
+                BorderBrush="{StaticResource QsBorderBrush}"
+                BorderThickness="1">
+            <StackPanel>
+                <TextBlock HorizontalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="{Binding Message}"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="Wrap" />
+                <ProgressBar Width="240"
+                             Margin="0,12,0,0"
+                             Style="{StaticResource QsProgressBar}"
+                             IsIndeterminate="True" />
+            </StackPanel>
+        </Border>
+    </Border>
+</UserControl>

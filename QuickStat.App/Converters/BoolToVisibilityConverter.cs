@@ -12,7 +12,7 @@ namespace QuickStat.Converters;
 /// <remarks>
 /// <para>
 /// <c>05-ui-spec.md</c> §H.1 lists <c>BoolToVisibility</c> as one of the three converters the port
-/// needs. The framework's <see cref="BooleanToVisibilityConverter"/> would do for the common case,
+/// needs. The framework's <see cref="System.Windows.Controls.BooleanToVisibilityConverter"/> would do for the common case,
 /// but not for the <c>Collections</c> tab (§B.0), which must be <see cref="Visibility.Collapsed"/>
 /// - not <see cref="Visibility.Hidden"/> - until a population is loaded, and not for the places
 /// where the flag reads the other way round.

@@ -12,6 +12,7 @@ using QuickStat.Domain.Matrix;
 using QuickStat.Domain.Populations;
 using QuickStat.Export;
 using QuickStat.Logging;
+using QuickStat.Services;
 
 namespace QuickStat;
 
@@ -59,10 +60,17 @@ public partial class App : Application
         // --- Phase 3: views and view models ----------------------------------------------
         // (QuickStat.Views, QuickStat.ViewModels)
         //
-        // Phase 3 also replaces the headless notification presenter with the WPF one:
-        //   services.Replace(ServiceDescriptor.Singleton<IUserNotificationPresenter, WpfNotificationPresenter>());
-        // IUserNotifier itself is not reimplemented - severity mapping, PII redaction and the
-        // never-fail-open rule stay in QuickStat.Core.
+        // Same shape as Phase 2: one AddQuickStat* extension per step, in a file that step owns, so
+        // no two agents edit these lines.  Wave 2 (steps 3.2, 3.3, 3.4, 3.6) adds its own below.
+        //
+        // AddQuickStatShell also installs the two WPF seams Phase 2 left open:
+        //   IUserNotificationPresenter -> WpfNotificationPresenter, through Replace, because
+        //     AddQuickStatDiagnostics has already TryAdd-ed the headless default.  IUserNotifier
+        //     itself is NOT reimplemented - severity mapping, PII redaction and the never-fail-open
+        //     rule stay in QuickStat.Core.
+        //   IPeriodPrompt -> WpfPeriodPrompt, which step 2.3 declared and deliberately left
+        //     unregistered because it shows a window.
+        services.AddQuickStatShell();       // 3.1  theme, shell, dataset tab, shared contracts
     }
 
     /// <inheritdoc />
