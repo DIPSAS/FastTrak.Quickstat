@@ -1,17 +1,28 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0–3 complete; Phase 4's collector half complete (126 → 131).
-Resume at Phase 4's remaining item, the national-ID export.**
+Status: **in implementation — Phases 0–4 complete. Resume at Phase 5 (verification).**
 Branch: `feature/dotnet`
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
-> **Resume here. Phase 3 is complete — the whole application is built.** All six UI steps are
-> merged, verified independently rather than on the implementing agents' reports: from-scratch Debug
-> and Release builds with zero warnings, **2205 tests passing** under `en-US`, `tr-TR`, `ar-SA`,
-> `th-TH` and the machine's own `nn-NO`, and `QuickStat.exe` launching from a foreign working
-> directory with the full DI graph, loading a real `QuickStat.config.xml`, and logging no errors.
+> **Resume here. Phases 0–4 are complete.** The application is built and the functionality lost in
+> the extraction is restored. Verified at `HEAD` independently of the implementing agents'
+> reports: from-scratch Debug **and** Release builds with **zero warnings**, **2254 tests** passing
+> under the machine's own `nn-NO` plus `en-US`, `tr-TR`, `ar-SA` and `th-TH`, and `QuickStat.exe`
+> launching from a foreign working directory with the full DI graph, loading a real
+> `QuickStat.config.xml`, and logging no `[ERR]`, `[CRT]` or exception. The banner reads
+> **`26.0.0.0`**.
 >
-> **Next: Phase 4.** Nothing blocks it.
+> **Next: Phase 5 — verification.** It is now the only phase with unknowns in it, and §8.10 (h) is
+> the big one: *nothing has ever run against a database.* Phase 5 needs a human with a real server
+> and the deployed `22.12.21.547` exe for a side-by-side parity pass; §8.10 lists the seven smaller
+> carried-forward items, and §8.9 (a) — three palette colours — is the last question needing a
+> decision.
+>
+> **Two release-blocking questions still need an owner, neither of them code:** the `J01FF%`
+> clinical definition (§8.4) and the correct spelling of `KB.AntibioticResistance2` versus the
+> author's original `AntibioticRestistance2` (§5 Phase 4). The availability gate means a wrong
+> spelling degrades to "collector not offered" rather than "query failed", which is why the second
+> one does not block implementation.
 >
 > **Six defects were found while integrating wave 2, five of them in code or contracts that earlier
 > phases had signed off.** Every one is fixed; they are listed here because they are the pattern to
@@ -25,6 +36,16 @@ Last updated: 2026-08-26
 > | 4 | **`07` §3.1 said the package replay stays on the Packages tab. It does not** — `TrySelect(procId, true, …)` reaches `AfterPopulationSelect`, which sets `pgSelections.ActivePage := tbsDataElements`. Restored as parity | 3.2 and 3.4, independently |
 > | 5 | **The Progress header never went back.** Core reports `Connecting` and `Collecting data`; `ShellProgress` let them win, so the banner read *Collecting data* for the rest of the session. `TfrmQuickStat.SetHeader` exists at `MainQuickStat.pas:433` and nothing ever calls it (§G.6) | 3.3 |
 > | 6 | **A mirrored checkmark.** `FlowDirection="RightToLeft"` puts the caption left of the box — and mirrors the whole subtree, including the tick. Fixed once in the theme as `QsCaptionLeftCheckBox` | reported from a running build |
+>
+> **Phase 4 found one more of the same kind, and it was in this plan.** §5, R7,
+> `CollectorAvailability`'s own XML docs and the placeholder comment in `CollectorCatalog.Drug.cs`
+> all said that **two** collectors join `KB.AntibioticResistance2`. Only one does:
+> `JOIN KB.AntibioticResistance2` occurs exactly once in the library, at `EPR.QA.SQL.pas:453`, and
+> `SpDrugsetAntibioticRecommended` (`:431`) is a plain nine-code `ot.ATC IN ( … )`. Gating both would
+> have deleted a working collector from every database without the knowledge-base schema. Caught by
+> reading the Pascal before briefing the implementation, not by a test — no test could have failed,
+> because the wrong behaviour was what every document specified. All six sites now name the one
+> collector and say why the other is unconditional.
 >
 > Two more came out of the culture sweep, which is now a permanent, opt-in file
 > (`QuickStat.Tests/CultureSweep.cs`, `-e QUICKSTAT_TEST_CULTURE=xx-YY`) because three agents each
@@ -496,11 +517,19 @@ main accessibility cost of a custom control, and it must not be skipped.
 
 ### Phase 4 — Restore the lost functionality  *(one agent; after 2.4)*
 
-> **The collector half is done.** All five registrations are in the catalog, the registry is at
-> **131** distinct names, and a `KORTTID` study registers **124** — **123** on a database where
+> **Phase 4 is complete — both halves.** All five registrations are in the catalog, the registry is
+> at **131** distinct names, and a `KORTTID` study registers **124** — **123** on a database where
 > `KB.AntibioticResistance2` does not resolve, because `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` is the one
 > collector behind the availability gate. `QS_ROAS_BASE` is behind the `ROAS` gate and so does not
-> move the `KORTTID` count. **The national-ID export below is still outstanding.**
+> move the `KORTTID` count. The **national-ID export** is restored as
+> `QuickStat.Core/Domain/Patients/NationalIdRecovery.cs`, called from both load paths.
+>
+> Every number above was re-derived from the built assembly rather than read off a test: 131 in the
+> catalog, `RequiredDatabaseObjects` exactly `[KB.AntibioticResistance2]`, and 124 / 123 for
+> `KORTTID` under the two probe outcomes. The generated SQL for all five collectors was dumped and
+> compared against the verbatim blocks in `Docs/Port/03-collectors.md` §E, and the 68-id
+> `SET_ROAS_BASE` and 11-id `LABCLASSES_INTERLEUKINS` arrays were parsed straight out of
+> `EPR.QA.Definitions.pas` and compared element by element, order included.
 
 This phase is **not archaeology** — see §2.1. The canonical application already registers all four
 collectors and already calls `AddNationalIds`; only *this* repository has them commented out. The
@@ -558,6 +587,22 @@ Also in this phase: **national-ID export**. The canonical app calls
 commented out, which is why "Fully identified patients" produces no national IDs *here*. The
 implementation lives on `origin/tarmscreening/develop`; port it with a table-valued parameter, not
 the upstream string-concatenated `IN` list.
+
+Three decisions that were settled while implementing it, recorded so they are not silently reversed:
+
+- **The fetch is unconditional**, guarded only by "the population procedure did not already return
+  the column". `02-populations-patients.md` §8.5 sketched it as conditional on the identification
+  mode; that is wrong, because `IIdentificationPolicy` raises `ModeChanged` and the mode is
+  switchable *after* a population is loaded — a load-time fetch gated on `Full` leaves
+  `Fødselsnummer` silently blank for anyone who loads first and switches second. The port already
+  loads name and date of birth regardless of mode and lets `IdentificationColumns.For` decide what
+  is displayed and exported; the national id is no different. R6 is about what leaves the process.
+- **It runs in both load paths** — the Populations tab and the package replay — and in both it must
+  precede `PersonMatrix.PreparePopulation`, which copies the id onto the row it builds and never
+  reads the patient again.
+- **A failed recovery is logged and degraded, not fatal.** Because the fetch is unconditional, a
+  fatal failure would destroy a load in `PersonIdOnly` or `RandomPersonId` whose result never needed
+  the ids. `OperationCanceledException` is re-thrown: that means the whole load is being abandoned.
 
 ### Phase 5 — Verification  *(one agent + human)*
 
@@ -797,9 +842,11 @@ numbers where the Delphi has seven; `04-matrix-export.md` §5.2 describes `devel
 `DataPoint.Caption` exports as text, in full, on **both** tarmscreening refs (`8486b3d09`), so that
 behaviour does not depend on R12.
 
-### 8.10 Still open after Phase 3 — carried into Phase 5
+### 8.10 Still open after Phase 4 — carried into Phase 5
 
-Nothing here blocks Phase 4. Each is recorded so it is not rediscovered.
+None of these blocked Phase 4, and none is fixed by it. Each is recorded so it is not rediscovered.
+Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
+are two copies of one more step — which is exactly the argument for collapsing them.
 
 | # | Item | Note |
 |---|---|---|
