@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using QuickStat.Diagnostics;
 
 namespace QuickStat.Logging;
 
@@ -133,8 +134,41 @@ public sealed class FileLoggerProvider : ILoggerProvider
         }
     }
 
+    /// <summary>
+    /// Builds one entry, with personal identifiers removed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Redaction happens here and nowhere else on this path</b>, because this is the last point
+    /// before bytes reach the disk: no call site can route around it, and no future caller has to
+    /// remember it. <c>Docs/Port/01-data-access.md</c> §7.5 asks for exactly this - "apply
+    /// <c>ForLog</c> in the logger provider" - and until Phase 5 checked, it was the one write path
+    /// that did not, even though <see cref="PiiRedactor"/>'s own summary claims every write path
+    /// does. Only <c>UserNotifier</c> and <c>IniSettingsStore</c> called it, so anything logged
+    /// through <see cref="ILogger"/> directly reached the file in the clear - including a
+    /// fødselsnummer that a call site never realised it was holding, which is precisely the case
+    /// <see cref="PiiRedactor"/> detects structurally rather than by convention. R6, and
+    /// release-blocking.
+    /// </para>
+    /// <para>
+    /// The message goes through <see cref="PiiRedactor.ForLog"/>, which also folds it onto one line -
+    /// matching the Delphi's <c>AnonymizeLogMessage</c>, and incidentally denying a caller the
+    /// ability to forge log entries by embedding a newline. The exception goes through
+    /// <see cref="PiiRedactor.Redact"/> instead: it is deliberately written as a multi-line block
+    /// below the entry, and collapsing a stack trace onto one line would destroy the only thing it
+    /// is for. It is redacted all the same, because an exception message quotes its inputs.
+    /// </para>
+    /// </remarks>
+    /// <param name="logLevel">Severity.</param>
+    /// <param name="category">Logger category; a type name, never personal.</param>
+    /// <param name="eventId">Event id, omitted when zero.</param>
+    /// <param name="message">The formatted message, not yet redacted.</param>
+    /// <param name="exception">The exception, if any, not yet redacted.</param>
+    /// <returns>The line, or lines, to append.</returns>
     private static string Format(LogLevel logLevel, string category, EventId eventId, string message, Exception? exception)
     {
+        message = PiiRedactor.ForLog(message);
+
         StringBuilder builder = new(message.Length + 96);
 
         builder.Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture))
@@ -151,7 +185,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
         if (exception is not null)
         {
-            builder.Append(exception).Append(Environment.NewLine);
+            builder.Append(PiiRedactor.Redact(exception.ToString())).Append(Environment.NewLine);
         }
 
         return builder.ToString();
