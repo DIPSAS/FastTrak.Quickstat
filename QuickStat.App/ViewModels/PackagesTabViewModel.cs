@@ -279,9 +279,15 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// wasted work with no visible effect, and is not reproduced.
     /// </para>
     /// <para>
-    /// The whole replay sits in one <see cref="IShellProgress.BeginOperation"/> scope and the collect
-    /// opens another inside it. That is why the scope counts, and why the Delphi saves and restores
-    /// <c>Screen.Cursor</c> instead of assigning <c>crDefault</c> (§G.3).
+    /// The whole replay sits in one <see cref="IShellProgress.BeginOperation(string)"/> scope and the
+    /// collect opens another inside it. That is why the scope counts, and why the Delphi saves and
+    /// restores <c>Screen.Cursor</c> instead of assigning <c>crDefault</c> (§G.3).
+    /// </para>
+    /// <para>
+    /// The replay offers no Cancel of its own, though its inner collect does: past that collect the
+    /// only thing left is <see cref="DatasetViewModel.SetCaption"/>, and nothing here re-reads
+    /// <paramref name="cancellationToken"/> afterwards, so an offer would be a button that stops the
+    /// run the user can see and then finishes the replay anyway. PORT-PLAN.md §8.10 (c).
     /// </para>
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanActOnSelectedPackage))]

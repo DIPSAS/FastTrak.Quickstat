@@ -54,9 +54,19 @@ public interface IShellProgress : IProgress<OperationProgress>, INotifyPropertyC
     /// <remarks>
     /// Replaces <c>Screen.Cursor := crSqlWait</c> (§G.3). It drives the wait cursor, the busy
     /// overlay and command gating, so nested operations must not clear it early - use
-    /// <see cref="BeginOperation"/> rather than assigning.
+    /// <see cref="BeginOperation(string)"/> rather than assigning.
     /// </remarks>
     bool IsBusy { get; }
+
+    /// <summary>Whether anything in flight has offered a way to stop it.</summary>
+    /// <remarks>
+    /// The only thing that shows the overlay's Cancel button
+    /// (<see cref="QuickStat.ViewModels.BusyOverlayViewModel.IsCancelOffered"/>). It is false
+    /// whenever every scope in flight took <see cref="BeginOperation(string)"/>, which is most of
+    /// them: a save, a delete or a caption load is one round trip, and a button that cannot stop
+    /// anything is worse than no button.
+    /// </remarks>
+    bool IsCancellable { get; }
 
     /// <summary>Sets <see cref="Info"/> without touching the percentage.</summary>
     /// <param name="info">The new status line.</param>
@@ -73,6 +83,21 @@ public interface IShellProgress : IProgress<OperationProgress>, INotifyPropertyC
     /// <summary>Back to <c>Program is idle</c> at 0 %.</summary>
     void Reset();
 
+    /// <summary>Signals every cancellation source currently offered.</summary>
+    /// <remarks>
+    /// <para>
+    /// Signals, and nothing else. <see cref="IsBusy"/> is deliberately untouched: only the
+    /// operation's own scope knows when the work has actually stopped, which is the same reason the
+    /// Delphi saved and restored <c>Screen.Cursor</c> rather than assigning <c>crDefault</c> (§G.3).
+    /// </para>
+    /// <para>
+    /// Signals <em>all</em> of them, not the innermost: the user is cancelling the operation they can
+    /// see, and a collect running inside a package replay is part of it. A source whose owner has
+    /// already disposed it is skipped rather than thrown on - the operation it belonged to is over.
+    /// </para>
+    /// </remarks>
+    void RequestCancellation();
+
     /// <summary>
     /// Marks the shell busy and sets the status line, until the returned token is disposed.
     /// </summary>
@@ -85,4 +110,32 @@ public interface IShellProgress : IProgress<OperationProgress>, INotifyPropertyC
     /// counts, so the inner scope does not clear the outer one.
     /// </remarks>
     IDisposable BeginOperation(string info);
+
+    /// <summary>
+    /// As <see cref="BeginOperation(string)"/>, and offers the user a way to stop this operation for
+    /// as long as the scope lives.
+    /// </summary>
+    /// <param name="info">The status line for the duration.</param>
+    /// <param name="cancellation">
+    /// The source <see cref="RequestCancellation"/> signals. Owned by the caller and not disposed
+    /// here; the scope only withdraws the offer.
+    /// </param>
+    /// <returns>A token that withdraws the offer and then clears the busy flag.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>This is an addition, not parity.</b> The Delphi has no Cancel on the main form at all - the
+    /// product's only two <c>bkCancel</c> buttons are on modal dialogs
+    /// (<c>Emetra.VclForm.Period.dfm:169</c>, <c>Emetra.VclForm.EditAndMemo.dfm:994</c>) - and
+    /// <c>actCollectDataExecute</c> could not be interrupted once it had started. The port needs the
+    /// affordance for a reason the Delphi did not have: §G.3's wait cursor became a busy flag because
+    /// the work now happens off the user-interface thread, so a run that will take minutes leaves a
+    /// window that is alive and unusable rather than one that is visibly wedged.
+    /// </para>
+    /// <para>
+    /// <b>Only pass a source the operation genuinely honours.</b> The offer is per call site rather
+    /// than a property of every scope precisely so that the button appears only where cancelling
+    /// works: <see cref="IsCancellable"/> is what shows it. PORT-PLAN.md §8.10 (c).
+    /// </para>
+    /// </remarks>
+    IDisposable BeginOperation(string info, CancellationTokenSource cancellation);
 }

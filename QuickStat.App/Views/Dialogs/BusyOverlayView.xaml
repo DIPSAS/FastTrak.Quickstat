@@ -16,8 +16,7 @@
 
         Background is deliberately a colour and not Transparent: a Transparent brush still hit-tests,
         which is what makes the overlay block the mouse - but an invisible blocker is
-        indistinguishable from a hang.  Dimming says "wait" out loud.  It blocks the mouse only; the
-        keyboard is held off by every command's CanExecute instead.
+        indistinguishable from a hang.  Dimming says "wait" out loud.
 
         The theme is merged here rather than inherited from Application.Resources so the control can
         be constructed on its own: Application.Current is null under test (07-ui-contracts.md §6),
@@ -74,9 +73,9 @@
                            Visibility="{Binding IsCancelling, Converter={conv:BoolToVisibilityConverter}}" />
 
                 <!--
-                    Shown only while an operation has offered a token - see
-                    BusyOverlayViewModel.OfferCancellation.  A Cancel button that cannot stop
-                    anything is worse than none.
+                    Shown only while an operation opened its scope with the BeginOperation overload
+                    that takes a CancellationTokenSource - IShellProgress.IsCancellable.  A Cancel
+                    button that cannot stop anything is worse than none.
                 -->
                 <Button x:Name="CancelButton"
                         Width="92"

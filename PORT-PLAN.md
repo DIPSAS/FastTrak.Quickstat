@@ -11,7 +11,7 @@ Last updated: 2026-08-27
 >
 > **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
 > independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
-> satisfy the five-column contract; §8.10 (a) and (b) done; the shipped `22.12.21.547` build was set
+> satisfy the five-column contract; §8.10 (a), (b) and (c) done; the shipped `22.12.21.547` build was set
 > up and driven far enough to read two of §8.9 (a)'s three colours exactly and to lift its whole
 > 213-element data-element list out of the check list. **Two real defects came out of it, neither
 > reachable without a server:** a table type that never existed, which was silently blanking
@@ -20,7 +20,7 @@ Last updated: 2026-08-27
 > **What is left in Phase 5.** No collector has actually *executed* — binding is not rows — so the
 > byte-for-byte CSV comparison (R4) still has no fixture captured from the Delphi, and no package has
 > been read or written. `clFocusedSelectionColor` is still unmeasured and the theme still ships two
-> palette values now known to be wrong. §8.10 has five items left. The `05-ui-spec.md` walkthrough is
+> palette values now known to be wrong. §8.10 has four items left. The `05-ui-spec.md` walkthrough is
 > still a human job.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
@@ -976,14 +976,15 @@ None of these blocked Phase 4, and none is fixed by it. Each is recorded so it i
 Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
 are two copies of one more step — which is exactly the argument for collapsing them.
 
-**Item (a) is closed in Phase 5**; the row is kept, struck through, because its "why" is the reason
-the test suite now looks the way it does. Six remain.
+**Items (a), (b) and (c) are closed in Phase 5**; the rows are kept, struck through, because their
+"why" is worth keeping — (a)'s is the reason the test suite now looks the way it does. Four remain:
+(d), (e), (f) and (g). (h) is largely closed; see §8.11.
 
 | # | Item | Note |
 |---|---|---|
 | a | ~~**No view can be instantiated under test if it uses `{StaticResource}` and does not merge the theme itself.**~~ | **Done** (Phase 5). `QuickStat.Tests/Ui/WpfApplicationFixture.cs` puts the shipped `App` — so the merge is `App.xaml`'s, not a second copy of it — on one dedicated background STA thread, behind a `static Lazy` for the single-instance guarantee and an `ICollectionFixture` for the handle. `Ui/ViewInstantiationTests.cs` constructs all seven views plus `MainWindow` through it and sweeps their bindings for `System.Windows.Data Error: 40`. Two consequences worth knowing: the assembly now runs sequentially, because `Application` registers every `Window` on unsynchronised collections from whichever apartment made it; and `Assert.Null(Application.Current)` is no longer a legitimate assertion anywhere, since nothing can un-set it — the four places that used it now read the window's own `Resources` instead, which is what they meant |
 | b | ~~**Two population-loading code paths.**~~ | **Done** (Phase 5). `QuickStat.App/Services/PopulationLoader.cs` is now the one place the sequence exists — resolve placeholders, cohort query, `NationalIdRecovery`, prepare the matrix, tell the workspace. Both view models take the loader *instead of* `IPatientRepository` and `IQueryParameterResolver`, which they only ever held in order to write their own copy, so neither can assemble a second one. It lives in `QuickStat.App` and not `Core` because its last step is `IShellWorkspace.SetPopulation`; moving the first four to `Core` and leaving the fifth to each caller would split the ordering contract in half again. Differences that are real stayed parameters or stayed at the call sites (logger, progress scope, audit row, failure wording, `RequestCollectionsTab`); differences nobody chose — what an unresolvable placeholder reports — are marked in code and left alone |
-| c | **The busy overlay's Cancel button can never appear.** `IShellProgress.BeginOperation(string)` takes no `CancellationTokenSource`, so nothing can offer one to `BusyOverlayViewModel.OfferCancellation` | One overload. The overlay is correct and tested; the button is simply never shown |
+| c | ~~**The busy overlay's Cancel button can never appear.**~~ | **Done** (Phase 5). `IShellProgress` gained `BeginOperation(string, CancellationTokenSource)` and, with it, `IsCancellable` and `RequestCancellation()`. **The plan's note said "one overload", and that is half of it**: an overload on its own hands a `CancellationTokenSource` to `ShellProgress` with nothing able to read it, because the overlay's register was private to `BusyOverlayViewModel`. The register therefore moved *onto the service* and `OfferCancellation` is gone — the operations are started by the tab view-models, none of which can reach the overlay, and a second register kept on the view-model would be a second thing able to disagree with the first. The overlay is now purely derived, which is what its own header always claimed. The one call site is the collect run, which links a source to `AsyncRelayCommand`'s own token so either end stops the same run; it is the only operation that both takes minutes and honours the token all the way down — between collectors, between batches in `CollectorRunner`, and inside the statement. Two candidates were examined and deliberately left alone: the package replay, because nothing re-reads its token after the inner collect returns, so a Cancel there would stop the run the user can see and then finish the replay anyway (its inner collect offers one, which covers the only unbounded stretch); and `ConnectionCoordinator.ConnectAsync`, whose token is the caller's, not its own. Worth recording because it is easy to assume otherwise: **cancelling is an addition, not parity.** The Delphi has no Cancel on the main form at all — the product's only two `bkCancel` buttons are on modal dialogs (`Emetra.VclForm.Period.dfm:169`, `Emetra.VclForm.EditAndMemo.dfm:994`) — and `actCollectDataExecute` could not be interrupted once started |
 | d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |
 | e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
 | f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |

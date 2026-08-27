@@ -15,8 +15,8 @@ namespace QuickStat.Tests.Ui.Dialogs;
 /// <remarks>
 /// <c>05-ui-spec.md</c> §G.3. The Delphi's <c>Screen.Cursor := crSqlWait</c> was saved and restored
 /// rather than assigned, because the package replay runs a collect inside its own wait cursor; the
-/// counting in <see cref="IShellProgress.BeginOperation"/> is the same guarantee, and the overlay
-/// must not undermine it by assigning the flag itself.
+/// counting in <see cref="IShellProgress.BeginOperation(string)"/> is the same guarantee, and the
+/// overlay must not undermine it by assigning the flag itself.
 /// </remarks>
 public class BusyOverlayTests
 {
@@ -84,14 +84,39 @@ public class BusyOverlayTests
     }
 
     [Fact]
+    public void AnOperationThatPassesASourceIsWhatShowsTheButton()
+    {
+        // PORT-PLAN.md §8.10 (c). The button and everything behind it were written by step 3.6 and
+        // could never appear, because BeginOperation took no CancellationTokenSource and the tab
+        // view-models that start the operations cannot reach this class.  This is the seam.
+        ShellProgress progress = new(new InlineUiDispatcher());
+        using BusyOverlayViewModel model = new(progress);
+        using CancellationTokenSource cancellation = new();
+
+        List<string?> raised = [];
+
+        model.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        using (progress.BeginOperation("Alfa", cancellation))
+        {
+            Assert.True(model.IsCancelOffered);
+            Assert.True(model.CanCancel);
+            Assert.True(model.CancelCommand.CanExecute(null));
+        }
+
+        Assert.False(model.IsCancelOffered);
+        Assert.Contains(nameof(BusyOverlayViewModel.IsCancelOffered), raised);
+        Assert.Contains(nameof(BusyOverlayViewModel.CanCancel), raised);
+    }
+
+    [Fact]
     public void CancellingSignalsTheTokenAndLeavesTheOverlayUp()
     {
         ShellProgress progress = new(new InlineUiDispatcher());
         using BusyOverlayViewModel model = new(progress);
         using CancellationTokenSource cancellation = new();
 
-        using (progress.BeginOperation("Collecting data"))
-        using (model.OfferCancellation(cancellation))
+        using (progress.BeginOperation("Collecting data", cancellation))
         {
             Assert.True(model.CanCancel);
             Assert.False(model.IsCancelling);
@@ -121,11 +146,9 @@ public class BusyOverlayTests
         using CancellationTokenSource replay = new();
         using CancellationTokenSource collect = new();
 
-        using (progress.BeginOperation("Preparing the packaged selection"))
-        using (model.OfferCancellation(replay))
+        using (progress.BeginOperation("Preparing the packaged selection", replay))
         {
-            using (progress.BeginOperation("Collecting data"))
-            using (model.OfferCancellation(collect))
+            using (progress.BeginOperation("Collecting data", collect))
             {
                 model.CancelCommand.Execute(null);
             }
@@ -146,8 +169,7 @@ public class BusyOverlayTests
         using BusyOverlayViewModel model = new(progress);
         CancellationTokenSource cancellation = new();
 
-        using (progress.BeginOperation("Collecting data"))
-        using (model.OfferCancellation(cancellation))
+        using (progress.BeginOperation("Collecting data", cancellation))
         {
             cancellation.Dispose();
 
@@ -197,7 +219,9 @@ public class BusyOverlayTests
                 Assert.Equal(Visibility.Collapsed, view.CancelButton.Visibility);
                 Assert.Equal(Visibility.Collapsed, view.CancellingText.Visibility);
 
-                using (model.OfferCancellation(cancellation))
+                // The nesting a package replay produces: the outer scope offers nothing, the collect
+                // inside it does, so the button appears part-way through and goes again with it.
+                using (progress.BeginOperation("Collecting data", cancellation))
                 {
                     Assert.Equal(Visibility.Visible, view.CancelButton.Visibility);
                     Assert.True(view.CancelButton.IsEnabled);
