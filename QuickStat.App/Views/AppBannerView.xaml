@@ -84,7 +84,7 @@
                                     and shows the exception message.  Any Fail() does the same.
                                 -->
                                 <DataTrigger Binding="{Binding ProgressIsError}" Value="True">
-                                    <Setter Property="Foreground" Value="#C42B1C" />
+                                    <Setter Property="Foreground" Value="{StaticResource QsErrorBrush}" />
                                     <Setter Property="FontWeight" Value="SemiBold" />
                                 </DataTrigger>
                             </Style.Triggers>

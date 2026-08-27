@@ -995,8 +995,8 @@ Fonts: `Calibri` 10 pt for forms/tabs/lists, 11 pt for header panels, 9 pt for s
 | `clTextColor` | `$00333333` | `#333333` |
 | `clFocusedSelectionColor` | `$00D4FBFF` | `#FFFBD4` |
 | `clUnfocusedSelectionColor` | `$00FCF2E7` | `#E7F2FC` |
-| `clStatusTextColor` | `$00822EB8` | `#B82E82` |
-| `clCodeColor` | `$00A4294B` | `#4B29A4` |
+| `clStatusTextColor` | `$00822EB8` | `#B82E82` | ← `develop_old` only; shipped build uses `#894605` |
+| `clCodeColor` | `$00A4294B` | `#4B29A4` | ← `develop_old` only; shipped build uses `#888888` |
 | `clFirstInfoColor` | `$00AC6D2B` | `#2B6DAC` |
 | `clSecondInfoColor` | `$007BB02C` | `#2CB07B` |
 | `clSelectedFill` | `$00FCEBDC` | `#DCEBFC` |
@@ -1010,6 +1010,14 @@ Fonts: `Calibri` 10 pt for forms/tabs/lists, 11 pt for header panels, 9 pt for s
 | `clBlueGray` | `$007C5C5C` | `#5C5C7C` |
 | `clBrownGray` | `$005C6266` | `#66625C` |
 | `clLightYellowOrange` | `$0066E0FF` | `#FFE066` |
+
+**This table is a faithful transcription of the copy of the library in this repository, and that copy
+is `develop_old`.** Three of its constants were changed by commit `98f493bbc` (2022-09-29) in the
+shared library, three months before the shipped `v22.12.21.547`, so for those three the table records
+history rather than behaviour: `clCodeColor` is `$00888888` (`#888888`), `clStatusTextColor` is
+`clMandatoryGeometryFill` (`#894605`), and `clFocusedSelectionColor` is `clSelectedBk` (`#C8D9E9`).
+Phase 5 measured the first two off the running binary and the port now uses them; the third is still
+unmeasured. `PORT-PLAN.md` §8.9 (a).
 
 ---
 

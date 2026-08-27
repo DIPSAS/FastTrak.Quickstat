@@ -226,8 +226,10 @@ public class NotificationDialogTests
             return colour;
         }
 
-        // Neither literal is in 05-ui-spec.md §F.4, which step 3.6 may not edit; #C42B1C is the one
-        // step 3.1 already uses for the banner's error line, so only the amber is new.
+        // The hex is asserted rather than the brush key on purpose: this is a rendering assertion,
+        // and it has to keep failing if someone repoints QsErrorBrush at a different red. Both are
+        // in 05-ui-spec.md §F.4 as of Phase 5 (PORT-PLAN.md §8.10 e); ThemeResourceTests owns the
+        // key-to-colour half, this owns the severity-to-colour half.
         Assert.Equal((Color)ColorConverter.ConvertFromString("#178891")!, Of(NotificationSeverity.Information));
         Assert.Equal((Color)ColorConverter.ConvertFromString("#9D5D00")!, Of(NotificationSeverity.Warning));
         Assert.Equal((Color)ColorConverter.ConvertFromString("#C42B1C")!, Of(NotificationSeverity.Error));

@@ -455,9 +455,14 @@ exist, not where their columns land.
   contract — a scrolled-out cell returns `false` and the caller hides the hint — so nothing needs to
   change on either side. The text assembly and the anchor arithmetic are unit-tested against the
   view-model directly.
-- **No database.** Everything here is exercised headlessly; the connect path, the caption load and
-  the population load have never run against a server.
-- **Three §F.1 palette entries do not match the pinned parity baseline.** `05-ui-spec.md` §F.1 gives
+- ~~**No database.**~~ **Settled in Phase 5.** Against `EFT00028_TEST_020`: the connect path, the
+  caption load and the population load all run, all 213 data elements build, and all 213 collectors
+  execute. `PORT-PLAN.md` §8.11.
+- ~~**Three §F.1 palette entries do not match the pinned parity baseline.**~~ **Two settled in
+  Phase 5, by measurement; the third is still open.** `QsCodeBrush` is now `#888888` and
+  `QsCategoryBrush` `#894605`, sampled off the running `22.12.21.547`. `QsCurrentCellBrush` stays
+  `#FFFBD4` because nothing could be measured — see `PORT-PLAN.md` §8.9 (a). The original analysis,
+  which the measurement confirmed, was: `05-ui-spec.md` §F.1 gives
   `clCodeColor = $00A4294B` (`#4B29A4` purple), `clStatusTextColor = $00822EB8` (`#B82E82` fuchsia)
   and `clFocusedSelectionColor = $00D4FBFF` (`#FFFBD4` pale yellow). Those are this repository's
   `FastTrak\` copy, i.e. `develop_old`. On `origin/tarmscreening/develop` — the ref PORT-PLAN.md

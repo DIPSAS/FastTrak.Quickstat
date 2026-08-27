@@ -177,7 +177,7 @@ Layout, top to bottom:
 ```
 ┌──────┬──────────────────────────────────────────────┬────────────────┐
 │ 257  │ HbA1c > 53 (7%)                              │ Type 1 u/pumpe │
-│ #4B29A4 (regular)  │ #333333 Bold, ellipsis on overflow │ #B82E82, 1 pt smaller, right │
+│ #888888 (regular)  │ #333333 Bold, ellipsis on overflow │ #894605, 1 pt smaller, right │
 └──────┴──────────────────────────────────────────────┴────────────────┘
   (when expanded, the wrapped HelpText follows underneath in #333333)
 ```
@@ -282,7 +282,7 @@ Top-to-bottom (everything inside one container panel, 4 px margins):
 ```
 ┌──────┬──────────────────────────────────────────────┬──────────┐
 │ 41   │ Diabetes basissett 2024                      │ Pop#257  │
-│ #4B29A4 │ #333333 Bold, ellipsis                    │ #B82E82, −1 pt, right │
+│ #888888 │ #333333 Bold, ellipsis                    │ #894605, −1 pt, right │
 ├──────┴──────────────────────────────────────────────┴──────────┤
 │ Comment text, word-wrapped, #333333                            │
 └────────────────────────────────────────────────────────────────┘   1 px #F0F0F0 divider
@@ -601,8 +601,8 @@ All values verified twice: from the Delphi constants **and** by sampling the scr
 | List selected (focused) | `clArenaListSelectedBackground` | `$00918817` | `#178891` | ✔ |
 | List selected (unfocused) | `clListSelectedBackgroundUnfocused` | `$00B6AE50` | `#50AEB6` | — |
 | List selected text | `clArenaListSelectedForeground` | `$00FFFFFF` | `#FFFFFF` | ✔ |
-| **List code / id column** | `clCodeColor` | `$00A4294B` | **`#4B29A4`** (purple) | ✔ |
-| **List category column** | `clStatusTextColor` | `$00822EB8` | **`#B82E82`** (fuchsia) | ✔ |
+| **List code / id column** | `clCodeColor` | `$00888888` | **`#888888`** (grey) | ✔ measured, see below |
+| **List category column** | `clStatusTextColor` | `$00054689` | **`#894605`** (brown) | ✔ measured, see below |
 | List title text | `clTextColor` | `$00333333` | `#333333` | ✔ |
 | Grid fixed (header) fill | `clMyGreenColor` | `$00FBFBF4` | `#F4FBFB` | ✔ |
 | **Grid fixed / PID text** | `clMenuBackgroundDarkBrush` | `$00665F03` | **`#035F66`** (dark teal) | ✔ |
@@ -620,6 +620,21 @@ All values verified twice: from the Delphi constants **and** by sampling the scr
 | Lab value warn/alarm | percentile blend | — | white → `#FFFF00` → `#FFA500`; low end `#FF0000` → white; observed `#FFEDBF` | ✔ |
 | List divider | `clBtnFace` | — | `#F0F0F0` | ✔ |
 | Window border | OS accent (**not** app-controlled) | — | `#96C254` in the screenshots | ✔ |
+
+**Three rows of this table described a build nobody runs, and Phase 5 corrected two of them.** The
+`✔` column means "checked against the 2019 screenshots", and for `clCodeColor`, `clStatusTextColor`
+and `clFocusedSelectionColor` that is the problem rather than the assurance: the screenshots are of
+build `19.8.14.477`, and commit `98f493bbc` (2022-09-29, "Mindre retninger") changed all three in the
+shared library three months before the shipped `v22.12.21.547`. The constants in the `$00BBGGRR`
+column above are now the shipped ones; the values this document used to carry — `$00A4294B`
+(`#4B29A4` purple) and `$00822EB8` (`#B82E82` fuchsia) — are what this repository's `develop_old`
+copy of the library still holds, which is why the transcription looked right.
+
+Phase 5 settled it the only way that settles it: it ran `22.12.21.547` against a real database and
+sampled the stroke cores of the two columns. `#888888` and `#894605`, byte for byte.
+`clFocusedSelectionColor` (**`#FFFBD4`** below, counterpart `#C8D9E9`) is the third of the set and is
+**still unmeasured** — the grid holds no rows until a collect run, so there was no cell to click, and
+neither candidate appears anywhere on the screen of a loaded population. `PORT-PLAN.md` §8.9 (a).
 
 ### F.2 Typography (as shipped)
 
@@ -687,9 +702,13 @@ inside a tab: `Margin="4"` horizontally, `8` between logical groups. No `BorderT
 <SolidColorBrush x:Key="QsTitleBrush"             Color="#333333"/>
 <SolidColorBrush x:Key="QsMutedTextBrush"         Color="#5E6A6A"/>
 <SolidColorBrush x:Key="QsOnAccentBrush"          Color="#FFFFFF"/>
-<SolidColorBrush x:Key="QsCodeBrush"              Color="#4B29A4"/>  <!-- population/package id -->
-<SolidColorBrush x:Key="QsCategoryBrush"          Color="#B82E82"/>  <!-- ProcGroup / Pop#n -->
+<SolidColorBrush x:Key="QsCodeBrush"              Color="#888888"/>  <!-- population/package id; was #4B29A4 -->
+<SolidColorBrush x:Key="QsCategoryBrush"          Color="#894605"/>  <!-- ProcGroup / Pop#n; was #B82E82 -->
 <SolidColorBrush x:Key="QsAccentBrush"            Color="#0078D7"/>  <!-- "version" label -->
+
+<!-- Severity -->
+<SolidColorBrush x:Key="QsErrorBrush"             Color="#C42B1C"/>  <!-- failed status line (§G.2), error glyph -->
+<SolidColorBrush x:Key="QsWarningBrush"           Color="#9D5D00"/>  <!-- warning glyph; addition, no Delphi precedent -->
 
 <!-- Grid semantics -->
 <SolidColorBrush x:Key="QsCellEmptyBrush"         Color="#F5F5F5"/>
@@ -703,6 +722,19 @@ inside a tab: `Margin="4"` horizontally, `8` between logical groups. No `BorderT
 <SolidColorBrush x:Key="QsProgressBrush"          Color="#06B025"/>
 <SolidColorBrush x:Key="QsProgressTrackBrush"     Color="#E3E9E9"/>
 ```
+
+**Three of these were transcribed from `develop_old` and two are now corrected.** `QsCodeBrush` and
+`QsCategoryBrush` read `#4B29A4` and `#B82E82` above until Phase 5; commit `98f493bbc` (2022-09-29)
+changed both in the shared library, three months before the shipped `v22.12.21.547`, so the binary
+customers run has never shown the old pair. Phase 5 ran that binary against a real database and
+sampled the stroke cores of the two columns: `#888888` and `#894605`, exactly. §F.1's pixel checks
+are against screenshots of build `19.8.14.477` from 2019, which predate the change — which is why
+the screenshots and `develop_old` agree with each other and both describe the old palette.
+
+`QsCurrentCellBrush` (`#FFFBD4`) is the third of that set and is **left as it is, unmeasured**. Its
+counterpart is `#C8D9E9`. The grid holds no rows until a collect run, so no cell could be clicked to
+sample it, and neither candidate appears anywhere on the screen of a merely-loaded population.
+`PORT-PLAN.md` §8.9 (a) carries the open item.
 
 `Themes/QuickStat.Styles.xaml` — the named styles the XAML author needs:
 
@@ -785,7 +817,7 @@ Population tab, left panel only:
 │ [ Type filter text here               ] │
 │  ☐ Frequently used only    Simplified ☐ │  ← right one has caption on the LEFT
 │ ┌─────────────────────────────────────┐ │
-│ │ 257  HbA1c > 53 (7%)  Type 1 u/pumpe│ │  id #4B29A4 · title bold #333 · group #B82E82
+│ │ 257  HbA1c > 53 (7%)  Type 1 u/pumpe│ │  id #888888 · title bold #333 · group #894605
 │ │ 258  Siste hos øyelege      Prosess │ │
 │ │ 270  HbA1c > 75 (9%)     Behandling │ │  ← selected: #178891 bg, all text white
 │ │ ...                                 │ │

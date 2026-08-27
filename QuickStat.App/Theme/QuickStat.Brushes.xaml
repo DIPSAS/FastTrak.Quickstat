@@ -42,9 +42,21 @@
     <SolidColorBrush x:Key="QsTitleBrush"          Color="#333333" po:Freeze="True" />
     <SolidColorBrush x:Key="QsMutedTextBrush"      Color="#5E6A6A" po:Freeze="True" />
     <SolidColorBrush x:Key="QsOnAccentBrush"       Color="#FFFFFF" po:Freeze="True" />
-    <SolidColorBrush x:Key="QsCodeBrush"           Color="#4B29A4" po:Freeze="True" /><!-- population/package id -->
-    <SolidColorBrush x:Key="QsCategoryBrush"       Color="#B82E82" po:Freeze="True" /><!-- ProcGroup / Pop#n -->
+    <SolidColorBrush x:Key="QsCodeBrush"           Color="#888888" po:Freeze="True" /><!-- population/package id; measured, see below -->
+    <SolidColorBrush x:Key="QsCategoryBrush"       Color="#894605" po:Freeze="True" /><!-- ProcGroup / Pop#n; measured, see below -->
     <SolidColorBrush x:Key="QsAccentBrush"         Color="#0078D7" po:Freeze="True" /><!-- "version" label -->
+
+    <!--
+        Severity.  Both were literals inside step 3.6's dialog until Phase 5 (PORT-PLAN.md §8.10 e):
+        that step was not allowed to add a brush, so it wrote the hex twice and reported it.
+
+        QsErrorBrush is not new paint - it is the red the banner's failed status line has always used
+        (§G.2), lifted out of AppBannerView so the two cannot drift.  QsWarningBrush has no Delphi
+        precedent at all: the VCL dialogs had no warning severity, so this is an addition, chosen to
+        sit beside the red at a similar weight rather than sampled from anything.
+    -->
+    <SolidColorBrush x:Key="QsErrorBrush"          Color="#C42B1C" po:Freeze="True" /><!-- failed status line, error glyph -->
+    <SolidColorBrush x:Key="QsWarningBrush"        Color="#9D5D00" po:Freeze="True" /><!-- warning glyph; addition -->
 
     <!-- Grid semantics -->
     <SolidColorBrush x:Key="QsCellEmptyBrush"      Color="#F5F5F5" po:Freeze="True" />
@@ -57,5 +69,19 @@
     <!-- Progress -->
     <SolidColorBrush x:Key="QsProgressBrush"       Color="#06B025" po:Freeze="True" />
     <SolidColorBrush x:Key="QsProgressTrackBrush"  Color="#E3E9E9" po:Freeze="True" />
+
+    <!--
+        QsCodeBrush and QsCategoryBrush were transcribed from §F.4 as #4B29A4 and #B82E82 and both
+        were wrong.  §F.4 describes this repository's develop_old copy of the shared library; commit
+        98f493bbc (2022-09-29) changed both, three months before the shipped v22.12.21.547.  Phase 5
+        ran that binary against EFT00028_TEST_020 and sampled the stroke cores of the two columns:
+        #888888 and #894605 exactly, no interpretation.  PORT-PLAN.md §8.9 (a) has the full table.
+
+        The third of the same set, QsCurrentCellBrush (#FFFBD4), is deliberately NOT changed.  Its
+        counterpart is #C8D9E9, but the grid holds no rows until a collect run, so nothing could be
+        clicked to sample it; neither candidate colour appears anywhere on the screen of a loaded
+        population.  It is unmeasured, not measured-and-kept, and changing it on the strength of the
+        other two would be exactly the reasoning-instead-of-looking that R13 exists to forbid.
+    -->
 
 </ResourceDictionary>

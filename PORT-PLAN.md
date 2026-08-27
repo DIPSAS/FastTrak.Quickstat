@@ -10,18 +10,19 @@ Last updated: 2026-08-27
 > warnings under the machine's own `nn-NO` plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
-> independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
-> satisfy the five-column contract; §8.10 (a), (b) and (d) done; the shipped `22.12.21.547` build was set
-> up and driven far enough to read two of §8.9 (a)'s three colours exactly and to lift its whole
-> 213-element data-element list out of the check list. **Two real defects came out of it, neither
-> reachable without a server:** a table type that never existed, which was silently blanking
-> `Fødselsnummer`, and an ICU-vs-NLS sort that put five export columns in the wrong place.
+> independently re-derived from the Pascal (131/131 match); **all 213 data elements executed against a
+> live database, none threw**, and the port exported the result through its own CSV writer; §8.10 (a),
+> (b), (d) and (e) done; the shipped `22.12.21.547` build was set up and driven far enough to read two
+> of §8.9 (a)'s three colours exactly and to lift its whole 213-element data-element list out of the
+> check list. **Three real defects came out of it, none reachable without a server:** a table type
+> that never existed, which was silently blanking `Fødselsnummer`; an ICU-vs-NLS sort that put five
+> export columns in the wrong place; and a shutdown path that logs *"The connection did not close
+> cleanly"* on every clean exit.
 >
-> **What is left in Phase 5.** No collector has actually *executed* — binding is not rows — so the
-> byte-for-byte CSV comparison (R4) still has no fixture captured from the Delphi, and no package has
-> been read or written. `clFocusedSelectionColor` is still unmeasured and the theme still ships two
-> palette values now known to be wrong. §8.10 has four items left. The `05-ui-spec.md` walkthrough is
-> still a human job.
+> **What is left in Phase 5.** The byte-for-byte CSV comparison (R4) has the port's half but no
+> fixture captured from the Delphi, and no package has been read or written.
+> `clFocusedSelectionColor` is still unmeasured — the other two are now corrected. §8.10 has three
+> items left. The `05-ui-spec.md` walkthrough is still a human job.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
 > definition (§8.4). The other — the spelling of `KB.AntibioticResistance2` — was **settled on
@@ -976,9 +977,9 @@ None of these blocked Phase 4, and none is fixed by it. Each is recorded so it i
 Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
 are two copies of one more step — which is exactly the argument for collapsing them.
 
-**Items (a), (b) and (d) are closed in Phase 5**; the rows are kept, struck through, because their
-"why" is still load-bearing — (a)'s is the reason the test suite now looks the way it does, and
-(d)'s is the reason the busy overlay does *not* spin. Four remain.
+**Items (a), (b), (d) and (e) are closed in Phase 5**; the rows are kept, struck through, because
+their "why" is still load-bearing — (a)'s is the reason the test suite now looks the way it does, and
+(d)'s is the reason the busy overlay does *not* spin. Three remain.
 
 | # | Item | Note |
 |---|---|---|
@@ -986,7 +987,7 @@ are two copies of one more step — which is exactly the argument for collapsing
 | b | ~~**Two population-loading code paths.**~~ | **Done** (Phase 5). `QuickStat.App/Services/PopulationLoader.cs` is now the one place the sequence exists — resolve placeholders, cohort query, `NationalIdRecovery`, prepare the matrix, tell the workspace. Both view models take the loader *instead of* `IPatientRepository` and `IQueryParameterResolver`, which they only ever held in order to write their own copy, so neither can assemble a second one. It lives in `QuickStat.App` and not `Core` because its last step is `IShellWorkspace.SetPopulation`; moving the first four to `Core` and leaving the fifth to each caller would split the ordering contract in half again. Differences that are real stayed parameters or stayed at the call sites (logger, progress scope, audit row, failure wording, `RequestCollectionsTab`); differences nobody chose — what an unresolvable placeholder reports — are marked in code and left alone |
 | c | **The busy overlay's Cancel button can never appear.** `IShellProgress.BeginOperation(string)` takes no `CancellationTokenSource`, so nothing can offer one to `BusyOverlayViewModel.OfferCancellation` | One overload. The overlay is correct and tested; the button is simply never shown |
 | d | ~~**`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view.~~ | **Done** (Phase 5). One storyboard, in a `MultiTrigger` in the template. Two things decided rather than guessed. **The geometry is a fraction, not a pixel offset**: `ProgressBar.SetProgressBarIndicatorLength` sizes `PART_Indicator` from `PART_Track.ActualWidth` and gives it the full 100 % while the flag is set, so a `ScaleX` of 0→1 over it is a fraction of whatever the splitter has left the bar — the usual `TranslateTransform` sweep would be in device-independent pixels and wrong after a resize. The bar grows from the left edge and shrinks into the right; `RenderTransformOrigin` is what anchors it and is animated with two *discrete* key frames, since changing it invalidates the element's transforms, while `ScaleX` alone goes to the composition thread. **The clock is released, not parked**: `RepeatBehavior="Forever"` never completes on its own, so `ExitActions` *removes* the storyboard — both properties then fall back to their base values, which are the determinate identity transform — and `IsVisible` is a second condition alongside `IsIndeterminate`, because the busy overlay collapses its subtree rather than unloading it and would otherwise leave a live animation clock in the `MediaContext` for the rest of the process. `Ui/Theme/ProgressBarIndeterminateTests.cs` pins all of it from rendered geometry rather than from the markup, so a different future template still passes; against the unmodified style its first test reads *"the indicator took only 1 distinct positions in 2.3 s"*. **The busy overlay keeps determinate progress** and the workaround is gone rather than moved: §G.6 gives the collect run a real percentage per patient, so the reason not to spin is now the data, which is what `BusyOverlayView.xaml`, `BusyOverlayViewModel.Percent` and `BusyOverlayTests` say instead of what they used to say. §F.4's row records the state so the next reader does not rediscover the gap |
-| e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
+| e | ~~**Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush~~ | **Done** (Phase 5). `QsErrorBrush` and `QsWarningBrush` are in `QuickStat.Brushes.xaml`, in §F.4, and in the inventory test. Three call sites, not two: `AppBannerView` had the same red inline for the failed status line (§G.2), which is the actual argument for the promotion — one of the two colours already existed twice and could drift. The hex is unchanged. `NotificationDialogTests` still asserts the literal rather than the key, on purpose: it is a rendering assertion and must keep failing if someone repoints the brush |
 | f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
 | g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
 | h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. Still untouched: **no collector has actually executed**, so "does it return the right rows" and the CSV byte comparison remain open, and no package has been read or written |
@@ -1048,11 +1049,55 @@ one sentence.
   first in the shipped build, so the "sort ordinally" instruction in three documents really is
   backwards.
 
+**(3) Every collector has now executed, and the port exported the result.** The paragraph above this
+one used to say the opposite; here is what replaced it.
+
+Binding is not rows, so a second pass ran the port's own pipeline — `AddQuickStatConfiguration`
+through `AddQuickStatExport`, the same services `App.xaml.cs` composes, in `PopulationLoader`'s and
+`CollectDataAsync`'s order — against `EFT00028_TEST_020`, with no window. It is a scratch console
+outside the repository (`C:\work\qs-harness`), deliberately not a test: it needs a live catalogue, and
+driving the WPF shell to do the same thing would have needed the screen.
+
+| | |
+|---|---|
+| Cohort | `Populations.GetStudyPopulations` → 55 populations; ProcId 282 *"Diagnoseår mangler"* (31) and ProcId 14 *"Alle testpersoner"* (281) |
+| National ids | **280 of 281 recovered** — the Phase 4 feature, against a real server, through the chunked path §8.11 (1) switched it to |
+| Registry | `BuildAsync` → **213 data elements**, the same 213 the shipped build shows |
+| Collectors | **213 ran, 0 threw**, on both cohorts |
+| Rows | 29 collectors returned data; 184 returned none |
+| Export | `DatasetExporter` wrote 281 × 101 and 281 × 201 (timestamps) CSV files |
+
+**The 184 empty results are the database, not a defect, and that was checked rather than assumed.**
+`dbo.DrugPrescription` and `dbo.DrugTreatment` are **empty**, so every `DRUG.*` collector is correctly
+silent. `dbo.LabData` holds 132 rows for 17 people, and **none of those 17 is in NDV** — zero overlap
+with `dbo.StudCase` for study 2 — so no NDV cohort can have lab data here and every `LAB.*` collector
+is correctly silent too. What did return rows covers every collector *shape*: `PATIENT.*` and
+`STUDY.*` (static registry), `FORM.*` and the per-form data collectors (built from
+`Report.GetFormClasses` at login), `FORMS/FORMS12M/FORMS24M.FREQUENCY` (batched), and `NDV.INSULIN` /
+`NDV.TREATMENT` (study-gated).
+
+**What the export bytes show.** No BOM; `CRLF` only, one per row plus the header, and the file ends
+with one; `;` after **every** field including the last; every field quoted; `"PID";"AGE";"SEX";` as
+the header, i.e. VarNames and not titles; and with timestamps on, `"AGE";"AGE.DATE";"SEX";"SEX.DATE";`
+— §6's format, observed rather than specified. Two caveats: this data produced only six decimal
+commas, so `%g` with a comma separator is barely exercised, and **not one byte above `0x7F`**, so the
+CP1252 half of §6 is still untested. A fixture that pins the encoding needs a column with Norwegian
+text in it.
+
+**A third real defect, found by running it: every clean shutdown logs a failure.**
+`SessionService.Dispose` → `SafeDisconnectAsync` → `QuickStatDatabase.DisconnectAsync` runs *after*
+the container has disposed `QuickStatDatabase`, so it waits on a disposed `SemaphoreSlim` and logs
+**"The connection did not close cleanly"** with an `ObjectDisposedException` — twice, on a shutdown
+where the connection had already been closed cleanly. It is caught, so nothing breaks; the harm is
+that a log line which should mean something now means nothing, which is how a real failure gets
+missed. Not fixed here only because §8.10 (g) was editing the same file concurrently.
+
 **Left open by Phase 5**
 
-- **No collector has executed.** Binding is not rows. The CSV byte comparison (R4, §10.6) still has
-  no fixture captured from the Delphi.
-- **`clFocusedSelectionColor` is still unmeasured** — see §8.9 (a).
+- **The Delphi half of the CSV comparison.** The port's half exists (above); R4 / §10.6 still needs
+  the same population and data elements exported from `22.12.21.547` and the two files compared byte
+  for byte. The rig is set up and the population is reproducible — see §8.9 (a) and below.
+- **`clFocusedSelectionColor` is still unmeasured** — see §8.9 (a). The other two are now corrected.
 - **`ATC_A11EA = 'A11EA'` has no trailing `%`** (`EPR.QA.Collector.Drug.pas:44`), so `DRUG.A11EA`
   matches one exact code while its title calls it a group ("Vitamin B-kompleks"). Every other
   group-level constant carries `%`; the ones without it are all full 7-character codes. Reproduced
@@ -1085,9 +1130,10 @@ one sentence.
 **Phase 5 measured the first two and they are the right-hand column, exactly.** The shipped build was
 run against `EFT00028_TEST_020`, the population list was screenshotted, and the stroke cores of the
 two text columns were sampled: `#888888` and `#894605`, byte for byte, no interpretation needed. So
-the dated-chain argument below was correct, and **the theme's current values for those two are
-wrong** — three hex values in `Theme/QuickStat.Brushes.xaml` plus the inventory test, of which two
-can be changed on evidence today.
+the dated-chain argument below was correct, and the theme's values for those two were wrong.
+**Both are now corrected**, in `Theme/QuickStat.Brushes.xaml`, `ThemeResourceTests`, §F.1, §F.4, the
+two §F.1 mock-ups that quoted them, `04-matrix-export.md` §7.5 and `07-ui-contracts.md` — nine places
+in all, which is itself the argument for having a single inventory test.
 
 The third resisted automation: clicking into the grid produced no change at all, so the grid appears
 to hold no rows until a collect run, and chasing it further was not worth the screen time against
@@ -1102,12 +1148,13 @@ argument that settled R12 in §2.1, the binary customers actually run shows the 
 change — so the screenshots and `develop_old` agree with each other and both describe the old
 palette.
 
-The theme currently ships the **left-hand** column, because §F.4 was transcribed as written and step
-3.1 was right not to change a spec unilaterally. Reversal cost is three hex values in
-`Theme/QuickStat.Brushes.xaml` plus the inventory test. **R13 applies: settle it by looking at the
+The theme shipped the **left-hand** column until Phase 5, because §F.4 was transcribed as written and
+step 3.1 was right not to change a spec unilaterally. **R13 applied: settle it by looking at the
 deployed exe**, not by reasoning further — this is precisely the kind of "what ships today" claim
-R11 warns is unverified in `01`–`02` and `04`–`05`. *Two of the three were looked at in Phase 5 and
-the dated-chain argument held; the paragraphs below describe why that took running the thing.*
+R11 warns is unverified in `01`–`02` and `04`–`05`. *Two of the three were looked at in Phase 5, the
+dated-chain argument held, and both are now changed; the paragraphs below describe why that took
+running the thing.* The third stays as transcribed, because changing it by analogy with the other two
+would be the same mistake in the opposite direction.
 
 **The deployed exe is on this machine, and it cannot be inspected statically.** Four copies exist —
 `C:\Users\chs\Downloads\QuickStat.exe`, `…\Downloads\FastTrakUpgrade.v22011\bin\`,

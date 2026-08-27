@@ -94,20 +94,20 @@
                        Text="{Binding Glyph}">
                 <TextBlock.Style>
                     <!--
-                        Two literal colours, neither of them in 05-ui-spec.md §F.4, which step 3.6
-                        may not edit.  #C42B1C is the one step 3.1 already uses for the banner's
-                        error status line, so no new red enters the application; the amber has no
-                        precedent and is reported for promotion into §F.4 by a human.
+                        Both severity colours were literals here until Phase 5 promoted them into
+                        §F.4 (PORT-PLAN.md §8.10 e).  Step 3.6 wrote them inline because it was not
+                        allowed to add a brush, and said so; the hex is unchanged, it just lives in
+                        one place now, which matters because the banner uses the same red.
                     -->
                     <Style TargetType="TextBlock" BasedOn="{StaticResource QsIconGlyph}">
                         <Setter Property="FontSize" Value="32" />
                         <Setter Property="Foreground" Value="{StaticResource QsTealBrush}" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Severity}" Value="{x:Static diag:NotificationSeverity.Warning}">
-                                <Setter Property="Foreground" Value="#9D5D00" />
+                                <Setter Property="Foreground" Value="{StaticResource QsWarningBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Severity}" Value="{x:Static diag:NotificationSeverity.Error}">
-                                <Setter Property="Foreground" Value="#C42B1C" />
+                                <Setter Property="Foreground" Value="{StaticResource QsErrorBrush}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

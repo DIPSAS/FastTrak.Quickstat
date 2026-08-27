@@ -59,13 +59,24 @@ public class ThemeResourceTests
             { "QsTitleBrush", "#333333" },
             { "QsMutedTextBrush", "#5E6A6A" },
             { "QsOnAccentBrush", "#FFFFFF" },
-            { "QsCodeBrush", "#4B29A4" },
-            { "QsCategoryBrush", "#B82E82" },
+            // Measured off the running 22.12.21.547, not transcribed: §F.4 carried develop_old's
+            // values (#4B29A4 and #B82E82) and commit 98f493bbc changed both before the shipped
+            // build. PORT-PLAN.md §8.9 (a).
+            { "QsCodeBrush", "#888888" },
+            { "QsCategoryBrush", "#894605" },
             { "QsAccentBrush", "#0078D7" },
+
+            // Severity
+            { "QsErrorBrush", "#C42B1C" },
+            { "QsWarningBrush", "#9D5D00" },
 
             // Grid semantics
             { "QsCellEmptyBrush", "#F5F5F5" },
             { "QsCellNoDataBrush", "#FFFAFA" },
+
+            // Third of the develop_old set, and the one Phase 5 could NOT measure: the grid holds no
+            // rows until a collect run, so there was no cell to click. Its counterpart is #C8D9E9.
+            // Left as transcribed rather than changed by analogy - PORT-PLAN.md §8.9 (a).
             { "QsCurrentCellBrush", "#FFFBD4" },
             { "QsCurrentRowBrush", "#F3F9FE" },
             { "QsHintBackgroundBrush", "#FFFFE1" },
