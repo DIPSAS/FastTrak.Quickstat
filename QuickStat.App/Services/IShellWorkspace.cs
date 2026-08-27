@@ -31,7 +31,7 @@ namespace QuickStat.Services;
 /// exists to fix.
 /// </para>
 /// <para>
-/// <b>Ordering contract for step 3.2.</b> <see cref="PersonMatrix"/> is a plain mutable object that
+/// <b>Ordering contract.</b> <see cref="PersonMatrix"/> is a plain mutable object that
 /// raises no notifications, so this type cannot observe it. A population load must therefore be, in
 /// this order:
 /// </para>
@@ -42,6 +42,13 @@ namespace QuickStat.Services;
 /// workspace.SetPopulation(population);        // now Rows.Count is right, so HasPopulation is too
 /// workspace.RequestCollectionsTab();          // both entry points - see the method
 /// </code>
+/// <para>
+/// <b>Nobody should be writing that out.</b> <see cref="PopulationLoader"/> is the one place it is
+/// executed - the population double click and the package replay both go through it (PORT-PLAN.md
+/// §8.10 (b), which exists because for a while they did not). The block above is kept as the
+/// <em>reason</em> the workspace has to be told last, not as a recipe to copy; the last line is the
+/// exception, because whether the tab is asked for is the caller's decision and not the load's.
+/// </para>
 /// <para>
 /// And a collect run must end with <see cref="NotifyDataChanged"/>, after
 /// <see cref="PersonMatrix.Lock"/>.

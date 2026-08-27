@@ -65,6 +65,12 @@ public class PackagesTabViewModelTests
             Presenter = new ProbingNotificationPresenter(_ => OnNotify?.Invoke(), answerConfirmations);
             Populations = QuickStat.Tests.Ui.Populations.PopulationTestDoubles.NewPickerViewModel();
 
+            // The real loader over this harness's own workspace, patients and resolver - the picker
+            // above is only a catalogue to search and is wired to a workspace of its own.  Not a
+            // fake: PORT-PLAN.md §8.10 (b) put the load sequence in here, and the national-id and
+            // locked-matrix cases below are assertions about that sequence.
+            Loader = new PopulationLoader(Parameters, Patients, Workspace);
+
             IdentificationPolicy identification = new();
 
             Collections = QuickStat.Tests.Ui.Collections.CollectionsTabHarness.Headless(
@@ -87,9 +93,8 @@ public class PackagesTabViewModelTests
                 uiDispatcher ?? new InlineUiDispatcher(),
                 Session,
                 Repository,
-                Patients,
                 Audit,
-                Parameters,
+                Loader,
                 new UserNotifier(Presenter, NullLogger<UserNotifier>.Instance),
                 Populations,
                 Collections,
@@ -116,6 +121,8 @@ public class PackagesTabViewModelTests
         internal FakePopulationRepository Audit { get; }
 
         internal FakeParameterResolver Parameters { get; }
+
+        internal PopulationLoader Loader { get; }
 
         internal ProbingNotificationPresenter Presenter { get; }
 
@@ -192,9 +199,8 @@ public class PackagesTabViewModelTests
             new InlineUiDispatcher(),
             new FakeSessionService(),
             new FakePackageRepository(),
-            new FakePatientRepository(),
             new FakePopulationRepository(),
-            new FakeParameterResolver(),
+            new PopulationLoader(new FakeParameterResolver(), new FakePatientRepository(), workspace),
             new UserNotifier(new HeadlessNotificationPresenter(), NullLogger<UserNotifier>.Instance),
             QuickStat.Tests.Ui.Populations.PopulationTestDoubles.NewPickerViewModel(),
             QuickStat.Tests.Ui.Collections.CollectionsTabHarness.Headless(

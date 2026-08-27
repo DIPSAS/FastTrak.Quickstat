@@ -1069,8 +1069,19 @@ public class PopulationPickerViewModelTests
 
         Assert.Throws<ArgumentNullException>(() => new PopulationPickerViewModel(
             null!,
-            harness.Patients,
-            harness.Parameters,
+            harness.Loader,
+            harness.Session,
+            harness.Workspace,
+            harness.Progress,
+            new InlineUiDispatcher(),
+            harness.Notifier,
+            NullLogger<PopulationPickerViewModel>.Instance));
+
+        // The loader took the place of IPatientRepository and IQueryParameterResolver here when
+        // PORT-PLAN.md §8.10 (b) collapsed the two population-load paths onto it.
+        Assert.Throws<ArgumentNullException>(() => new PopulationPickerViewModel(
+            harness.Catalogue,
+            null!,
             harness.Session,
             harness.Workspace,
             harness.Progress,
@@ -1080,8 +1091,7 @@ public class PopulationPickerViewModelTests
 
         Assert.Throws<ArgumentNullException>(() => new PopulationPickerViewModel(
             harness.Catalogue,
-            harness.Patients,
-            harness.Parameters,
+            harness.Loader,
             harness.Session,
             harness.Workspace,
             harness.Progress,

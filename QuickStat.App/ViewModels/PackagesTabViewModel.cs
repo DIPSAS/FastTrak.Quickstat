@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -8,9 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using QuickStat.Data;
 using QuickStat.Diagnostics;
-using QuickStat.Domain.Matrix;
 using QuickStat.Domain.Packages;
-using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
 using QuickStat.Services;
 
@@ -83,9 +80,8 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     private readonly IUiDispatcher _dispatcher;
     private readonly ISessionService _session;
     private readonly IPackageRepository _repository;
-    private readonly IPatientRepository _patients;
     private readonly IPopulationRepository _populationRepository;
-    private readonly IQueryParameterResolver _parameters;
+    private readonly PopulationLoader _loader;
     private readonly IUserNotifier _notifier;
     private readonly PopulationPickerViewModel _populations;
     private readonly CollectionsTabViewModel _collections;
@@ -108,9 +104,14 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// <param name="dispatcher">Marshals the post-login reload onto the user-interface thread.</param>
     /// <param name="session">Tells us the study id, and when a project has been connected.</param>
     /// <param name="repository">Reads, writes and deletes rows in <c>Report.QuickStat</c>.</param>
-    /// <param name="patients">Runs the population's own query during a replay.</param>
     /// <param name="populationRepository">Writes the <c>dbo.AddPopulationLog</c> audit row.</param>
-    /// <param name="parameters">Resolves that query's placeholders, prompting for a period.</param>
+    /// <param name="loader">
+    /// Runs the population a package names and puts its cohort in the matrix. The same instance the
+    /// Populations tab uses, and the reason there is no longer a second copy of that sequence in
+    /// this file - PORT-PLAN.md §8.10 (b). It replaces the <c>IPatientRepository</c> and
+    /// <c>IQueryParameterResolver</c> this view-model used to take, which it took <em>only</em> in
+    /// order to write that copy.
+    /// </param>
     /// <param name="notifier">The §D.4 warnings and the delete confirmation.</param>
     /// <param name="populations">Where the replay finds the population to load. Step 3.2's.</param>
     /// <param name="collections">Where the replay ticks elements and starts the collect. Step 3.3's.</param>
@@ -122,9 +123,8 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         IUiDispatcher dispatcher,
         ISessionService session,
         IPackageRepository repository,
-        IPatientRepository patients,
         IPopulationRepository populationRepository,
-        IQueryParameterResolver parameters,
+        PopulationLoader loader,
         IUserNotifier notifier,
         PopulationPickerViewModel populations,
         CollectionsTabViewModel collections,
@@ -136,9 +136,8 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(repository);
-        ArgumentNullException.ThrowIfNull(patients);
         ArgumentNullException.ThrowIfNull(populationRepository);
-        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(loader);
         ArgumentNullException.ThrowIfNull(notifier);
         ArgumentNullException.ThrowIfNull(populations);
         ArgumentNullException.ThrowIfNull(collections);
@@ -150,9 +149,8 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         _dispatcher = dispatcher;
         _session = session;
         _repository = repository;
-        _patients = patients;
         _populationRepository = populationRepository;
-        _parameters = parameters;
+        _loader = loader;
         _notifier = notifier;
         _populations = populations;
         _collections = collections;
@@ -501,29 +499,30 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// <returns>Whether the matrix now holds that population.</returns>
     /// <remarks>
     /// <para>
-    /// The order is a contract, not a style: <c>PersonMatrix</c> raises no notifications, so
-    /// <see cref="IShellWorkspace.SetPopulation"/> has to come last or
-    /// <see cref="IShellWorkspace.HasPopulation"/> reads the previous cohort's row count.
+    /// <b>The sequence itself is <see cref="PopulationLoader.LoadAsync"/>'s</b>, and used to be
+    /// written out again here: the clear that unlocks the matrix, the sort, the cohort query, the
+    /// national-id recovery between that query and <c>PreparePopulation</c>, and
+    /// <see cref="IShellWorkspace.SetPopulation"/> last. Every one of those steps is ordered for a
+    /// reason and the reasons are on the loader. Two copies of an ordering contract is how it comes
+    /// apart, which is what PORT-PLAN.md §8.10 (b) asked to be fixed and this is the fix; the Delphi
+    /// had one copy too, since the replay reaches <c>AfterPopulationSelect</c> through
+    /// <c>TrySelect</c> (<c>MainQuickStat.pas:789</c>) rather than repeating it.
     /// </para>
     /// <para>
-    /// <b><c>ClearPopulation</c> comes first, and that is not decoration.</b>
-    /// <see cref="PersonMatrix.SortBy"/> throws once the matrix is locked, and a collect run locks
-    /// it - so replaying a second package would fail on the sort assignment. The Delphi opens
-    /// <c>LoadPopulationIntoGrid</c> with <c>fGrid.Data.ClearPopulation</c> for exactly this reason:
-    /// it clears <c>fLocked</c> (<c>EPR.QA.Matrix.pas:211-215</c>).
+    /// What stays here is what this tab does differently from the Populations tab.
     /// </para>
     /// <para>
-    /// A cancelled period prompt is not an error and raises nothing, which is what
-    /// <see cref="ParameterResolution.CancelledByUser"/> exists to say.
+    /// <b>A failure to resolve the placeholders is quieter here.</b> A cancelled period prompt is not
+    /// an error and raises nothing - that is what <see cref="ParameterResolution.CancelledByUser"/>
+    /// exists to say, and both tabs agree. An <em>unresolvable</em> one reaches the status line and
+    /// the log, but no message box, where the Populations tab also shows one; and the status line
+    /// gets <c>""</c> rather than a fallback sentence when the resolver named no reason. Left as it
+    /// was, because §8.10 (b) is about the duplicated sequence and not a licence to change what
+    /// either tab shows - but recorded, because it is a difference nobody chose.
     /// </para>
     /// <para>
-    /// <see cref="NationalIdRecovery.EnsureNationalIdsAsync"/> runs between the cohort query and
-    /// <see cref="PersonMatrix.PreparePopulation"/>, exactly as it does on the Populations tab, so
-    /// that a replayed package carries the same <c>Fødselsnummer</c> column as the population loaded
-    /// by hand.
-    /// </para>
-    /// <para>
-    /// The <c>dbo.AddPopulationLog</c> audit row is written here as well. The Delphi writes it from
+    /// <b>The <c>dbo.AddPopulationLog</c> audit row is written here as well</b>, and fire-and-forget:
+    /// see <see cref="LogPopulationSelected"/>. The Delphi writes it from
     /// <c>PopulationRequested</c> (<c>EPR.VclFrame.Populations.pas:219</c>), which the replay reaches
     /// through <c>TrySelect</c> - so a replay does count towards the popularity ranking that the
     /// <c>Frequently used only</c> box reads, and skipping it here would quietly change which
@@ -532,13 +531,11 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
     /// </remarks>
     private async Task<bool> LoadPopulationAsync(Population population, CancellationToken cancellationToken)
     {
-        long startedAt = Stopwatch.GetTimestamp();
-
-        ParameterResolution resolution = await _parameters
-            .ResolveAsync(population.QueryText, cancellationToken)
+        PopulationLoadResult result = await _loader
+            .LoadAsync(population, _logger, cancellationToken)
             .ConfigureAwait(true);
 
-        if (!resolution.Succeeded)
+        if (result.Unresolved is { } resolution)
         {
             if (resolution.CancelledByUser)
             {
@@ -557,40 +554,31 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        IReadOnlyList<Patient> patients = await _patients
-            .LoadPopulationAsync(population, resolution.Values, cancellationToken)
-            .ConfigureAwait(true);
-
-        // Same step, same place, as the Populations tab: a replay that produced no Fødselsnummer
-        // while the same population loaded from the tab did would be a bug in one of the two halves.
-        // MainQuickStat.pas:536-540 reaches this path too - the replay goes through TrySelect and so
-        // through AfterPopulationSelect (:789).
-        await NationalIdRecovery
-            .EnsureNationalIdsAsync(_patients, patients, _logger, cancellationToken)
-            .ConfigureAwait(true);
-
-        PersonMatrix matrix = _workspace.Matrix;
-
-        matrix.ClearPopulation();
-        matrix.SortBy = MatrixSortOrder.PersonId;
-        matrix.PreparePopulation(patients);
-
-        _workspace.SetPopulation(population);
-
-        LogPopulationSelected(population, Stopwatch.GetElapsedTime(startedAt));
+        LogPopulationSelected(population, result.ElapsedMilliseconds);
 
         return true;
     }
 
     /// <summary>Writes the popularity audit row, and never lets it matter.</summary>
     /// <param name="population">The population that was prepared.</param>
-    /// <param name="elapsed">How long preparing it took.</param>
+    /// <param name="elapsedMilliseconds">
+    /// How long preparing it took, from <see cref="PopulationLoadResult.ElapsedMilliseconds"/>.
+    /// </param>
     /// <remarks>
+    /// <para>
     /// Fire and forget, as <see cref="IPopulationRepository.LogPopulationSelectedAsync"/> requires:
     /// the Delphi logs and swallows the failure (<c>EPR.VclFrame.Populations.pas:224-226</c>) and it
     /// must never block or surface.
+    /// </para>
+    /// <para>
+    /// <b>The Populations tab awaits the same call instead</b>, inside its own <c>try</c> and with the
+    /// load's cancellation token, and writes a row with study id zero rather than skipping it when
+    /// there is no session. Two different answers to "how much does the audit row matter", and both
+    /// are left standing: unifying them would change what one of the two tabs writes, and §8.10 (b)
+    /// is about the load sequence, not about this.
+    /// </para>
     /// </remarks>
-    private void LogPopulationSelected(Population population, TimeSpan elapsed)
+    private void LogPopulationSelected(Population population, long elapsedMilliseconds)
     {
         if (_session.Current is not { } current)
         {
@@ -598,7 +586,7 @@ public sealed partial class PackagesTabViewModel : ObservableObject, IDisposable
         }
 
         _ = _populationRepository
-            .LogPopulationSelectedAsync(current.StudyId, population.ProcId, population.Title, (long)elapsed.TotalMilliseconds)
+            .LogPopulationSelectedAsync(current.StudyId, population.ProcId, population.Title, elapsedMilliseconds)
             .ContinueWith(
                 task => _logger.LogWarning(task.Exception, "Could not write the population audit row."),
                 CancellationToken.None,
