@@ -146,8 +146,42 @@ patient identification.
 | `DbFormExport.dpr` | **Not** ported (out of scope) |
 | Data access | `Microsoft.Data.SqlClient` |
 | Configuration | Keep reading the deployed `QuickStat.config.xml` verbatim, including `FILE NAME=…\FastTrak.UDL`, translating OLE DB/UDL → ADO.NET at load |
-| Dependencies | CommunityToolkit.Mvvm, Microsoft.Data.SqlClient, Microsoft.Extensions.{DependencyInjection,Logging}, ClosedXML, xUnit. No commercial control suites |
+| Dependencies | CommunityToolkit.Mvvm, Microsoft.Data.SqlClient, Microsoft.Extensions.{DependencyInjection,Logging}, ClosedXML, **Serilog** (see below), xUnit. No commercial control suites |
 | UI | Same information architecture, tab names, control placement and workflow; modern flat rendering. No attempt to imitate a "Delphi look" |
+
+#### The one dependency added after planning: Serilog (2026-08-27)
+
+`Docs/Port/01-data-access.md` §7.5 left the choice open — "file logging: a small custom
+`ILoggerProvider` (**or Serilog, if the team prefers a dependency**)" — and Phase 0 took the custom
+route. The deciding argument at the time was that the log file is a *compatibility surface*: the
+format was to stay byte-compatible with the Delphi's plaintext log so existing ops tooling kept
+reading it, and under Serilog that would still have meant a hand-written sink and formatter, so the
+dependency bought nothing.
+
+**The product owner withdrew that requirement on 2026-08-27: the format is not worth preserving,
+only what is logged, when and how.** Write this down, because it is the whole reason the answer
+changed — without it, the next reader re-derives the Phase 0 conclusion and reverts this. With the
+format free, the custom provider was left hand-rolling four things `Serilog.Sinks.File` already
+does: daily rolling, retention, shared-file access and encoding. Three files were deleted and
+`Serilog`, `Serilog.Extensions.Logging` and `Serilog.Sinks.File` added (versions matched to the
+sibling project `FastTrak.PersonInfoSync`, so the two DIPS C# applications do not drift).
+
+Three constraints hold, and are enforced by structure rather than by intent:
+
+1. **Serilog sits behind `Microsoft.Extensions.Logging`, not in front of it.** `QuickStat.Core`
+   still references only `Microsoft.Extensions.Logging.Abstractions`; every call site logs through
+   `ILogger<T>`. Serilog appears only under `QuickStat.App/Logging/` — not even `App.xaml.cs` names
+   a Serilog type — so replacing it again is a change to one directory. `FastTrak.PersonInfoSync`
+   takes the opposite route, a `global using Serilog` in every project; that is deliberately **not**
+   copied, because it would put a third-party logging type in `QuickStat.Core`'s public surface.
+2. **R6 survives the swap unchanged.** `QuickStatLogFormatter` is still the single choke point where
+   `PiiRedactor` runs, and the five tests in `QuickStat.Tests/Logging/FileLoggerRedactionTests.cs`
+   are unchanged assertion-for-assertion — only the four lines that build the pipeline differ. They
+   were re-verified by negative control on the Serilog path.
+3. **Two Serilog defaults had to be overridden**, both found by a failing test rather than by
+   reading: its template parser eats the `{{ }}` PII convention (it reads `{{` as an escaped `{`,
+   which MEL does not), and it renders string values in quotes (`'"HbA1c"'` for templates that
+   already quote). See the class remarks.
 
 ### 1.2 Verified environment
 
@@ -419,7 +453,10 @@ Owns: `QuickStat.slnx`, `global.json`, `Directory.Build.props`, `Directory.Packa
 - `TreatWarningsAsErrors`, `Nullable=enable`, `ImplicitUsings=enable`, `LangVersion=latest`.
 - Generic Host bootstrap: DI container, `Microsoft.Extensions.Logging` with a file logger writing
   to `<exedir>/LOGS/` — **creating the directory if missing**, which the Delphi never did, silently
-  losing all logs.
+  losing all logs. *(Phase 5: the provider behind it is now Serilog — see §1.1. The file is
+  `quickstat-<user>@<machine>-yyyyMMdd.log`, ten kept, level overridable with
+  `QUICKSTAT_LOG_LEVEL`, falling back to `%LOCALAPPDATA%\DIPS\QuickStat\logs` when `LOGS` cannot be
+  created.)*
 - Application icon from the existing `QuickStat_Icon.ico`.
 - `.gitignore` additions: `.vs/`, `*.user`, `*.suo`. Note `*.ini` is already ignored — deliberate,
   settings files must not be committed.
