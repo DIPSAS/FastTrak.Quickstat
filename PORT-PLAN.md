@@ -1146,10 +1146,16 @@ before the fix and still have `ClosedAt` NULL; session **816**, the same path af
   group-level constant carries `%`; the ones without it are all full 7-character codes. Reproduced
   faithfully. **A second question for whoever answers the `J01FF%` one in §8.4** — same shape, same
   owner, and cheap to ask at the same time.
-- **Unverified lead, worth one look:** `Docs/Port/01-data-access.md` §7.5 says `PiiRedactor.ForLog`
-  is applied in the logger provider. A subagent reported it is not — only `UserNotifier` and
-  `IniSettingsStore` call the redactor. If true it is an R6 item and therefore release-blocking, so
-  check it rather than take it on trust.
+- ~~**Unverified lead, worth one look:** `Docs/Port/01-data-access.md` §7.5 says `PiiRedactor.ForLog`
+  is applied in the logger provider. A subagent reported it is not.~~ **Checked, and the lead was
+  right — closed in commit `6e6b974`.** Nothing applied the redactor on the way to the log file, so
+  anything written through `ILogger` directly landed on disk in the clear; only `UserNotifier` and
+  `IniSettingsStore` redacted. `QuickStatLogFormatter` now runs `ForLog` over the rendered message
+  and `Redact` over the exception block, and `Logging/FileLoggerRedactionTests.cs` reads the actual
+  bytes of the actual file rather than asserting on a formatter in isolation — which is what kept it
+  closed across the swap to Serilog (`f9cce45`), where Serilog's `{{` un-doubling would otherwise
+  have silently disabled the handlebar convention. R6, and therefore not a lead anybody may leave
+  standing.
 
 ### 8.12 §8.10 (g) in full — what the fire-and-forget collector build actually cost
 
