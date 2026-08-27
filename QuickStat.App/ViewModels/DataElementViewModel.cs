@@ -81,16 +81,22 @@ public sealed partial class DataElementViewModel : ObservableObject
     /// with <c>CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE, ...)</c>. That is a linguistic,
     /// case-insensitive collation, in which punctuation sorts before letters - which is exactly what
     /// makes the <c>^ </c> hack work, and what <c>Docs/Screenshots/QuickStat bilde 2.png</c> shows.
-    /// <see cref="StringComparer.CurrentCultureIgnoreCase"/> is the .NET equivalent, down to reading
-    /// the user's locale rather than a fixed one.
     /// </para>
     /// <para>
-    /// A new comparer per call, on purpose: <see cref="StringComparer.CurrentCultureIgnoreCase"/>
-    /// captures <see cref="System.Globalization.CultureInfo.CurrentCulture"/> when it is read, so a
-    /// cached one would freeze the culture at type-initialisation time.
+    /// <b>It calls that comparison rather than approximating it.</b> This was
+    /// <see cref="StringComparer.CurrentCultureIgnoreCase"/> until Phase 5, described as "the .NET
+    /// equivalent, down to reading the user's locale" - which is true of the locale and false of the
+    /// collation, because .NET collates with ICU and the list box with NLS. Measured against the
+    /// running <c>22.12.21.547</c> build, that moved five of 213 data elements, and therefore five
+    /// columns of every export. <see cref="LbsSortComparer"/> carries the evidence.
+    /// </para>
+    /// <para>
+    /// The comparer is a singleton and holds no state: it reads
+    /// <see cref="System.Globalization.CultureInfo.CurrentCulture"/> on each comparison, so unlike a
+    /// cached <see cref="StringComparer"/> it cannot freeze the culture at type-initialisation time.
     /// </para>
     /// </remarks>
-    public static StringComparer TitleOrder => StringComparer.CurrentCultureIgnoreCase;
+    public static IComparer<string> TitleOrder => LbsSortComparer.Instance;
 
     /// <summary>The collector's name. Stored in a package; never shown.</summary>
     public string Name { get; }

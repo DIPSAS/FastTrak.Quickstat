@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.IO;
 using QuickStat.Collectors;
+using QuickStat.Tests.Configuration;
 using QuickStat.ViewModels;
 using Xunit;
 
@@ -198,6 +200,91 @@ public class CollectorOrderTests
                 ["Medisin: Antall på utvalgte ATC-grupper", "Medisin: Antall per behandlingstype"],
                 titles.OrderBy(static t => t, DataElementViewModel.TitleOrder));
         }
+    }
+
+    [Theory]
+    [InlineData("nb-NO")]
+    [InlineData("nn-NO")]
+    public void TheComparerReproducesTheShippedListBoxOnAWholeCheckList(string cultureName)
+    {
+        // The strongest evidence available for this rule, and the test that would have caught the
+        // defect Phase 5 found. DelphiCheckList.NDV.txt is not derived from the port: it was read out
+        // of the running 22.12.21.547 build with LB_GETTEXT, item by item, while it was connected to
+        // a real database with the NDV study selected - so it is literally what LBS_SORT produced,
+        // 213 elements including the 111 form classes Report.GetFormClasses returned.
+        //
+        // Sorting a shuffled copy back into that order exercises the comparer on real punctuation
+        // collisions ("Skjema:" against "Skjema-alder:" and "Skjema-data:") that the 131-entry static
+        // catalog does not contain - which is exactly why no earlier test could see the problem.
+        using CultureScope culture = new(cultureName);
+
+        List<string> expected = ShippedCheckList();
+        List<string> shuffled = Shuffle(expected);
+
+        Assert.Equal(expected, [.. shuffled.OrderBy(static title => title, DataElementViewModel.TitleOrder)]);
+    }
+
+    [Fact]
+    public void TheFrameworksOwnComparerWouldMisplaceTheFormCountElements()
+    {
+        // Not a test of the port - a test of the rule the port deliberately does not use, so the
+        // reason for the P/Invoke is in the suite and not only in a comment. Same intent as
+        // AnOrdinalSortWouldPutTheDemographicElementsLast above.
+        //
+        // .NET collates with ICU since .NET 5; the list box collates with NLS. They disagree about
+        // "-" against ":", so StringComparer.CurrentCultureIgnoreCase moves the five
+        // "Skjema: Antall ..." elements from positions 41-45 to the end of the list - and, because
+        // column order is insertion order, five columns to the right-hand edge of every export.
+        using CultureScope culture = new("nb-NO");
+
+        List<string> expected = ShippedCheckList();
+        List<string> icu = [.. Shuffle(expected).OrderBy(static title => title, StringComparer.CurrentCultureIgnoreCase)];
+
+        Assert.NotEqual(expected, icu);
+
+        // Stated exactly, because the exact shape is the finding: the shipped build puts the five
+        // "Skjema: Antall ..." elements together immediately before the first "Skjema-alder:", and
+        // ICU puts them at the very end - so everything in between shifts up five places too.
+        Assert.All(
+            expected.Skip(40).Take(5),
+            title => Assert.StartsWith("Skjema: Antall", title, StringComparison.Ordinal));
+        Assert.StartsWith("Skjema-alder:", expected[45], StringComparison.Ordinal);
+
+        Assert.All(
+            icu.TakeLast(5),
+            title => Assert.StartsWith("Skjema: Antall", title, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The check list as the shipped build showed it, one title per line, in list-box order.
+    /// </summary>
+    /// <returns>213 titles.</returns>
+    private static List<string> ShippedCheckList() =>
+    [
+        .. File.ReadAllLines(Path.Combine(
+            RepositoryFiles.Root,
+            "QuickStat.Tests",
+            "Ui",
+            "Collections",
+            "DelphiCheckList.NDV.txt")),
+    ];
+
+    /// <summary>
+    /// Reorders deterministically, so the sort has real work to do and the test cannot pass by
+    /// accident of the input already being sorted.
+    /// </summary>
+    /// <param name="titles">The titles.</param>
+    /// <returns>The same titles, in a fixed non-sorted order.</returns>
+    private static List<string> Shuffle(List<string> titles)
+    {
+        List<string> shuffled = [.. titles];
+        for (int i = 0; i < shuffled.Count; i++)
+        {
+            int j = (i * 7919) % shuffled.Count;
+            (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
+        }
+
+        return shuffled;
     }
 
     private static IEnumerable<string> Titles(string studyName) =>
