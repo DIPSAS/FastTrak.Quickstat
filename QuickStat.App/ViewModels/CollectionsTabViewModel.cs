@@ -360,7 +360,10 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     /// <summary>
     /// The collect run. Delphi <c>actCollectDataExecute</c> (<c>MainQuickStat.pas:633-681</c>).
     /// </summary>
-    /// <param name="cancellationToken">Cancels between collectors and inside one.</param>
+    /// <param name="cancellationToken">
+    /// The command's own, from <c>AsyncRelayCommand</c>. Linked with the one the overlay's Cancel
+    /// button signals, so either stops the run - between collectors and inside one.
+    /// </param>
     /// <returns>A task that completes when the run has finished.</returns>
     /// <remarks>
     /// <para>
@@ -378,9 +381,10 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     ///     it and why <see cref="IConnectionCoordinator"/> calls it.
     ///   </description></item>
     ///   <item><description>
-    ///     <c>Screen.Cursor := crSqlWait</c> is <see cref="IShellProgress.BeginOperation"/>, which
+    ///     <c>Screen.Cursor := crSqlWait</c> is
+    ///     <see cref="IShellProgress.BeginOperation(string, CancellationTokenSource)"/>, which
     ///     counts, so a package replay that wraps this in its own scope still gets one wait cursor
-    ///     (§G.3).
+    ///     (§G.3). This is the one call site that passes a source: PORT-PLAN.md §8.10 (c).
     ///   </description></item>
     ///   <item><description>
     ///     <c>actExportData.Enabled := fGrid.Data.HasData</c> is
@@ -411,9 +415,18 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
 
         CollectRunStarting?.Invoke(this, EventArgs.Empty);
 
+        // The one operation in the application that offers the overlay a Cancel button, because it
+        // is the one that can take minutes and the one that honours the token all the way down -
+        // between collectors here, between batches in CollectorRunner, and inside the statement
+        // itself.  Linked rather than replacing: AsyncRelayCommand hands out a token and keeps the
+        // source, so this is how the same run can be stopped from either end.
+        using CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         // BeginOperation always sets the status line, and the Delphi's first is the first collector's
         // title.  With nothing ticked there is no run to describe, so the line is left as it is.
-        using IDisposable operation = _progress.BeginOperation(ticked.Count > 0 ? ticked[0].Title : _progress.Info);
+        using IDisposable operation = _progress.BeginOperation(
+            ticked.Count > 0 ? ticked[0].Title : _progress.Info,
+            cancellation);
 
         try
         {
@@ -421,9 +434,9 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
 
             foreach (DataElementViewModel element in ticked)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                cancellation.Token.ThrowIfCancellationRequested();
 
-                await CollectOneAsync(element, matrix, personIds, studyId, cancellationToken).ConfigureAwait(true);
+                await CollectOneAsync(element, matrix, personIds, studyId, cancellation.Token).ConfigureAwait(true);
             }
 
             matrix.Lock();
@@ -433,8 +446,9 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
         catch (OperationCanceledException)
         {
             // The matrix stays unlocked, so the columns collected so far show but cannot be
-            // exported - DatasetViewModel.EnsureExportable.  There is no Delphi equivalent; the run
-            // could not be interrupted at all.
+            // exported - DatasetViewModel.EnsureExportable.  There is no Delphi equivalent, because
+            // the Delphi run could not be interrupted at all; this is where the overlay's Cancel
+            // button lands.
             _logger.LogInformation("The collect run was cancelled.");
 
             _progress.Reset();

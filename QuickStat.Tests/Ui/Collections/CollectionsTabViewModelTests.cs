@@ -687,6 +687,69 @@ public class CollectionsTabViewModelTests
     }
 
     [Fact]
+    public async Task TheRunOffersTheOverlayACancelButtonAndWithdrawsItAfterwards()
+    {
+        // PORT-PLAN.md §8.10 (c). The overlay has had a Cancel button since step 3.6 and nothing has
+        // ever been able to show it.  This is the operation that earns one: the only one that can run
+        // for minutes, and the only one that honours the token all the way down - here between
+        // collectors, in CollectorRunner between batches, and inside the statement itself.
+        using Harness harness = new();
+        using BusyOverlayViewModel overlay = new(harness.Progress);
+
+        harness.Registry.With("A", "Alfa");
+
+        await harness.LoginAsync();
+        harness.LoadPopulation(8);
+        harness.Tick("A");
+
+        bool offeredDuring = false;
+        bool liveDuring = false;
+
+        harness.Runner.Observe = _ =>
+        {
+            offeredDuring = overlay.IsCancelOffered;
+            liveDuring = overlay.CancelCommand.CanExecute(null);
+        };
+
+        await harness.ViewModel.CollectDataCommand.ExecuteAsync(null);
+
+        Assert.True(offeredDuring);
+        Assert.True(liveDuring);
+
+        // Withdrawn with the scope: an idle shell must not carry a button that stops nothing.
+        Assert.False(overlay.IsCancelOffered);
+    }
+
+    [Fact]
+    public async Task PressingCancelOnTheOverlayStopsTheRunWhereItIs()
+    {
+        // The same end state ACancelledRunLeavesTheMatrixUnlockedAndTheStatusLineIdle pins for
+        // AsyncRelayCommand's own Cancel, reached from the button the user can actually see. The two
+        // sources are linked rather than alternatives, which is what makes both true at once.
+        using Harness harness = new();
+        using BusyOverlayViewModel overlay = new(harness.Progress);
+
+        harness.Registry.With("A", "Alfa").With("B", "Beta");
+
+        await harness.LoginAsync();
+        harness.LoadPopulation(8);
+        harness.Tick("A", "B");
+
+        harness.Runner.Observe = _ => overlay.CancelCommand.Execute(null);
+
+        await harness.ViewModel.CollectDataCommand.ExecuteAsync(null);
+
+        Assert.Single(harness.Runner.Ran);
+        Assert.False(harness.Matrix.IsLocked);
+        Assert.Equal(ShellProgress.IdleText, harness.Progress.Info);
+        Assert.False(harness.Progress.IsBusy);
+
+        // And the overlay is back at rest, so the next operation does not inherit "Cancelling".
+        Assert.False(overlay.IsCancelOffered);
+        Assert.False(overlay.IsCancelling);
+    }
+
+    [Fact]
     public async Task ThePackageReplayShapeProducesColumnsInCheckListOrder()
     {
         // Step 3.4's replay, end to end on this side of the seam: it ticks by stored name, then

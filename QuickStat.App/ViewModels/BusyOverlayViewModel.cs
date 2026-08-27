@@ -15,19 +15,20 @@ namespace QuickStat.ViewModels;
 /// </para>
 /// <para>
 /// <b>Everything here is derived from <see cref="IShellProgress"/>; nothing is assigned.</b>
-/// <see cref="IShellProgress.BeginOperation"/> counts, which is what keeps the overlay up while the
-/// package replay runs a collect inside its own scope - the Delphi saves and restores
+/// <see cref="IShellProgress.BeginOperation(string)"/> counts, which is what keeps the overlay up
+/// while the package replay runs a collect inside its own scope - the Delphi saves and restores
 /// <c>Screen.Cursor</c> for exactly that reason rather than assigning <c>crDefault</c>. Cancelling
 /// therefore does <em>not</em> take the overlay down: it signals the token and leaves the operation
 /// to unwind its own scope, which is the only thing that can know the work has actually stopped.
 /// </para>
 /// <para>
-/// <b>The cancel affordance is opt-in and currently unused.</b> A Cancel button appears only while
-/// something has called <see cref="OfferCancellation"/>, because a button that cannot stop anything
-/// is worse than no button. Nothing calls it yet: the natural place is
-/// <see cref="IShellProgress.BeginOperation"/>, which takes no
-/// <see cref="CancellationTokenSource"/> and belongs to step 3.1. Until that seam exists, an
-/// operation that wants to be cancellable opens both scopes itself.
+/// <b>The cancel affordance is opt-in, and the offer is not this class's to make.</b> A Cancel
+/// button appears only while an operation opened its scope with
+/// <see cref="IShellProgress.BeginOperation(string, CancellationTokenSource)"/>, because a button
+/// that cannot stop anything is worse than no button. The register of offers lives on the service
+/// and not here for the reason the rest of this class exists: the operations are started by the tab
+/// view-models, which cannot reach the overlay, and a second register kept here would be a second
+/// thing able to disagree with <see cref="IShellProgress.IsCancellable"/>. PORT-PLAN.md §8.10 (c).
 /// </para>
 /// </remarks>
 public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
@@ -39,7 +40,6 @@ public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
     public const string CancellingText = "Cancelling…";
 
     private readonly IShellProgress _progress;
-    private readonly List<CancellationTokenSource> _cancellations = [];
     private bool _isCancelling;
     private bool _disposed;
 
@@ -72,7 +72,7 @@ public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
     public double Percent => _progress.Percent;
 
     /// <summary>Whether a Cancel button is shown at all.</summary>
-    public bool IsCancelOffered => _cancellations.Count > 0;
+    public bool IsCancelOffered => _progress.IsCancellable;
 
     /// <summary>Whether that button is live. False once it has been pressed.</summary>
     public bool CanCancel => IsCancelOffered && !IsCancelling;
@@ -95,35 +95,6 @@ public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
 
     /// <summary>Requests cancellation of every operation that offered it.</summary>
     public IRelayCommand CancelCommand { get; }
-
-    /// <summary>
-    /// Offers the user a Cancel button for as long as the returned scope lives.
-    /// </summary>
-    /// <param name="cancellation">The source the button signals. Not disposed here.</param>
-    /// <returns>A scope that withdraws the offer. Disposing twice is harmless.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="cancellation"/> is <see langword="null"/>.</exception>
-    /// <remarks>
-    /// <para>
-    /// Nests, like <see cref="IShellProgress.BeginOperation"/>: the package replay's collect can
-    /// offer its own token inside the replay's. Cancel signals <em>all</em> of them, because the
-    /// user is cancelling the operation they can see and the inner one is part of it.
-    /// </para>
-    /// <para>
-    /// Call it on the user-interface thread; it touches bindable state.
-    /// </para>
-    /// </remarks>
-    public IDisposable OfferCancellation(CancellationTokenSource cancellation)
-    {
-        ArgumentNullException.ThrowIfNull(cancellation);
-
-        _cancellations.Add(cancellation);
-
-        OnPropertyChanged(nameof(IsCancelOffered));
-        OnPropertyChanged(nameof(CanCancel));
-        CancelCommand.NotifyCanExecuteChanged();
-
-        return new Offer(this, cancellation);
-    }
 
     /// <inheritdoc />
     public void Dispose()
@@ -148,39 +119,9 @@ public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
         // Signal, then say so. IsBusy is deliberately untouched: the overlay comes down when the
         // operation's own BeginOperation scope is disposed, which is the only moment the work has
         // really stopped.
-        foreach (CancellationTokenSource cancellation in _cancellations.ToArray())
-        {
-            // A source disposed by its owner between the offer and the click is not an error; the
-            // operation it belonged to is over.
-            try
-            {
-                cancellation.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Nothing to cancel.
-            }
-        }
+        _progress.RequestCancellation();
 
         IsCancelling = true;
-    }
-
-    private void Withdraw(CancellationTokenSource cancellation)
-    {
-        if (!_cancellations.Remove(cancellation))
-        {
-            return;
-        }
-
-        if (_cancellations.Count == 0)
-        {
-            // Back to the resting state, so the next operation does not inherit "Cancelling".
-            IsCancelling = false;
-        }
-
-        OnPropertyChanged(nameof(IsCancelOffered));
-        OnPropertyChanged(nameof(CanCancel));
-        CancelCommand.NotifyCanExecuteChanged();
     }
 
     private void OnProgressChanged(object? sender, PropertyChangedEventArgs e)
@@ -202,28 +143,21 @@ public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
 
                 break;
 
+            case nameof(IShellProgress.IsCancellable):
+                if (!_progress.IsCancellable)
+                {
+                    // Back to the resting state, so the next operation does not inherit "Cancelling".
+                    IsCancelling = false;
+                }
+
+                OnPropertyChanged(nameof(IsCancelOffered));
+                OnPropertyChanged(nameof(CanCancel));
+                CancelCommand.NotifyCanExecuteChanged();
+
+                break;
+
             default:
                 break;
-        }
-    }
-
-    /// <summary>The scope <see cref="OfferCancellation"/> hands out.</summary>
-    private sealed class Offer : IDisposable
-    {
-        private readonly CancellationTokenSource _cancellation;
-        private BusyOverlayViewModel? _owner;
-
-        internal Offer(BusyOverlayViewModel owner, CancellationTokenSource cancellation)
-        {
-            _owner = owner;
-            _cancellation = cancellation;
-        }
-
-        public void Dispose()
-        {
-            BusyOverlayViewModel? owner = Interlocked.Exchange(ref _owner, null);
-
-            owner?.Withdraw(_cancellation);
         }
     }
 }

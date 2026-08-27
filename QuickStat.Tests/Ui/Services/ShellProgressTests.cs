@@ -168,6 +168,154 @@ public class ShellProgressTests
     }
 
     [Fact]
+    public void AnOperationOffersItsSourceForExactlyAsLongAsItsScope()
+    {
+        // PORT-PLAN.md §8.10 (c): the overload that makes the overlay's Cancel button reachable. The
+        // register lives here rather than on the view-model because the operations are started by the
+        // tab view-models, which cannot reach the overlay.
+        ShellProgress progress = NewProgress();
+        using CancellationTokenSource cancellation = new();
+
+        Assert.False(progress.IsCancellable);
+
+        using (progress.BeginOperation("Alfa", cancellation))
+        {
+            Assert.True(progress.IsCancellable);
+            Assert.True(progress.IsBusy);
+            Assert.Equal("Alfa", progress.Info);
+        }
+
+        Assert.False(progress.IsCancellable);
+    }
+
+    [Fact]
+    public void AnOperationWithoutASourceOffersNothing()
+    {
+        // Most of them: a save, a delete or a caption load is one round trip, and a button that
+        // cannot stop anything is worse than no button.
+        ShellProgress progress = NewProgress();
+
+        using (progress.BeginOperation("Saving the dataset ..."))
+        {
+            Assert.True(progress.IsBusy);
+            Assert.False(progress.IsCancellable);
+        }
+    }
+
+    [Fact]
+    public void RequestCancellationSignalsEveryOfferedSourceAndLeavesTheShellBusy()
+    {
+        // All of them, not the innermost: the user is cancelling the operation they can see, and the
+        // collect a package replay runs inside its own scope is part of it.  IsBusy is untouched
+        // because only the operation's own scope knows the work has stopped (§G.3).
+        ShellProgress progress = NewProgress();
+        using CancellationTokenSource replay = new();
+        using CancellationTokenSource collect = new();
+
+        using (progress.BeginOperation("Diabetes basissett 2024", replay))
+        using (progress.BeginOperation("Alfa", collect))
+        {
+            progress.RequestCancellation();
+
+            Assert.True(replay.IsCancellationRequested);
+            Assert.True(collect.IsCancellationRequested);
+            Assert.True(progress.IsBusy);
+            Assert.True(progress.IsCancellable);
+        }
+    }
+
+    [Fact]
+    public void RequestCancellationSkipsASourceItsOwnerHasAlreadyDisposed()
+    {
+        // Disposed between the offer and the click: that operation is over, and a button press must
+        // not take the application down.
+        ShellProgress progress = NewProgress();
+        CancellationTokenSource cancellation = new();
+
+        using (progress.BeginOperation("Alfa", cancellation))
+        {
+            cancellation.Dispose();
+
+            progress.RequestCancellation();
+        }
+
+        Assert.False(progress.IsCancellable);
+    }
+
+    [Fact]
+    public void RequestCancellationWithNothingOfferedDoesNothing()
+    {
+        ShellProgress progress = NewProgress();
+
+        progress.RequestCancellation();
+
+        using (progress.BeginOperation("Saving the dataset ..."))
+        {
+            progress.RequestCancellation();
+
+            Assert.True(progress.IsBusy);
+        }
+    }
+
+    [Fact]
+    public void TheOfferIsWithdrawnBeforeTheBusyFlagDrops()
+    {
+        // Order, not bookkeeping: the overlay clears "Cancelling…" off the back of IsCancellable, so
+        // the other order would show the resting card for a frame on the way out.
+        ShellProgress progress = NewProgress();
+        using CancellationTokenSource cancellation = new();
+        List<string?> flags = [];
+
+        progress.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(IShellProgress.IsBusy) or nameof(IShellProgress.IsCancellable))
+            {
+                flags.Add(e.PropertyName);
+            }
+        };
+
+        progress.BeginOperation("Alfa", cancellation).Dispose();
+
+        Assert.Equal(
+            [
+                nameof(IShellProgress.IsBusy),
+                nameof(IShellProgress.IsCancellable),
+                nameof(IShellProgress.IsCancellable),
+                nameof(IShellProgress.IsBusy),
+            ],
+            flags);
+    }
+
+    [Fact]
+    public void IsCancellableIsRaisedOnceInEachDirectionHoweverManySourcesAreOffered()
+    {
+        ShellProgress progress = NewProgress();
+        using CancellationTokenSource replay = new();
+        using CancellationTokenSource collect = new();
+        int raised = 0;
+
+        progress.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IShellProgress.IsCancellable))
+            {
+                raised++;
+            }
+        };
+
+        IDisposable outer = progress.BeginOperation("Diabetes basissett 2024", replay);
+        IDisposable inner = progress.BeginOperation("Alfa", collect);
+
+        inner.Dispose();
+
+        Assert.True(progress.IsCancellable);
+
+        outer.Dispose();
+
+        Assert.False(progress.IsCancellable);
+        Assert.Equal(2, raised);
+    }
+
+    [Fact]
     public void UnchangedValuesRaiseNothing()
     {
         ShellProgress progress = NewProgress();

@@ -215,12 +215,15 @@ string Info   { get; }      // "Program is idle" → status text
 double Percent { get; }
 bool   IsError { get; }     // ProgressInfo shown in red
 bool   IsBusy  { get; }
+bool   IsCancellable { get; }      // added in Phase 5 — see below
 
 void SetInfo(string info);
 void Fail(string message);
 void Done();                       // 100 % + "Task completed"
 void Reset();
+void RequestCancellation();        // added in Phase 5 — see below
 IDisposable BeginOperation(string info);
+IDisposable BeginOperation(string info, CancellationTokenSource cancellation);   // added in Phase 5
 ```
 
 `BeginOperation` **counts**, so nested scopes do not clear the busy flag early — the package replay
@@ -228,6 +231,15 @@ runs a collect inside its own wait cursor, which is exactly why the Delphi saves
 `Screen.Cursor` rather than assigning `crDefault`. Use it in a `using`; do not assign `IsBusy`.
 
 `Report` is safe from any thread: it marshals through `IUiDispatcher` itself.
+
+**The three cancellation members are a Phase 5 addition (PORT-PLAN.md §8.10 (c)).** Step 3.6's busy
+overlay has always had a Cancel button and, until they existed, no way to show it: the operations are
+started by the tab view-models and none of them can reach `BusyOverlayViewModel`. The overload
+registers the source, `IsCancellable` is what shows the button, and `RequestCancellation` is what the
+button calls — it signals every source offered, because the user is cancelling the operation they can
+see and a collect running inside a package replay is part of it. It signals only; the overlay comes
+down when the operation's own scope is disposed. **Pass a source only where cancelling genuinely
+works**: at the time of writing the sole call site is the collect run.
 
 ### 3.3 `IConnectionCoordinator` — the whole of `SelectConnection`
 

@@ -22,6 +22,7 @@ public sealed class ShellProgress : IShellProgress
     public const string CompletedText = "Task completed";
 
     private readonly IUiDispatcher _dispatcher;
+    private readonly List<CancellationTokenSource> _cancellations = [];
     private string _header = DefaultHeader;
     private string _info = IdleText;
     private double _percent;
@@ -55,6 +56,9 @@ public sealed class ShellProgress : IShellProgress
 
     /// <inheritdoc />
     public bool IsBusy => _busyDepth > 0;
+
+    /// <inheritdoc />
+    public bool IsCancellable => _cancellations.Count > 0;
 
     /// <inheritdoc />
     public void Report(OperationProgress value) => _dispatcher.Invoke(() =>
@@ -119,7 +123,36 @@ public sealed class ShellProgress : IShellProgress
     });
 
     /// <inheritdoc />
-    public IDisposable BeginOperation(string info)
+    public void RequestCancellation() => _dispatcher.Invoke(() =>
+    {
+        // A snapshot, because Cancel runs its registered callbacks synchronously and one of them may
+        // well be the operation unwinding - which withdraws its own offer from this very list.
+        foreach (CancellationTokenSource cancellation in _cancellations.ToArray())
+        {
+            try
+            {
+                cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed by its owner between the offer and the click: that operation is over, and
+                // a button press must not take the application down.
+            }
+        }
+    });
+
+    /// <inheritdoc />
+    public IDisposable BeginOperation(string info) => Begin(info, null);
+
+    /// <inheritdoc />
+    public IDisposable BeginOperation(string info, CancellationTokenSource cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(cancellation);
+
+        return Begin(info, cancellation);
+    }
+
+    private IDisposable Begin(string info, CancellationTokenSource? cancellation)
     {
         ArgumentNullException.ThrowIfNull(info);
 
@@ -132,15 +165,32 @@ public sealed class ShellProgress : IShellProgress
                 Raise(nameof(IsBusy));
             }
 
+            if (cancellation is not null)
+            {
+                _cancellations.Add(cancellation);
+
+                if (_cancellations.Count == 1)
+                {
+                    Raise(nameof(IsCancellable));
+                }
+            }
+
             Set(ref _info, info, nameof(Info));
             Set(ref _isError, false, nameof(IsError));
         });
 
-        return new Operation(this);
+        return new Operation(this, cancellation);
     }
 
-    private void EndOperation() => _dispatcher.Invoke(() =>
+    private void EndOperation(CancellationTokenSource? cancellation) => _dispatcher.Invoke(() =>
     {
+        // The offer goes first, so the overlay drops "Cancelling…" before it drops the overlay; the
+        // other order shows the resting state for one frame on the way out.
+        if (cancellation is not null && _cancellations.Remove(cancellation) && _cancellations.Count == 0)
+        {
+            Raise(nameof(IsCancellable));
+        }
+
         if (_busyDepth == 0)
         {
             return;
@@ -169,18 +219,23 @@ public sealed class ShellProgress : IShellProgress
     private void Raise(string propertyName) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
-    /// <summary>The token <see cref="BeginOperation"/> hands out. Disposing twice is harmless.</summary>
+    /// <summary>The token <c>BeginOperation</c> hands out. Disposing twice is harmless.</summary>
     private sealed class Operation : IDisposable
     {
+        private readonly CancellationTokenSource? _cancellation;
         private ShellProgress? _owner;
 
-        internal Operation(ShellProgress owner) => _owner = owner;
+        internal Operation(ShellProgress owner, CancellationTokenSource? cancellation)
+        {
+            _owner = owner;
+            _cancellation = cancellation;
+        }
 
         public void Dispose()
         {
             ShellProgress? owner = Interlocked.Exchange(ref _owner, null);
 
-            owner?.EndOperation();
+            owner?.EndOperation(_cancellation);
         }
     }
 }
