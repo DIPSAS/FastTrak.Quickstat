@@ -42,7 +42,14 @@
     </Window.Style>
 
     <Grid>
-        <DockPanel>
+        <!--
+            Named, and disabled from the code-behind while the overlay is up: §G.3's wait cursor kept
+            the mouse out and there was nothing else to keep out, because the Delphi did the work on
+            the user-interface thread.  Here the shell stays alive underneath, so the keyboard has to
+            be shut out too - PORT-PLAN.md §8.10 (f), and MainWindow.OnBusyOverlayVisibilityChanged
+            for what IsEnabled does and does not do to focus.
+        -->
+        <DockPanel x:Name="ShellContent">
             <views:AppBannerView DockPanel.Dock="Top" />
 
             <Grid>

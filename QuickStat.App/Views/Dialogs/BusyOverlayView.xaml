@@ -7,7 +7,7 @@
              xmlns:vm="clr-namespace:QuickStat.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:BusyOverlayViewModel}"
-             Focusable="False"
+             Focusable="True"
              Visibility="{Binding IsBusy, Converter={conv:BoolToVisibilityConverter}}">
 
     <!--
@@ -17,6 +17,11 @@
         Background is deliberately a colour and not Transparent: a Transparent brush still hit-tests,
         which is what makes the overlay block the mouse - but an invisible blocker is
         indistinguishable from a hang.  Dimming says "wait" out loud.
+
+        Focusable, which a decorative pane has no business being, because hit-testing stops the mouse
+        and nothing stops the keyboard: MainWindow disables the shell underneath and moves focus here
+        while this is up (PORT-PLAN.md §8.10 (f)).  It is where the keyboard parks, and it is what
+        puts Cancel one Tab away when an operation has offered one.
 
         The theme is merged here rather than inherited from Application.Resources so the control can
         be constructed on its own: Application.Current is null under test (07-ui-contracts.md §6),

@@ -11,7 +11,7 @@ Last updated: 2026-08-27
 >
 > **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
 > independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
-> satisfy the five-column contract; §8.10 (a), (b) and (c) done; the shipped `22.12.21.547` build was set
+> satisfy the five-column contract; §8.10 (a), (b), (c) and (f) done; the shipped `22.12.21.547` build was set
 > up and driven far enough to read two of §8.9 (a)'s three colours exactly and to lift its whole
 > 213-element data-element list out of the check list. **Two real defects came out of it, neither
 > reachable without a server:** a table type that never existed, which was silently blanking
@@ -20,7 +20,7 @@ Last updated: 2026-08-27
 > **What is left in Phase 5.** No collector has actually *executed* — binding is not rows — so the
 > byte-for-byte CSV comparison (R4) still has no fixture captured from the Delphi, and no package has
 > been read or written. `clFocusedSelectionColor` is still unmeasured and the theme still ships two
-> palette values now known to be wrong. §8.10 has four items left. The `05-ui-spec.md` walkthrough is
+> palette values now known to be wrong. §8.10 has three items left. The `05-ui-spec.md` walkthrough is
 > still a human job.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
@@ -976,9 +976,9 @@ None of these blocked Phase 4, and none is fixed by it. Each is recorded so it i
 Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
 are two copies of one more step — which is exactly the argument for collapsing them.
 
-**Items (a), (b) and (c) are closed in Phase 5**; the rows are kept, struck through, because their
-"why" is worth keeping — (a)'s is the reason the test suite now looks the way it does. Four remain:
-(d), (e), (f) and (g). (h) is largely closed; see §8.11.
+**Items (a), (b), (c) and (f) are closed in Phase 5**; the rows are kept, struck through, because
+their "why" is worth keeping — (a)'s is the reason the test suite now looks the way it does. Three
+remain: (d), (e) and (g). (h) is largely closed; see §8.11.
 
 | # | Item | Note |
 |---|---|---|
@@ -987,7 +987,7 @@ are two copies of one more step — which is exactly the argument for collapsing
 | c | ~~**The busy overlay's Cancel button can never appear.**~~ | **Done** (Phase 5). `IShellProgress` gained `BeginOperation(string, CancellationTokenSource)` and, with it, `IsCancellable` and `RequestCancellation()`. **The plan's note said "one overload", and that is half of it**: an overload on its own hands a `CancellationTokenSource` to `ShellProgress` with nothing able to read it, because the overlay's register was private to `BusyOverlayViewModel`. The register therefore moved *onto the service* and `OfferCancellation` is gone — the operations are started by the tab view-models, none of which can reach the overlay, and a second register kept on the view-model would be a second thing able to disagree with the first. The overlay is now purely derived, which is what its own header always claimed. The one call site is the collect run, which links a source to `AsyncRelayCommand`'s own token so either end stops the same run; it is the only operation that both takes minutes and honours the token all the way down — between collectors, between batches in `CollectorRunner`, and inside the statement. Two candidates were examined and deliberately left alone: the package replay, because nothing re-reads its token after the inner collect returns, so a Cancel there would stop the run the user can see and then finish the replay anyway (its inner collect offers one, which covers the only unbounded stretch); and `ConnectionCoordinator.ConnectAsync`, whose token is the caller's, not its own. Worth recording because it is easy to assume otherwise: **cancelling is an addition, not parity.** The Delphi has no Cancel on the main form at all — the product's only two `bkCancel` buttons are on modal dialogs (`Emetra.VclForm.Period.dfm:169`, `Emetra.VclForm.EditAndMemo.dfm:994`) — and `actCollectDataExecute` could not be interrupted once started |
 | d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |
 | e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
-| f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
+| f | ~~**The busy overlay blocks the mouse but not the keyboard.**~~ | **Done** (Phase 5). The note's mechanism — disable `MainWindow`'s content — is the right one and **is not sufficient by itself**, which `Ui/Shell/MainWindowBusyLockoutTests.cs` measures rather than assumes. `IsEnabled = false` on the content host does stop the keyboard *arriving*: `Focus()` on anything inside returns `false`, tab traversal skips the whole subtree, and unlike `KeyboardNavigation.TabNavigation="None"` it also covers access keys, `Ctrl+Tab` and typing. But it does **not** evict focus that is already inside. The focused control stays focused while disabled and then handles no input, so a user who was in the check list when the run started would have the keyboard stranded on a dead control with the Cancel button unreachable — worse than the bug. `MainWindow.OnBusyOverlayVisibilityChanged` therefore does both: disable the content host, move focus onto the overlay (which is `Focusable` for that one reason, and puts Cancel one `Tab` away), then re-enable and put focus back where the user left it. It hangs off the overlay's `IsVisibleChanged` and not off `IsBusy` because a collapsed element cannot take focus and the binding may not have run yet, and the order is load-bearing in both directions: disable before taking focus, re-enable before giving it back. One cost, accepted: the shell is drawn greyed under the scrim for the duration, which `Screen.Cursor := crSqlWait` did not do |
 | g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
 | h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. Still untouched: **no collector has actually executed**, so "does it return the right rows" and the CSV byte comparison remain open, and no package has been read or written |
 
