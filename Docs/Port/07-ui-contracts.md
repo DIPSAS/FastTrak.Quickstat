@@ -416,10 +416,23 @@ exist, not where their columns land.
 - **`Application.LoadComponent(new Uri("/QuickStat;component/Theme/…xaml", UriKind.Relative))` works
   under test** with no `Application` instance, on an STA thread. That is how the theme test loads
   the dictionary. A `pack://` absolute URI is not needed.
-- **`Application.Current` is `null` under test**, and WPF allows one `Application` per `AppDomain`.
-  Never dereference it without `?.`. Every shell service that needed it — the dispatcher, the file
-  dialog's owner, the notification presenter's owner — has a null branch, which is also what makes
-  the whole container resolvable headlessly.
+- **`Application.Current` *may* be `null` under test**, and WPF allows one `Application` per
+  `AppDomain`. Never dereference it without `?.`. Every shell service that needed it — the
+  dispatcher, the file dialog's owner, the notification presenter's owner — has a null branch, which
+  is also what makes the whole container resolvable headlessly. Since Phase 5 the suite does own
+  **one**: `QuickStat.Tests/Ui/WpfApplicationFixture.cs` puts the shipped `App` on a dedicated
+  background STA thread with `ShutdownMode.OnExplicitShutdown`, so that a view which resolves the
+  theme through `Application.Current` can be constructed at all (PORT-PLAN.md §8.10 (a)). Two
+  consequences. **Do not create a second one** — ask for `WpfApplicationFixture` through
+  `[Collection(WpfApplicationCollection.Name)]`. And **do not write `Assert.Null(Application.Current)`**:
+  nothing can un-set it once it exists, so that assertion passes or fails on collection order. To
+  say "this window carries the theme itself", read the window's own
+  `Resources.MergedDictionaries` — that indexer never falls back to the application.
+- **The test assembly runs sequentially** (`[assembly: CollectionBehavior(DisableTestParallelization = true)]`,
+  declared in the fixture file with its reason). `Application` registers and unregisters every
+  `Window` on unsynchronised collections, from whichever apartment created it, so parallel window
+  construction is an unsynchronised list mutation — and a corrupted list throws out of every later
+  `Window` constructor, not just the racing one. Measured cost of serialising: 5 s → 8 s.
 - **A collapsed `TabItem` that is still selected leaves the `TabControl` blank.** `MainViewModel`
   moves the selection back to Population when `HasPopulation` goes false. There is no Delphi
   equivalent, because `TRzPageControl` picks a new active page itself.

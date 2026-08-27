@@ -77,7 +77,7 @@ public partial class PackagesTabView : UserControl
         dialogViewModel.Header = request.Header;
 
         // Null when the tab is not in the visual tree; ShowDialog copes, it just cannot centre on an
-        // owner it does not have.  Application.Current is deliberately not consulted: it is null
+        // owner it does not have.  Application.Current is deliberately not consulted: it may be null
         // under test and this method must stay callable from a headless host.
         SaveSpecDialog dialog = new()
         {

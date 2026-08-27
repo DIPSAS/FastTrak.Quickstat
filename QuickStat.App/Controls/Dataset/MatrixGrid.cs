@@ -1736,7 +1736,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         }
 
         // Created lazily: a test that only exercises arithmetic must not have to construct a
-        // templated Control, and Application.Current is null under test.
+        // templated Control, and Application.Current may be null under test.
         _toolTip = new ToolTip();
         ToolTip = _toolTip;
 

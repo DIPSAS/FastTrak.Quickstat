@@ -12,10 +12,10 @@ namespace QuickStat.Views.Dialogs;
 /// </para>
 /// <list type="bullet">
 ///   <item><description>
-///     <see cref="Application.Current"/> is <see langword="null"/> under test and WPF allows one
-///     <see cref="Application"/> per <c>AppDomain</c>, so it must never be dereferenced without a
-///     null check (<c>07-ui-contracts.md</c> §6). An owner-less dialog still shows; it is simply not
-///     centred on anything.
+///     <see cref="Application.Current"/> may be <see langword="null"/> under test - WPF allows one
+///     <see cref="Application"/> per <c>AppDomain</c> and the suite creates at most one - so it must
+///     never be dereferenced without a null check (<c>07-ui-contracts.md</c> §6). An owner-less
+///     dialog still shows; it is simply not centred on anything.
 ///   </description></item>
 ///   <item><description>
 ///     Assigning <see cref="Window.Owner"/> a window that has never been shown throws

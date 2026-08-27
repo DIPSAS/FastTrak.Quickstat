@@ -21,13 +21,14 @@ namespace QuickStat.Tests.Ui.Collections;
 /// </para>
 /// <para>
 /// These cases drive <see cref="CollectionsTabView.ScrollKeeper"/> over a bare
-/// <see cref="ListBox"/>, not over <see cref="CollectionsTabView"/> itself.
-/// <b>Constructing that view under test is not possible today</b>: a <c>StaticResource</c> is
-/// resolved while the XAML is being parsed, so the theme would have to be reachable from
-/// <see cref="Application.Current"/> - and there is none under test, deliberately, because WPF
-/// allows one per <c>AppDomain</c> and creating one on a short-lived STA thread would leave every
-/// later test marshalling to a dead dispatcher. The keeper is a separate type for exactly this
-/// reason; what it is attached to is two lines of the view's constructor.
+/// <see cref="ListBox"/>, not over <see cref="CollectionsTabView"/> itself, and they stay that way.
+/// The keeper became a separate type because constructing the view needed an
+/// <see cref="Application"/> to resolve its <c>StaticResource</c> references and there was none;
+/// <c>Ui/WpfApplicationFixture.cs</c> has since supplied one, and <c>Ui/ViewInstantiationTests.cs</c>
+/// uses it to prove the view loads. Rewriting these cases against the real view would buy nothing:
+/// what they exercise is scroll arithmetic over a list of 60 items, which is quicker and clearer
+/// without a window around it, and the two lines of the constructor that attach the keeper are
+/// covered by that instantiation test.
 /// </para>
 /// <para>
 /// They still need <see cref="StaTestRunner"/>: the test thread is MTA and

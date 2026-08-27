@@ -7,8 +7,9 @@ namespace QuickStat.Services;
 /// <remarks>
 /// <para>
 /// Two reasons this exists rather than a direct <c>Application.Current.Dispatcher</c> call. First,
-/// <c>Application.Current</c> is <see langword="null"/> under test (PORT-PLAN.md §5 Phase 3), so a
-/// view-model that reaches for it is a view-model that cannot be unit-tested. Second, background
+/// <c>Application.Current</c> may be <see langword="null"/> under test - most of the suite composes
+/// the container without one (PORT-PLAN.md §5 Phase 3, §8.10 (a)) - so a view-model that reaches for
+/// it is a view-model that cannot be unit-tested. Second, background
 /// work in <c>QuickStat.Core</c> - a collect run reporting progress per patient, a session change -
 /// completes on the thread pool, and every one of those callbacks would otherwise need its own
 /// marshalling code.
