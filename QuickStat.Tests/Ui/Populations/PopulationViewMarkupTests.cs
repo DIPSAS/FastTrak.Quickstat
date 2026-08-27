@@ -15,19 +15,22 @@ namespace QuickStat.Tests.Ui.Populations;
 /// <para>
 /// <b>Why the source rather than the control.</b> A compiled WPF <c>Page</c> resolves its
 /// <c>StaticResource</c> references while <c>InitializeComponent</c> runs, walking the element's own
-/// resources and then <see cref="System.Windows.Application"/>. There is no
-/// <see cref="System.Windows.Application"/> under test - WPF allows one per <c>AppDomain</c>, so the
-/// first test to create one would break every later test that wanted its own, which is why
-/// <c>Ui/StaTestRunner.cs</c> deliberately creates none - and a <c>UserControl</c> has no parent at
-/// construction time, so instantiating either view here throws before a single assertion could run.
-/// Merging the theme into the views' own resources would fix that and give every brush a second
-/// instance per view, which <c>Docs/Port/07-ui-contracts.md</c> §4 rules out.
+/// resources and then <see cref="System.Windows.Application"/>. When these were written there was no
+/// <see cref="System.Windows.Application"/> under test at all, so instantiating either view threw
+/// before a single assertion could run and the markup could only be pinned structurally - the same
+/// technique <c>Configuration/Settings/SettingsPathTests</c> uses to prohibit
+/// <c>Assembly.Location</c>.
 /// </para>
 /// <para>
-/// So this pins the load-bearing markup structurally, the same technique
-/// <c>Configuration/Settings/SettingsPathTests</c> uses to prohibit <c>Assembly.Location</c>. What it
-/// cannot see is whether the bindings resolve at run time; that is covered by launching the
-/// executable, and is called out in the step's report.
+/// <b>That gap is closed elsewhere now, and these cases are still not redundant.</b>
+/// <c>Ui/WpfApplicationFixture.cs</c> supplies the assembly's one <see cref="Application"/> and
+/// <c>Ui/ViewInstantiationTests.cs</c> constructs both views through it, which is what proves they
+/// load and that their bindings resolve - neither of which reading XML can do. What reading XML can
+/// still do, and what a constructed control cannot, is assert the <em>absence</em> of an attribute:
+/// <c>SelectedIndex</c> not being set on the project combo, <c>FlowDirection</c> and
+/// <c>VerticalAlignment</c> not being set locally on the <c>Simplified</c> box. A control reports
+/// the effective value and cannot tell a style setter from a local one, so those three cases would
+/// pass against exactly the markup they exist to forbid.
 /// </para>
 /// </remarks>
 public class PopulationViewMarkupTests

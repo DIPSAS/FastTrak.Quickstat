@@ -238,7 +238,11 @@ public class NotificationDialogTests
     {
         NotificationDialog dialog = Dialog(NotificationSeverity.Information, isQuestion: false);
 
-        Assert.Null(Application.Current);
+        // Self-contained; see SaveSpecDialogTests for why this is asserted through the window's own
+        // dictionary rather than as "Application.Current is null".
+        Assert.Single(dialog.Resources.MergedDictionaries);
+        Assert.NotNull(dialog.Resources["QsFormFaceBrush"]);
+
         Assert.Equal(ResizeMode.NoResize, dialog.ResizeMode);
         Assert.Equal(SizeToContent.WidthAndHeight, dialog.SizeToContent);
         Assert.Equal(WindowStartupLocation.CenterOwner, dialog.WindowStartupLocation);

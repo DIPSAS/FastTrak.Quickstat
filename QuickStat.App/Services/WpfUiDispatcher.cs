@@ -10,10 +10,12 @@ namespace QuickStat.Services;
 /// <remarks>
 /// <para>
 /// The "when there is not" branch is not defensive padding. WPF allows exactly one
-/// <see cref="Application"/> per <c>AppDomain</c> and the test suite deliberately creates none, so
-/// <see cref="Application.Current"/> is <see langword="null"/> for every test that composes the
-/// container. Falling back to inline execution keeps the whole graph resolvable and exercisable
-/// headlessly; a null reference here would make the shell untestable.
+/// <see cref="Application"/> per <c>AppDomain</c>, and the test suite creates at most one - on a
+/// thread of its own, only for the views that resolve the theme through it - so
+/// <see cref="Application.Current"/> is <see langword="null"/> for most tests that compose the
+/// container and may be null in any headless host. Falling back to inline execution keeps the whole
+/// graph resolvable and exercisable headlessly; a null reference here would make the shell
+/// untestable.
 /// </para>
 /// <para>
 /// The dispatcher is captured once, at construction, from <see cref="Application.Current"/>. The

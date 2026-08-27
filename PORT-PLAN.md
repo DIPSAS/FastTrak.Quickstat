@@ -14,9 +14,9 @@ Last updated: 2026-08-27
 >
 > **Next: Phase 5 — verification.** It is now the only phase with unknowns in it, and §8.10 (h) is
 > the big one: *nothing has ever run against a database.* Phase 5 needs a human with a real server
-> and the deployed `22.12.21.547` exe for a side-by-side parity pass; §8.10 lists the seven smaller
-> carried-forward items, and §8.9 (a) — three palette colours — is the last question needing a
-> decision.
+> and the deployed `22.12.21.547` exe for a side-by-side parity pass; §8.10 lists the carried-forward
+> items — (a) is done, six remain — and §8.9 (a) — three palette colours — is the last question
+> needing a decision.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
 > definition (§8.4). The other — the spelling of `KB.AntibioticResistance2` — was **settled on
@@ -923,9 +923,12 @@ None of these blocked Phase 4, and none is fixed by it. Each is recorded so it i
 Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
 are two copies of one more step — which is exactly the argument for collapsing them.
 
+**Item (a) is closed in Phase 5**; the row is kept, struck through, because its "why" is the reason
+the test suite now looks the way it does. Six remain.
+
 | # | Item | Note |
 |---|---|---|
-| a | **No view can be instantiated under test if it uses `{StaticResource}` and does not merge the theme itself.** `StaticResource` resolves during parse, against `Application.Current`, which is `null` under test — and creating an `Application` would break every later test, since WPF allows one per `AppDomain`. 3.6 merged the theme into each of its own views' `Resources`; 3.1's, 3.2's, 3.3's and 3.4's views do not, so their markup is pinned structurally (as XML) and proved to load only by launching the executable | The alternative — merging in every view — duplicates every brush. A test-only `Application` on a dedicated STA thread would solve it properly and is the right Phase 5 job |
+| a | ~~**No view can be instantiated under test if it uses `{StaticResource}` and does not merge the theme itself.**~~ | **Done** (Phase 5). `QuickStat.Tests/Ui/WpfApplicationFixture.cs` puts the shipped `App` — so the merge is `App.xaml`'s, not a second copy of it — on one dedicated background STA thread, behind a `static Lazy` for the single-instance guarantee and an `ICollectionFixture` for the handle. `Ui/ViewInstantiationTests.cs` constructs all seven views plus `MainWindow` through it and sweeps their bindings for `System.Windows.Data Error: 40`. Two consequences worth knowing: the assembly now runs sequentially, because `Application` registers every `Window` on unsynchronised collections from whichever apartment made it; and `Assert.Null(Application.Current)` is no longer a legitimate assertion anywhere, since nothing can un-set it — the four places that used it now read the window's own `Resources` instead, which is what they meant |
 | b | **Two population-loading code paths.** 3.2 owns `PopulationPickerViewModel.TryLoadPopulationAsync`; 3.4's replay has its own ~30-line equivalent because 3.2's command was synchronous when 3.4 was written. Both are tested and agree today | Exactly the "two halves each locally correct" shape that produced defects 3 and 4 above. Collapse onto 3.2's method; deferred because both halves are green and the merge was already large |
 | c | **The busy overlay's Cancel button can never appear.** `IShellProgress.BeginOperation(string)` takes no `CancellationTokenSource`, so nothing can offer one to `BusyOverlayViewModel.OfferCancellation` | One overload. The overlay is correct and tested; the button is simply never shown |
 | d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |

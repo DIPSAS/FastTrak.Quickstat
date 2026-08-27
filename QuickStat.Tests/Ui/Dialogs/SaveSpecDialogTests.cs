@@ -19,7 +19,15 @@ public class SaveSpecDialogTests
     {
         SaveSpecDialog dialog = new() { DataContext = new SaveSpecViewModel() };
 
-        Assert.Null(Application.Current);
+        // Self-contained: the theme comes out of this window's OWN merged dictionary, so it loads on
+        // a bare apartment with nothing ambient to fall back on.  Asserted through that dictionary
+        // rather than as "Application.Current is null" - Ui/WpfApplicationFixture.cs now creates the
+        // assembly's one Application for the views that are not self-contained, and nothing can
+        // un-set it, so the old form would have passed or failed on collection order.  The indexer
+        // below never falls back to the application, so it says the same thing and keeps saying it.
+        Assert.Single(dialog.Resources.MergedDictionaries);
+        Assert.NotNull(dialog.Resources["QsFormFaceBrush"]);
+
         Assert.Equal(ResizeMode.NoResize, dialog.ResizeMode);
         Assert.Equal(SizeToContent.WidthAndHeight, dialog.SizeToContent);
         Assert.Equal(WindowStartupLocation.CenterOwner, dialog.WindowStartupLocation);

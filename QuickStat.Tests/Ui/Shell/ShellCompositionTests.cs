@@ -25,7 +25,14 @@ namespace QuickStat.Tests.Ui.Shell;
 /// </remarks>
 public class ShellCompositionTests
 {
-    private static ServiceProvider Build()
+    /// <summary>Composes the container exactly as <c>App.xaml.cs</c> does.</summary>
+    /// <returns>A validated provider the caller must dispose.</returns>
+    /// <remarks>
+    /// Internal rather than private because <see cref="ViewInstantiationTests"/> needs the same
+    /// graph to give each view the view-model the shell would give it, and a second transcription of
+    /// the seven extension calls is a second thing that can drift from <c>App.xaml.cs</c>.
+    /// </remarks>
+    internal static ServiceProvider Build()
     {
         ServiceCollection services = new();
 

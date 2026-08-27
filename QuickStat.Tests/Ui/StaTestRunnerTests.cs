@@ -64,10 +64,24 @@ public class StaTestRunnerTests
     }
 
     [Fact]
-    public void NoApplicationIsCreated() =>
-        // WPF permits one Application per AppDomain, so creating one here would break every later
-        // test that wanted its own.  Production code must therefore tolerate a null Application.Current.
-        StaTestRunner.Run(() => Assert.Null(Application.Current));
+    public void NoApplicationIsCreated() => StaTestRunner.Run(() =>
+    {
+        // WPF permits one Application per AppDomain, so a helper that made one per call would break
+        // the next test that wanted its own.  This one makes none, and production code must
+        // therefore keep tolerating a null Application.Current.
+        //
+        // Asserted as "not this apartment's" rather than as "null", because Ui/WpfApplicationFixture
+        // deliberately creates the assembly's single Application - the only way to construct a view
+        // that resolves the theme through Application.Current - and nothing can un-set it once it
+        // exists.  Whether it exists by the time this test runs is therefore a question of
+        // collection order, which is not a thing to assert.  What is invariant is that the apartment
+        // StaTestRunner hands out is its own.
+        Application? application = Application.Current;
+
+        Assert.True(
+            application is null || application.Dispatcher != Dispatcher.CurrentDispatcher,
+            "StaTestRunner must run its body on an apartment of its own, never on the application's.");
+    });
 
     [Fact]
     public void AFailureInsideSurfacesToTheCaller()

@@ -26,8 +26,9 @@ public sealed class WpfFileDialogService : IFileDialogService
             dialog.Title = request.Title;
         }
 
-        // Application.Current is null under test and in any headless composition; ShowDialog(null)
-        // is not an overload, so the owner has to be chosen rather than passed through.
+        // Application.Current may be null - most of the suite composes the container without one,
+        // as does any headless host - and ShowDialog(null) is not an overload, so the owner has to
+        // be chosen rather than passed through.
         Window? owner = Application.Current?.MainWindow;
 
         bool? result = owner is null ? dialog.ShowDialog() : dialog.ShowDialog(owner);

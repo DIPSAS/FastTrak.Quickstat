@@ -15,10 +15,12 @@ namespace QuickStat.Views;
 /// <para>
 /// The code-behind does one thing, and it is the thing that cannot be done in XAML: §G.4's scroll
 /// bookkeeping around a collect run. It lives in <see cref="ScrollKeeper"/> rather than in this
-/// class so that it can be tested: instantiating this view needs the theme, and a
-/// <c>StaticResource</c> is resolved while the XAML is being parsed, so the only place it could be
-/// found from is <see cref="Application.Current"/> - which is <see langword="null"/> under test and
-/// must stay that way.
+/// class so that it can be tested over a bare <see cref="ListBox"/>: instantiating this view needs
+/// the theme, and a <c>StaticResource</c> is resolved while the XAML is being parsed, so the only
+/// place it could be found from is <see cref="Application.Current"/>. The test suite now supplies
+/// one - <c>QuickStat.Tests/Ui/WpfApplicationFixture.cs</c>, PORT-PLAN.md §8.10 (a) - so the view
+/// itself is construction-tested; the split stays because scroll arithmetic is clearer without a
+/// window around it.
 /// </para>
 /// </remarks>
 public partial class CollectionsTabView : UserControl

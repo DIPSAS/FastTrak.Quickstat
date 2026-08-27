@@ -29,9 +29,11 @@ namespace QuickStat.Tests.Ui;
 /// <description>
 /// <b>No <see cref="System.Windows.Application"/> is needed</b> for measuring and arranging, and
 /// none is created here on purpose: WPF allows exactly one <c>Application</c> per <c>AppDomain</c>,
-/// so the first test to construct one would make every later test that tried fail with
-/// <i>"Cannot create more than one System.Windows.Application instance in the same AppDomain."</i>
-/// The consequence for production code is that <c>Application.Current</c> is
+/// so a helper that made one per call would make every later call fail with <i>"Cannot create more
+/// than one System.Windows.Application instance in the same AppDomain."</i> The assembly's single
+/// one lives in <see cref="WpfApplicationFixture"/> instead, on an apartment of its own, and is
+/// needed only by a view that resolves the theme through <c>Application.Current</c>. The
+/// consequence for production code is unchanged: <c>Application.Current</c> <em>may</em> be
 /// <see langword="null"/> under test - never dereference it without a null check.
 /// </description>
 /// </item>
