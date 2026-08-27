@@ -3,6 +3,7 @@ using System.IO;
 using QuickStat.Diagnostics;
 using Serilog.Events;
 using Serilog.Formatting;
+using Serilog.Formatting.Display;
 using Serilog.Parsing;
 
 namespace QuickStat.Logging;
@@ -50,6 +51,21 @@ internal sealed class QuickStatLogFormatter : ITextFormatter
 
     /// <summary>Stateless, and Serilog uses one the same way.</summary>
     private static readonly MessageTemplateParser Parser = new();
+
+    /// <summary>
+    /// Renders the message and nothing else, with string values <b>unquoted</b>.
+    /// </summary>
+    /// <remarks>
+    /// The <c>l</c> in <c>{Message:lj}</c> is load-bearing. Serilog's default renders a string
+    /// property as <c>"value"</c>, quotes included; Microsoft.Extensions.Logging does not, and every
+    /// template in this port was written against that. Several add quotes of their own -
+    /// <c>"Loaded population {ProcId} '{Title}'"</c>, <c>"Deleted package {RowId} \"{Title}\""</c> -
+    /// which under Serilog's default would come out as <c>'"HbA1c"'</c> and <c>""Alfa""</c>. So this
+    /// is not a matter of taste: literal rendering is what keeps a hundred existing call sites
+    /// reading the way their authors wrote them. <c>j</c> keeps structured values as JSON.
+    /// </remarks>
+    private static readonly MessageTemplateTextFormatter MessageRenderer =
+        new("{Message:lj}", CultureInfo.InvariantCulture);
 
     /// <inheritdoc />
     public void Format(LogEvent logEvent, TextWriter output)
@@ -99,16 +115,21 @@ internal sealed class QuickStatLogFormatter : ITextFormatter
     /// </remarks>
     private static string RenderMessage(LogEvent logEvent)
     {
-        MessageTemplate template = logEvent.MessageTemplate;
+        LogEvent source = logEvent;
 
-        if (template.Text.Contains("{{", StringComparison.Ordinal))
+        if (logEvent.MessageTemplate.Text.Contains("{{", StringComparison.Ordinal))
         {
-            template = Parser.Parse(PiiRedactor.Redact(template.Text));
+            source = new LogEvent(
+                logEvent.Timestamp,
+                logEvent.Level,
+                logEvent.Exception,
+                Parser.Parse(PiiRedactor.Redact(logEvent.MessageTemplate.Text)),
+                [.. logEvent.Properties.Select(property => new LogEventProperty(property.Key, property.Value))]);
         }
 
         StringWriter buffer = new(CultureInfo.InvariantCulture);
 
-        template.Render(logEvent.Properties, buffer, CultureInfo.InvariantCulture);
+        MessageRenderer.Format(source, buffer);
 
         return PiiRedactor.ForLog(buffer.ToString());
     }

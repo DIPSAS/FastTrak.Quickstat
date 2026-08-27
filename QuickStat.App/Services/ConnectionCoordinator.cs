@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using QuickStat.Configuration;
 using QuickStat.Data;
 using QuickStat.Domain.Matrix;
+using QuickStat.Logging;
 
 namespace QuickStat.Services;
 
@@ -61,6 +62,12 @@ public sealed class ConnectionCoordinator : IConnectionCoordinator
             // Captions are cosmetic and ICaptionLoader never throws for a caption failure, so this
             // needs no guard - but it does propagate cancellation, which the caller handles below.
             int captionCount = await _captions.LoadAsync(cancellationToken).ConfigureAwait(true);
+
+            // Which server, which database, which study - see StartupLog. The first question about
+            // any report from the field is "pointed at what?", and this is the line that answers it.
+            // It reads SessionContext's own fields rather than parsing the connection string, so
+            // there is no credential here to leak.
+            _logger.LogSession(connection.Name, session);
 
             _logger.LogInformation(
                 "Connected to {Connection} (study {Study}); {CaptionCount} database captions loaded.",
