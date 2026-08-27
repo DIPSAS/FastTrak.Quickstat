@@ -307,6 +307,39 @@ The Delphi source remains the final authority while it is still in the tree.
 - **Both of those repos have uncommitted changes right now** — `QuickStat.fbp8` in the build server,
   the `.dproj` in FastTrakApps. Quote them only via `git show HEAD:<path>`. See R14.
 
+### 2.3 The database schema — `C:\work\FastTrak.Database`
+
+A SQL Server database project holding the schema QuickStat queries. Known to the port from
+2026-08-27; **nothing before that date was written with it available**, which is why §8.10 (h) reads
+as bleakly as it does.
+
+**Trust `Upgrades\` first.** The owner's caveat: the repository is *not necessarily* completely up
+to date except for `Upgrades\`, and changes there do not necessarily affect QuickStat. So
+`FastTrak.Schema\` is a strong hint and `Upgrades\Upgrade*.sql` is the authority. When the two agree
+— as they do for the `KB` antibiotic views, checked — the answer is solid.
+
+What it is good for, in rough order of value to the remaining work:
+
+- **Static validation of every collector's object references, with no server.** 131 collectors name
+  tables, views, synonyms, functions and procedures; all of them can be resolved against
+  `FastTrak.Schema\<schema>\<kind>\<name>.sql`. That is the cheapest available attack on §8.10 (h)
+  and it belongs in Phase 5 next to the golden files. Spot checks so far all resolve:
+  `Report.GetFormClasses`, `Report.LabClassName`, `Report.ColDrugAndRenalFunction`, `Report.NorGeP`,
+  `dbo.OngoingTreatment`, `KB.AntibioticResistance2`.
+- **Column-level checks.** `KB.AntibioticResistance2` really does expose `AtcCode`, which is what
+  `SpDrugsetAntibioticIntermediate` joins on.
+- **Resolving indirection.** `dbo.KBAtcIndex` is a **synonym** for `FEST.AtcIndex`, so the
+  collectors' `LEFT JOIN dbo.KBAtcIndex` and the `KB` views' `FROM FEST.AtcIndex` read the same
+  table. Worth knowing before anyone "fixes" one to match the other.
+- **Clinical definitions that the Delphi only half-encodes** — see §8.4, where the three
+  `KB.AntibioticResistance*` views settle what the `J01FF%` argument was circling.
+- `AGENTS.md` at the root documents house conventions: the population return shape
+  (`PersonId, DOB, FullName, GenderId, GroupName, InfoText`), `dbo.ViewActiveCaseListStub`,
+  `dbo.GetLastQuantityTable` / `dbo.GetLastEnumValuesTable`, and the FormName-vs-FormTitle trap.
+
+It is **not** a substitute for a live database: it says an object exists, not that a query returns
+the right rows, and it carries no data. The Phase 5 parity pass still needs a server.
+
 ---
 
 ## 3. Ground rules
@@ -612,6 +645,12 @@ Three decisions that were settled while implementing it, recorded so they are no
 
 - Golden-file tests over generated SQL for every collector — the cheapest way to prove a 150-entry
   registry is faithful without a database.
+- **Static resolution of every database object the 131 collectors name**, against the schema project
+  at `C:\work\FastTrak.Database` (§2.3) — trusting `Upgrades\` over `FastTrak.Schema\` where they
+  disagree. Catches a misspelled table, a procedure that moved schema, and a column a join relies
+  on, all without a server. Pair it with the golden files: the golden file pins *what* is generated,
+  this pins that what is generated can *bind*. Remember `dbo.KBAtcIndex` is a synonym, so resolution
+  has to follow those.
 - Byte-for-byte CSV comparison tests against fixtures captured from the Delphi build.
 - Unit tests for connection-string translation, `:Name`→`@Name` rewriting, anonymisation,
   the colour ladders, and matrix assembly.
@@ -752,10 +791,42 @@ Not blocking; each has a working default so implementation can proceed.
    cannot build the app at all. So every baseline capable of producing a working QuickStat binary
    lacks `J01FF%`. Implementation default: **drop `J01FF%`, take the new caption.**
 
+   **Second, independent line of evidence — the database's own classification agrees** (added
+   2026-08-27 from `C:\work\FastTrak.Database`, §2.3). `KB` carries three sibling views that
+   partition the antibiotics into resistance tiers, and `Upgrades/UpgradeTo19025.sql` names them in
+   its own header comments:
+
+   | View | Header comment | Definition |
+   |---|---|---|
+   | `KB.AntibioticResistance1` | *PREFERABLE antibiotics* | `J01CA08`, `J01CA11`, `J01XE01`, `J01C[EF]%`, `J01E%` |
+   | `KB.AntibioticResistance3` | *HIGH RISK antibiotics* | `J01CR%`, `J01D[ABCDEHI]%`, `J01M%` |
+   | `KB.AntibioticResistance2` | *INTERMEDIATE antibiotics* | everything `J01%` plus `A07AA09`, `P01AB01`, **`EXCEPT`** 1 and 3 |
+
+   `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
+   `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,
+   not resistance-driving.** The string `J01FF` appears nowhere in the database repository at all.
+   Dropping `J01FF%` therefore does not merely follow the buildable refs; it brings the collector
+   into line with the knowledge base the same product ships.
+
    **This remains release-blocking for this collector.** It is a clinical definition — which
-   antibiotics count as resistance-driving — and "the code has been this way" is not clinical
-   sign-off. A protocol owner must confirm before release. It does not block implementation: the ATC
-   list is one array, changing it later is a one-line edit plus a golden-file update.
+   antibiotics count as resistance-driving — and neither "the code has been this way" nor "the
+   `KB` views say so" is clinical sign-off. A protocol owner must confirm before release. It does not
+   block implementation: the ATC list is one array, changing it later is a one-line edit plus a
+   golden-file update.
+
+   **Give the owner this too, because it is the same question one level up.** The collectors and the
+   `KB` views are two definitions of the same clinical concept, maintained separately, and they do
+   not agree — the collectors hard-code ATC lists while the views are patterns over `FEST.AtcIndex`:
+
+   | Concept | Collector | `KB` view | Divergence |
+   |---|---|---|---|
+   | Resistance-driving | `J01CR%`, `J01D[CDH]%`, `J01MA%` | `J01CR%`, `J01D[ABCDEHI]%`, `J01M%` | the view is **broader** — the collector misses `J01D[ABEI]%` and `J01M` outside `J01MA` |
+   | Recommended | nine literal codes | `J01CA08`, `J01CA11`, `J01XE01`, `J01C[EF]%`, `J01E%` | the collector is a **snapshot enumeration**; any newer `J01CE`/`J01CF`/`J01E` code in `FEST.AtcIndex` is in the view and not in the collector |
+   | Intermediate | *joins the view directly* | — | the only one of the three that cannot drift |
+
+   Not a Phase 4 change — the collectors are what shipped, and rewriting two of them to join the
+   views is a clinical decision, not a porting one. Recorded so the owner decides once, with the
+   whole picture.
 5. **Drift items in `Docs/Port/03-collectors.md` §F — re-decided; §F now carries a correction
    block that overrides its own per-item verdicts.** Those verdicts were computed against
    `develop_old`; the shipping binaries were built against tarmscreening (§2.1), and all seven
@@ -861,7 +932,7 @@ are two copies of one more step — which is exactly the argument for collapsing
 | e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
 | f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
 | g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
-| h | **Nothing has ever run against a database.** No collector has executed, no population has loaded, no package has been read or written, no period prompt has fired for a real query | This is Phase 5, and it is the largest remaining unknown by a wide margin |
+| h | **Nothing has ever run against a database.** No collector has executed, no population has loaded, no package has been read or written, no period prompt has fired for a real query | This is Phase 5, and it is the largest remaining unknown by a wide margin. **Partly attackable without a server since 2026-08-27**: the schema project at `C:\work\FastTrak.Database` (§2.3) lets every object a collector names be resolved statically. That turns "does this query even bind" from a server question into a file-existence one; it leaves "does it return the right rows" untouched |
 
 ### 8.9 Surfaced during Phase 3 wave 1 — one of these still needs a human
 

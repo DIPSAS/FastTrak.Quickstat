@@ -1761,6 +1761,33 @@ The fix in `4c96c3c3b` was:
 > rather than a table changes nothing here — `OBJECT_ID` resolves both, and an inner join to a view
 > fails the same way when it is missing — so the gate below stands unaltered.
 >
+> From `C:\work\FastTrak.Database` (`Upgrades/UpgradeTo19025.sql`, and identically in
+> `FastTrak.Schema/KB/Views/`), the view and its two siblings partition the antibiotics into
+> resistance tiers — the header comments in the upgrade script name them:
+>
+> ```sql
+> -- PREFERABLE
+> CREATE VIEW KB.AntibioticResistance1 AS SELECT AtcCode, AtcName FROM FEST.AtcIndex
+> WHERE AtcCode IN ( 'J01CA08', 'J01CA11', 'J01XE01' ) OR (AtcCode LIKE 'J01C[EF]%') OR (AtcCode LIKE 'J01E%');
+> -- HIGH RISK
+> CREATE VIEW KB.AntibioticResistance3 AS SELECT AtcCode, AtcName FROM FEST.AtcIndex
+> WHERE ( AtcCode LIKE 'J01CR%' ) OR ( AtcCode LIKE 'J01D[ABCDEHI]%' ) OR ( AtcCode LIKE 'J01M%' );
+> -- INTERMEDIATE
+> CREATE VIEW KB.AntibioticResistance2 AS SELECT AtcCode, AtcName FROM FEST.AtcIndex
+> WHERE ( AtcCode LIKE 'J01%' ) OR ( AtcCode = 'A07AA09' ) OR ( AtcCode = 'P01AB01' )
+> EXCEPT ( SELECT AtcCode, AtcName FROM KB.AntibioticResistance1 UNION SELECT AtcCode, AtcName FROM KB.AntibioticResistance3 );
+> ```
+>
+> So `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` is the middle tier by construction, and the `AtcCode` column
+> it joins on is confirmed. Note `dbo.KBAtcIndex` — the `LEFT JOIN` in the same statement — is a
+> **synonym for `FEST.AtcIndex`**, so both joins read one table.
+>
+> Two consequences worth carrying into Phase 5: this collector is the **only** one of the three
+> antibiotic collectors that delegates its definition to the database instead of hard-coding ATC
+> codes, so it is the only one that cannot drift from the knowledge base; and `J01FF` is in neither
+> tier 1 nor tier 3, so the database itself classifies clindamycin as *intermediate* — which is the
+> evidence PORT-PLAN.md §8.4 was missing.
+>
 > Required handling in the port:
 > 1. Probe at registry-build time — `SELECT OBJECT_ID('KB.AntibioticResistance2')` — and only
 >    register the collector when it resolves. There is no existing "optional collector" concept, so
