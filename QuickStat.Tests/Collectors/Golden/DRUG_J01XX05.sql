@@ -1,0 +1,1 @@
+SELECT ot.PersonId, CONCAT('J01XX05','.',ot.TreatType) AS VarName, 1 AS DpValue, ot.StartAt, ot.TreatId, ai.AtcName AS Caption FROM dbo.OngoingTreatment ot LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC WHERE ( PersonId IN (/*PIDS*/) ) AND ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01XX05' COLLATE Latin1_General_CI_AI 

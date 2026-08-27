@@ -1,0 +1,1 @@
+SELECT a.PersonId, REPLACE(agg.AlertClass,'#','') AS VarName, AlertLevel AS DpValue,CreatedAt, a.AlertId, a.AlertHeader AS Caption FROM (   SELECT AlertClass, COUNT(*) AS n FROM dbo.Alert    WHERE AlertClass LIKE 'DRUID#%'  GROUP BY AlertClass ) agg JOIN dbo.Alert a ON a.AlertClass = agg.AlertClass WHERE agg.n > 5 ORDER BY PersonId

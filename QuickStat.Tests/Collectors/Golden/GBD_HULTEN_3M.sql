@@ -1,0 +1,8 @@
+SELECT ce.PersonId, mi.VarName, cdp.Quantity, ce.EventTime, cdp.RowId
+FROM dbo.ClinDataPoint cdp
+JOIN dbo.ClinEvent ce ON ce.EventId = cdp.EventId
+JOIN dbo.MetaItem mi ON mi.ItemId = cdp.ItemId
+WHERE ( cdp.ItemId = 4234 )
+AND ( NOT cdp.Quantity IS NULL )
+AND DATEDIFF( MM, ce.EventTime, GETDATE()) < 3
+ORDER BY ce.EventNum

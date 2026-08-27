@@ -1,0 +1,1 @@
+SELECT PersonId, TreatType, COUNT(*) AS DpValue, MAX(CreatedAt) AS LastDate, Max(TreatId) AS MaxTreatId FROM dbo.OngoingTreatment ot WHERE DATALENGTH(ATC) > 4 GROUP BY PersonId, TreatType

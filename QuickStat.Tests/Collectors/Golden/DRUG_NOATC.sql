@@ -1,0 +1,1 @@
+SELECT PersonId, 'NOATC', COUNT(*) AS DpValue, MAX(StartAt) AS LastDate, MAX(TreatId) AS MaxTreatId FROM dbo.OngoingTreatment ot WHERE ISNULL(ATC,'') = ''GROUP BY PersonId

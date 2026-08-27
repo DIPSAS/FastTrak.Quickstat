@@ -1,0 +1,1 @@
+SELECT ot.PersonId, CONCAT('C0x23789','.',ot.TreatType) AS VarName, ABS(CHECKSUM(ot.DrugName)) % 100000 AS DpValue, ot.StartAt, ot.TreatId, ai.AtcName AS Caption FROM dbo.OngoingTreatment ot LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC WHERE ( PersonId IN (/*PIDS*/) ) AND ot.ATC COLLATE Latin1_General_CI_AI LIKE 'C0[23789]%' COLLATE Latin1_General_CI_AI 

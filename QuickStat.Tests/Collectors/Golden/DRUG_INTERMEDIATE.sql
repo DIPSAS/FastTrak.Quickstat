@@ -1,0 +1,1 @@
+SELECT PersonId, 'INTERMEDIATE_AB' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption FROM dbo.OngoingTreatment ot LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC JOIN KB.AntibioticResistance2 r2 ON r2.AtcCode = ot.ATC WHERE ( PersonId IN (/*PIDS*/) ) 

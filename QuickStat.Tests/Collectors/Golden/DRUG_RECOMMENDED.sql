@@ -1,0 +1,1 @@
+SELECT PersonId, 'RECOMMENDED_AB' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption FROM dbo.OngoingTreatment ot LEFT JOIN dbo.KBAtcIndex ai ON ai.AtcCode = ot.ATC WHERE ( PersonId IN (/*PIDS*/) ) AND ( ot.ATC IN ( 'J01CE01', 'J01CE02', 'J01CF01', 'J01CF02', 'J01CA08', 'J01CA11', 'J01EA01', 'J01EE01', 'J01XE01' ) )
