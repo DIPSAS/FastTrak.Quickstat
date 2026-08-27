@@ -123,6 +123,50 @@ public class DataServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void TheSessionIsClosedBeforeTheConnectionIsDisposed()
+    {
+        // THE RESOLUTION ORDER BELOW IS THE TEST. Do not tidy it.
+        //
+        // ServiceProvider disposes in reverse order of capture and captures once per descriptor, so
+        // an alias to a disposable singleton books a second disposal slot at the moment the alias is
+        // first resolved. This is the app's order: the shell resolves ISessionService to connect, and
+        // only afterwards does a repository ask for ISqlExecutor. With the registrations the other
+        // way round that late alias was disposed first, the connection died before the session that
+        // owns it, and dbo.CloseSession never ran - measured against a live server, where it left
+        // every dbo.UserLog row open and logged "The connection did not close cleanly" on every
+        // clean exit (PORT-PLAN.md §8.11).
+        //
+        // The two tests above resolve ISqlExecutor first, which is why neither of them saw it.
+        RecordingSession session = new();
+        ServiceProvider provider = Build(services => services.AddSingleton<ISqlSession>(session));
+
+        _ = provider.GetRequiredService<ISessionService>();
+        _ = provider.GetRequiredService<ISqlExecutor>();
+
+        provider.Dispose();
+
+        Assert.Equal<string>(["CloseAsync", "Dispose"], session.Calls);
+    }
+
+    [Fact]
+    public void NeitherSingletonIsTornDownTwice()
+    {
+        // Both are captured twice - once as the interface, once as the concrete alias - so both
+        // dispose paths really do run. Idempotency is what keeps that from being a second teardown,
+        // and for the session service a second dbo.CloseSession for a session already closed.
+        RecordingSession session = new();
+        ServiceProvider provider = Build(services => services.AddSingleton<ISqlSession>(session));
+
+        _ = provider.GetRequiredService<ISessionService>();
+        _ = provider.GetRequiredService<ISqlExecutor>();
+
+        provider.Dispose();
+
+        Assert.Single(session.Calls, call => call == "Dispose");
+        Assert.Single(session.Calls, call => call == "CloseAsync");
+    }
+
+    [Fact]
     public async Task TheContainerCanAlsoBeDisposedAsynchronously()
     {
         ServiceProvider provider = Build();
@@ -145,5 +189,59 @@ public class DataServiceCollectionExtensionsTests
             Value = "Data Source=localhost;Initial Catalog=EFT;Integrated Security=True",
             Redacted = "Data Source=localhost;Initial Catalog=EFT;Integrated Security=True",
         };
+    }
+
+    /// <summary>
+    /// Records shutdown calls in order, which is the only thing the two disposal tests look at.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <c>Fakes/FakeSqlSession</c> on purpose: that one counts, and a count cannot tell
+    /// "closed then disposed" from "disposed then closed", which is the whole question here.
+    /// </remarks>
+    private sealed class RecordingSession : ISqlSession
+    {
+        public List<string> Calls { get; } = [];
+
+        public bool IsOpen { get; private set; }
+
+        public Task OpenAsync(string connectionString, CancellationToken cancellationToken)
+        {
+            IsOpen = true;
+            Calls.Add("OpenAsync");
+            return Task.CompletedTask;
+        }
+
+        public Task ReopenAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<bool> IsUsableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+
+        public Task CloseAsync()
+        {
+            IsOpen = false;
+            Calls.Add("CloseAsync");
+            return Task.CompletedTask;
+        }
+
+        public Task<SqlResultSet> QueryAsync(BoundSqlCommand command, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<int> ExecuteAsync(BoundSqlCommand command, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<object?> ScalarAsync(BoundSqlCommand command, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public void Dispose()
+        {
+            IsOpen = false;
+            Calls.Add("Dispose");
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsOpen = false;
+            Calls.Add("DisposeAsync");
+            return ValueTask.CompletedTask;
+        }
     }
 }

@@ -32,6 +32,9 @@ internal sealed class SessionService : ISessionService, IDisposable, IAsyncDispo
     private readonly ILoginStep[] _steps;
     private readonly ILogger<SessionService> _logger;
 
+    /// <summary>Set by either dispose path; see <see cref="Dispose"/> for why both can run.</summary>
+    private bool _disposed;
+
     public SessionService(
         QuickStatDatabase database,
         IConnectionStringTranslator translator,
@@ -169,6 +172,13 @@ internal sealed class SessionService : ISessionService, IDisposable, IAsyncDispo
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         try
         {
             using CancellationTokenSource timeout = new(ShutdownTimeout);
@@ -193,9 +203,24 @@ internal sealed class SessionService : ISessionService, IDisposable, IAsyncDispo
     /// The work runs on the thread pool and is bounded, because <c>App.OnExit</c> is on the WPF
     /// dispatcher thread and shutdown must never hang on a database that has stopped answering.
     /// </para>
+    /// <para>
+    /// <b>Idempotent, because this instance is genuinely disposed twice.</b> It is registered as
+    /// <see cref="ISessionService"/> and aliased as the concrete type, and <c>ServiceProvider</c>
+    /// captures a disposable once per descriptor that yields it. Here the flag earns its keep rather
+    /// than merely tidying up: without it the second pass runs <c>dbo.CloseSession</c> a second time
+    /// for a session that is already closed - a duplicate write, on shutdown, that nobody would ever
+    /// see in a log.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         try
         {
             using CancellationTokenSource timeout = new(ShutdownTimeout);

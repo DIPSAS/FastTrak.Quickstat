@@ -37,8 +37,26 @@ public static class DataServiceCollectionExtensions
         services.TryAddSingleton<ISqlTextRewriter, ColonToAtSqlTextRewriter>();
 
         services.TryAddSingleton<ISqlSession, SqlClientSession>();
-        services.TryAddSingleton<QuickStatDatabase>();
-        services.TryAddSingleton<ISqlExecutor>(provider => provider.GetRequiredService<QuickStatDatabase>());
+
+        // ORDER MATTERS, and it is not obvious. ISqlExecutor is the *primary* registration and the
+        // concrete type is the alias, not the other way round.
+        //
+        // ServiceProvider disposes singletons in reverse order of *capture*, and it captures once per
+        // descriptor that yields the instance - a factory alias to a disposable singleton therefore
+        // registers a second disposal slot at whatever moment the alias is first resolved. With the
+        // registrations the other way round, SessionService took the concrete type (capturing it
+        // early), some repository later asked for ISqlExecutor (capturing the same instance again,
+        // late), and the late slot was disposed first: the database was torn down *before* the
+        // session that owns it. Phase 5 measured that against a live server - dbo.CloseSession never
+        // ran, every UserLog row was left open, and every clean exit logged "The connection did not
+        // close cleanly" twice (PORT-PLAN.md §8.11).
+        //
+        // This way round, SessionService cannot be constructed without resolving the alias, which
+        // resolves the primary, so the database is always captured before the session regardless of
+        // who asks for what first. The instance is still captured twice; both types make disposal
+        // idempotent, which is what makes that harmless rather than a second teardown.
+        services.TryAddSingleton<ISqlExecutor, QuickStatDatabase>();
+        services.TryAddSingleton(provider => (QuickStatDatabase)provider.GetRequiredService<ISqlExecutor>());
 
         // Registered as an unordered set; SessionService sorts by ILoginStep.Order, so a later phase
         // adds a stage with one line here and nothing else changes.

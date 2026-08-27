@@ -29,6 +29,9 @@ internal sealed class QuickStatDatabase : ISqlExecutor, IDisposable, IAsyncDispo
     private readonly SqlRetryPolicy _retry;
     private readonly ILogger<QuickStatDatabase> _logger;
 
+    /// <summary>Set by either dispose path; see <see cref="Dispose"/> for why both can run.</summary>
+    private bool _disposed;
+
     public QuickStatDatabase(
         ISqlSession session,
         ISqlTextRewriter rewriter,
@@ -76,8 +79,23 @@ internal sealed class QuickStatDatabase : ISqlExecutor, IDisposable, IAsyncDispo
     /// <summary>Closes the connection. Safe when already closed.</summary>
     /// <param name="cancellationToken">Bounds the wait for the gate.</param>
     /// <returns>A task that completes when the connection is closed.</returns>
+    /// <remarks>
+    /// <b>"Safe when already closed" includes "already disposed", and that is not pedantry.</b>
+    /// Disposal is the only ordering in the process this type does not control: the container decides
+    /// when it happens relative to <see cref="SessionService"/>, and a shutdown that arrives in the
+    /// wrong order would otherwise wait on a disposed <see cref="SemaphoreSlim"/> and report a
+    /// failure that is really a lifetime accident. Phase 5 hit exactly that
+    /// (PORT-PLAN.md §8.11); the registration in <c>DataServiceCollectionExtensions</c> now orders it
+    /// correctly and this makes the remaining out-of-order call quiet rather than alarming, because a
+    /// log line that cries wolf on every clean exit is how a real failure gets missed.
+    /// </remarks>
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
@@ -113,18 +131,42 @@ internal sealed class QuickStatDatabase : ISqlExecutor, IDisposable, IAsyncDispo
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         await _session.DisposeAsync().ConfigureAwait(false);
         _gate.Dispose();
     }
 
     /// <summary>Closes the connection synchronously.</summary>
     /// <remarks>
+    /// <para>
     /// Present because <c>ServiceProvider.Dispose()</c> refuses to dispose a singleton that
     /// implements only <see cref="IAsyncDisposable"/>, and the composition root stops the host
     /// synchronously in <c>App.OnExit</c>.
+    /// </para>
+    /// <para>
+    /// <b>Idempotent, because this instance is genuinely disposed twice.</b> It is registered as
+    /// <see cref="ISqlExecutor"/> and aliased as the concrete type, and <c>ServiceProvider</c>
+    /// captures a disposable once per descriptor that yields it - so two disposal slots hold the same
+    /// object. Without the flag the second pass disposes an already-disposed
+    /// <see cref="SemaphoreSlim"/> and <see cref="ISqlSession"/>; harmless today, but it is the kind
+    /// of thing that becomes a double-close the moment the session type grows a real one.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         _session.Dispose();
         _gate.Dispose();
     }
