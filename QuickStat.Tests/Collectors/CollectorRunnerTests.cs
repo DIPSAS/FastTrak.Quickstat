@@ -508,7 +508,10 @@ public class CollectorRunnerTests
     public async Task TheTableValuedBinderPutsTheIdsInATableParameter()
     {
         RecordingSqlExecutor sql = new();
-        SqlOptions options = new();
+
+        // Opt in explicitly: the table type is not configured by default, because it exists on no
+        // database (SqlOptions.PersonIdListTypeName).
+        SqlOptions options = new() { PersonIdListTypeName = "Report.PersonIdList" };
 
         CollectorRunner runner = new(sql, new TableValuedPersonIdListBinder(options), NullLogger<CollectorRunner>.Instance);
 

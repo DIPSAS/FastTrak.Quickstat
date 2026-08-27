@@ -69,16 +69,44 @@ public sealed record SqlOptions
     public string DefaultEncryptionOptions { get; init; } = "Encrypt=True;TrustServerCertificate=True";
 
     /// <summary>
-    /// Name of the table type used to pass person-id lists, or <see langword="null"/> to force the
-    /// chunked-literal fallback.
+    /// Name of the table type used to pass person-id lists, or <see langword="null"/> - the
+    /// default - to use the chunked fallback.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// PORT-PLAN.md §7.3: patient-id lists move from a string-concatenated <c>IN (…)</c> to a
     /// table-valued parameter - one round trip, one cached plan, no exposure to SQL Server's
     /// 2 100-parameter limit. Shared by step 2.3 (national ids) and step 2.4 (every
     /// <c>{IdList}</c> collector), which is why the name lives here and not in either of them.
+    /// </para>
+    /// <para>
+    /// <b>It defaults to <see langword="null"/> because the type does not exist.</b> This defaulted
+    /// to <c>"Report.PersonIdList"</c> until Phase 5 checked, and that name is a proposal - it comes
+    /// from <c>Docs/Port/03-collectors.md</c> §C.4 item 2, which asks for a migration that has never
+    /// shipped. It appears nowhere in the Delphi, and nowhere in the schema project at
+    /// <c>C:\work\FastTrak.Database</c> across 1 422 schema files and 375 upgrade scripts; the only
+    /// user-defined table type in the whole product is <c>dbo.QuantityTableType</c>. Against a live
+    /// database it is simply absent.
+    /// </para>
+    /// <para>
+    /// The old default was not harmless. <see cref="Domain.Patients.PatientSql.NationalIdRequests"/>
+    /// branches on whether this name is <em>set</em>, not on whether the type <em>exists</em>, so it
+    /// bound a table-valued parameter of a nonexistent type on every run;
+    /// <c>NationalIdRecovery</c> caught the failure and degraded, leaving <c>Fødselsnummer</c>
+    /// blank - which is the exact bug Phase 4 restored the feature to fix (§10.5). The collectors
+    /// escaped it only because <c>AddCollectors</c> hard-registers
+    /// <see cref="Collectors.InlineLiteralPersonIdListBinder"/>.
+    /// </para>
+    /// <para>
+    /// The real answer is §C.4 item 3, which the port never implemented: probe once at login with
+    /// <c>SELECT TYPE_ID('…')</c> and set this from the result, exactly as
+    /// <c>CollectorAvailability</c> already probes <c>OBJECT_ID</c>. Until that exists,
+    /// <see langword="null"/> is the only default that is true of every database in the estate, and
+    /// a customer who does ship the migration can still opt in through
+    /// <see cref="QuickStatConnection.SqlOptions"/>.
+    /// </para>
     /// </remarks>
-    public string? PersonIdListTypeName { get; init; } = "Report.PersonIdList";
+    public string? PersonIdListTypeName { get; init; }
 
     /// <summary>Single column of <see cref="PersonIdListTypeName"/>.</summary>
     public string PersonIdListColumnName { get; init; } = "PersonId";

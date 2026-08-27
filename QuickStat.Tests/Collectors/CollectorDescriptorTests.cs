@@ -139,7 +139,9 @@ public class CollectorDescriptorTests
     [Fact]
     public void TableValuedBinderEmitsASubqueryAndATableParameter()
     {
-        TableValuedPersonIdListBinder binder = new(new SqlOptions());
+        // The type name has to be asked for: it is not the default, because the type does not exist
+        // on any database (SqlOptions.PersonIdListTypeName).
+        TableValuedPersonIdListBinder binder = new(new SqlOptions { PersonIdListTypeName = "Report.PersonIdList" });
 
         PersonIdListBinding binding = binder.Bind([1, 2, 3]);
 
@@ -190,7 +192,7 @@ public class CollectorDescriptorTests
     {
         ServiceCollection services = new();
 
-        services.AddSingleton(new SqlOptions());
+        services.AddSingleton(new SqlOptions { PersonIdListTypeName = "Report.PersonIdList" });
         services.AddSingleton<ISqlExecutor, UnusableSqlExecutor>();
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<IPersonIdListBinder, TableValuedPersonIdListBinder>();

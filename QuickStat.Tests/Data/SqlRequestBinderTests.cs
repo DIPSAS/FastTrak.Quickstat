@@ -267,11 +267,15 @@ public class SqlRequestBinderTests
     [Fact]
     public void BuildsThePersonIdTableParameterFromSqlOptions()
     {
-        SqlTableParameter table = SqlTableParameter.ForPersonIds(Options, "PersonIds", [1, 2, 3]);
+        // A local configuration rather than the shared Options: the table type is not configured by
+        // default, because it exists on no database (SqlOptions.PersonIdListTypeName).
+        SqlOptions options = new() { PersonIdListTypeName = "Report.PersonIdList" };
+
+        SqlTableParameter table = SqlTableParameter.ForPersonIds(options, "PersonIds", [1, 2, 3]);
 
         Assert.Equal("PersonIds", table.Name);
-        Assert.Equal(Options.PersonIdListTypeName, table.TypeName);
-        Assert.Equal(Options.PersonIdListColumnName, table.ColumnName);
+        Assert.Equal(options.PersonIdListTypeName, table.TypeName);
+        Assert.Equal(options.PersonIdListColumnName, table.ColumnName);
         Assert.Equal(3, table.Values.Count);
     }
 

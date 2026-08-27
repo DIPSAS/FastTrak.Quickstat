@@ -61,7 +61,11 @@ public class ConfigurationRegistrationTests
         // collector) read these three and never write them. Pinned here so a change is visible.
         SqlOptions options = new();
 
-        Assert.Equal("Report.PersonIdList", options.PersonIdListTypeName);
+        // Null, not "Report.PersonIdList". That name is a proposal from
+        // Docs/Port/03-collectors.md §C.4 item 2 and the migration never shipped; Phase 5 confirmed
+        // the type exists in no database and in no schema script. §C.4 item 3 asks for a
+        // TYPE_ID probe at login to set this - until that exists, null is the only true default.
+        Assert.Null(options.PersonIdListTypeName);
         Assert.Equal("PersonId", options.PersonIdListColumnName);
         Assert.Equal(1000, options.MaxIdsPerBatch);
     }

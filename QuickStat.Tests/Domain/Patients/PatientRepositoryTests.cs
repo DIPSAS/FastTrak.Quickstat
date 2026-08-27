@@ -22,6 +22,12 @@ public class PatientRepositoryTests
         QueryText = queryText,
     };
 
+    /// <summary>
+    /// Opt-in table-valued configuration. It has to be named: the table type is not configured by
+    /// default, because it exists on no database. See <see cref="SqlOptions.PersonIdListTypeName"/>.
+    /// </summary>
+    private static readonly SqlOptions TableValued = new() { PersonIdListTypeName = "Report.PersonIdList" };
+
     private PatientRepository CreateRepository(SqlOptions? options = null) =>
         new(_executor, options ?? new SqlOptions(), NullLogger<PatientRepository>.Instance);
 
@@ -109,11 +115,27 @@ public class PatientRepositoryTests
     }
 
     [Fact]
-    public async Task NationalIdRecoveryUsesTheTableValuedParameter()
+    public async Task NationalIdRecoveryChunksByDefaultRatherThanBindingATableType()
     {
+        // The repository-level guard for the defect Phase 5 found: this used to reach the server with
+        // a table-valued parameter of type Report.PersonIdList, which exists on no database, so the
+        // command failed, NationalIdRecovery degraded, and Fødselsnummer came out blank - the very
+        // bug Phase 4 restored the feature to fix. See SqlOptions.PersonIdListTypeName.
         SqlRequest request = await RecordingSqlExecutor.CaptureAsync(
             _executor,
             () => CreateRepository().GetNationalIdsAsync([4711, 88]));
+
+        Assert.Empty(request.TableParameters);
+        Assert.Equal(2, request.NamedValues!.Count);
+        Assert.Contains("IN (:p0, :p1)", request.CommandText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NationalIdRecoveryUsesTheTableValuedParameterWhenTheDatabaseHasTheType()
+    {
+        SqlRequest request = await RecordingSqlExecutor.CaptureAsync(
+            _executor,
+            () => CreateRepository(TableValued).GetNationalIdsAsync([4711, 88]));
 
         SqlTableParameter table = Assert.Single(request.TableParameters);
         Assert.Equal([4711, 88], table.Values);
@@ -121,17 +143,24 @@ public class PatientRepositoryTests
     }
 
     [Fact]
-    public async Task ACohortAboveTheParameterLimitStillTakesOneRoundTrip()
+    public async Task ACohortAboveTheParameterLimitStillTakesOneRoundTripWithTheTableType()
     {
         int[] ids = [.. Enumerable.Range(1, 3000)];
 
         SqlRequest request = await RecordingSqlExecutor.CaptureAsync(
             _executor,
-            () => CreateRepository().GetNationalIdsAsync(ids));
+            () => CreateRepository(TableValued).GetNationalIdsAsync(ids));
 
         Assert.Single(_executor.Requests);
         Assert.Equal(3000, Assert.Single(request.TableParameters).Values.Count);
     }
+
+    // No repository-level test that a large cohort becomes several statements: RecordingSqlExecutor
+    // throws once it has recorded a request, because SqlResultSet cannot be constructed outside the
+    // data layer, so the loop aborts on the first chunk and the merge across chunks is unobservable
+    // here. The chunking itself is pinned a layer down, on the pure function that produces the
+    // statements - NationalIdRequestTests.TheFallbackChunksAtTheConfiguredBatchSize and
+    // .EveryChunkStaysUnderTheParameterLimit. PORT-PLAN.md §8.10 records the untestable merge.
 
     [Fact]
     public async Task WithoutTheTableTypeTheFirstBatchIsStillParameterised()
