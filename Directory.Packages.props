@@ -7,8 +7,24 @@
     ONLY here.  A <PackageReference> in a .csproj must never carry a Version attribute.
 
     The dependency list is deliberately curated (PORT-PLAN.md §1.1): CommunityToolkit.Mvvm,
-    Microsoft.Data.SqlClient, Microsoft.Extensions.*, ClosedXML, xUnit.  No commercial control
-    suites, no additional libraries without a plan change.
+    Microsoft.Data.SqlClient, Microsoft.Extensions.*, ClosedXML, Serilog, xUnit.  No commercial
+    control suites, no additional libraries without a plan change.
+
+    SERILOG WAS SUCH A PLAN CHANGE, made deliberately on 2026-08-27 and recorded in PORT-PLAN.md
+    §1.1.  Docs/Port/01-data-access.md §7.5 offered the choice - "a small custom ILoggerProvider (or
+    Serilog, if the team prefers a dependency)" - and the port took the custom route, largely to keep
+    the log file byte-compatible with the Delphi's plaintext format.  The product owner withdrew that
+    requirement: the format is not worth preserving, only what is logged, when and how.  That removed
+    the only argument for hand-rolling daily rolling, retention, shared-file access and encoding, all
+    of which Serilog.Sinks.File already does, and the three hand-rolled files are deleted.
+
+    IT SITS BEHIND Microsoft.Extensions.Logging, NOT IN FRONT OF IT.  QuickStat.Core takes
+    Microsoft.Extensions.Logging.Abstractions and nothing else; every call site logs through
+    ILogger<T>.  Serilog appears only under QuickStat.App/Logging/ - not even App.xaml.cs names a
+    Serilog type - so replacing it again is a change to one directory.  (FastTrak.PersonInfoSync
+    takes the other route, a global using Serilog in every project; that is the one thing
+    deliberately not copied from it, because it would put a third-party logging type in
+    QuickStat.Core's public surface.)
   -->
 
   <PropertyGroup>
@@ -28,6 +44,16 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+
+    <!--
+      Logging.  Versions match FastTrak.PersonInfoSync (Serilog 4.3.1, Sinks.File 7.0.0) so the two
+      DIPS C# applications do not drift apart on the same dependency.  Serilog.Sinks.Console is
+      deliberately NOT taken: a WinExe has no console, and debugger output already comes from
+      Microsoft.Extensions.Logging's own AddDebug provider.
+    -->
+    <PackageVersion Include="Serilog" Version="4.3.1" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
   <!--

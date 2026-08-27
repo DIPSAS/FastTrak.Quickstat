@@ -23,23 +23,48 @@ namespace QuickStat.Tests.Logging;
 /// The identity numbers below are the suite's shared check-digit-valid test values; they are
 /// structurally valid and belong to nobody.
 /// </para>
+/// <para>
+/// <b>These five cases outlived the provider they were written against.</b> The hand-rolled
+/// <c>FileLoggerProvider</c> was replaced by Serilog behind
+/// <see cref="Microsoft.Extensions.Logging.ILogger"/> (PORT-PLAN.md §1.1); every assertion below is
+/// unchanged, and only the four lines that build the pipeline are different. That is deliberate -
+/// R6 is release-blocking, so the statement of it had to survive the change of mechanism intact
+/// rather than be rewritten to describe whatever the new mechanism happens to do.
+/// </para>
+/// <para>
+/// One of them, <see cref="AHandlebarredValueNeverReachesTheFile"/>, caught a real regression during
+/// that swap: Serilog's template parser reads <c>{{</c> as an escaped <c>{</c>, so the handlebar
+/// convention would have arrived at the redactor already un-doubled and silently stopped working.
+/// <c>QuickStatLogFormatter</c> redacts the raw template text before it is parsed because of this
+/// test.
+/// </para>
 /// </remarks>
 public sealed class FileLoggerRedactionTests : IDisposable
 {
     private readonly string _root;
-    private readonly FileLoggerProvider _provider;
+    private readonly string _logDirectory;
+    private readonly ILoggerFactory _factory;
     private readonly ILogger _logger;
 
     public FileLoggerRedactionTests()
     {
         _root = Path.Combine(Path.GetTempPath(), "QuickStat.Tests", Guid.NewGuid().ToString("N"));
-        _provider = new FileLoggerProvider(Path.Combine(_root, FileLoggerProvider.LogDirectoryName));
-        _logger = _provider.CreateLogger("RedactionTests");
+        _logDirectory = Path.Combine(_root, QuickStatLog.LogDirectoryName);
+
+        // The real pipeline, not a formatter in isolation: these tests read the bytes that a running
+        // QuickStat would actually write.
+        _factory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Trace);
+            builder.AddQuickStatLog(_logDirectory, nameof(LogLevel.Trace));
+        });
+
+        _logger = _factory.CreateLogger("RedactionTests");
     }
 
     public void Dispose()
     {
-        _provider.Dispose();
+        _factory.Dispose();
 
         if (Directory.Exists(_root))
         {
@@ -130,9 +155,16 @@ public sealed class FileLoggerRedactionTests : IDisposable
         Assert.Contains("Forged: second.", lines[0], StringComparison.Ordinal);
     }
 
+    /// <summary>Closes the sink so the bytes are on disk, then reads them.</summary>
+    /// <remarks>
+    /// Disposing the factory disposes the Serilog logger, which flushes and releases the file. Each
+    /// case reads once, at the end, so there is nothing to write afterwards.
+    /// </remarks>
     private string ReadTheLog()
     {
-        string[] files = Directory.GetFiles(_provider.LogDirectory, "*.log");
+        _factory.Dispose();
+
+        string[] files = Directory.GetFiles(_logDirectory, "*.log");
 
         return File.ReadAllText(Assert.Single(files));
     }

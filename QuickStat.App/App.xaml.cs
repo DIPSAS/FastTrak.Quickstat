@@ -33,6 +33,9 @@ public partial class App : Application
     private IHost? _host;
     private ILogger? _logger;
 
+    /// <summary>Where the log file is, for <see cref="Report"/>. Null when none could be created.</summary>
+    private string? _logDirectory;
+
     /// <summary>Non-zero once a fault has been shown to the user. See <see cref="Report"/>.</summary>
     private int _reportedToUser;
 
@@ -106,9 +109,15 @@ public partial class App : Application
         // application lifetime here.
         builder.Services.Replace(ServiceDescriptor.Singleton<IHostLifetime, WpfHostLifetime>());
 
-        builder.Logging.SetMinimumLevel(LogLevel.Information);
+        _logDirectory = QuickStatLog.ResolveLogDirectory();
+
+        string? requestedLevel = Environment.GetEnvironmentVariable(QuickStatLog.LevelVariable);
+
+        // Trace, so the level is decided in one place: QuickStatLog's LoggingLevelSwitch. A floor
+        // here would silently cap whatever the switch is later moved to.
+        builder.Logging.SetMinimumLevel(LogLevel.Trace);
         builder.Logging.AddDebug();
-        builder.Logging.AddFile();
+        builder.Logging.AddQuickStatLog(_logDirectory, requestedLevel);
 
         ConfigureServices(builder.Services);
 
@@ -116,10 +125,13 @@ public partial class App : Application
         _host.Start();
 
         _logger = _host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("QuickStat.App");
-        _logger.LogInformation(
-            "QuickStat starting. Base directory: {BaseDirectory}. Log directory: {LogDirectory}.",
-            AppContext.BaseDirectory,
-            FileLoggerProvider.DefaultLogDirectory);
+
+        // One line saying which build, pointed at what, in which locale. See StartupLog.
+        _logger.LogStartupEnvironment(
+            _host.Services.GetRequiredService<IApplicationInfo>().Version,
+            _host.Services.GetRequiredService<IConnectionCatalog>().DefaultConfigFilePath,
+            _logDirectory,
+            QuickStatLog.DescribeLevel(requestedLevel));
 
         MainWindow window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
@@ -262,7 +274,7 @@ public partial class App : Application
                     Environment.NewLine,
                     Environment.NewLine,
                     "The details are in ",
-                    Logging.FileLoggerProvider.DefaultLogDirectory,
+                    _logDirectory ?? Logging.QuickStatLog.PreferredLogDirectory,
                     "."),
                 AppTitle,
                 MessageBoxButton.OK,

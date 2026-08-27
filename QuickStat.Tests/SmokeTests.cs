@@ -34,28 +34,28 @@ public class SmokeTests
     }
 
     [Fact]
-    public void FileLoggerCreatesMissingDirectoryAndWritesTheLine()
+    public void TheLogCreatesItsMissingDirectoryAndWritesTheLine()
     {
         // PORT-PLAN.md §7.2: the Delphi build never created LOGS\, silently losing every log line.
         string root = Path.Combine(Path.GetTempPath(), "QuickStat.Tests", Guid.NewGuid().ToString("N"));
-        string logDirectory = Path.Combine(root, FileLoggerProvider.LogDirectoryName);
+        string logDirectory = Path.Combine(root, QuickStatLog.LogDirectoryName);
 
         try
         {
             Assert.False(Directory.Exists(logDirectory));
 
-            using (FileLoggerProvider provider = new(logDirectory))
+            using (ILoggerFactory factory = LoggerFactory.Create(
+                builder => builder.AddQuickStatLog(logDirectory, nameof(LogLevel.Trace))))
             {
-                Assert.True(Directory.Exists(logDirectory), "The provider must create its log directory.");
+                Assert.True(Directory.Exists(logDirectory), "Configuring the log must create its directory.");
 
-                ILogger logger = provider.CreateLogger("SmokeTests");
-                logger.LogInformation("Smoke test line.");
-
-                string[] files = Directory.GetFiles(logDirectory, "*.log");
-
-                Assert.Single(files);
-                Assert.Contains("Smoke test line.", File.ReadAllText(files[0]), StringComparison.Ordinal);
+                factory.CreateLogger("SmokeTests").LogInformation("Smoke test line.");
             }
+
+            string[] files = Directory.GetFiles(logDirectory, "*.log");
+
+            Assert.Single(files);
+            Assert.Contains("Smoke test line.", File.ReadAllText(files[0]), StringComparison.Ordinal);
         }
         finally
         {
@@ -67,7 +67,7 @@ public class SmokeTests
     }
 
     [Fact]
-    public void FileLoggerSwallowsFailuresInsteadOfThrowing()
+    public void TheLogSwallowsFailuresInsteadOfThrowing()
     {
         // An uncreatable log directory must degrade silently, not take the application down.
         // A regular file where the directory should be makes Directory.CreateDirectory fail.
@@ -79,11 +79,12 @@ public class SmokeTests
 
         try
         {
-            using FileLoggerProvider provider = new(Path.Combine(blocker, FileLoggerProvider.LogDirectoryName));
+            using ILoggerFactory factory = LoggerFactory.Create(
+                builder => builder.AddQuickStatLog(
+                    Path.Combine(blocker, QuickStatLog.LogDirectoryName),
+                    nameof(LogLevel.Trace)));
 
-            ILogger logger = provider.CreateLogger("SmokeTests");
-
-            logger.LogError(new InvalidOperationException("boom"), "This must not throw.");
+            factory.CreateLogger("SmokeTests").LogError(new InvalidOperationException("boom"), "This must not throw.");
         }
         finally
         {

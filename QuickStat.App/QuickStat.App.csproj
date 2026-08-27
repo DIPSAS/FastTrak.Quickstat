@@ -27,6 +27,15 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+
+    <!--
+      Serilog lives here and ONLY here.  QuickStat.Core must never reference it: it takes
+      Microsoft.Extensions.Logging.Abstractions, and Serilog is plugged in behind that as a single
+      MEL provider by QuickStat.App/Logging/QuickStatLog.cs.  See Directory.Packages.props.
+    -->
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
 
   <ItemGroup>
