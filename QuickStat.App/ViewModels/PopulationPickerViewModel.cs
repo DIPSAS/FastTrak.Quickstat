@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,7 +9,6 @@ using Microsoft.Extensions.Logging;
 using QuickStat.Data;
 using QuickStat.Diagnostics;
 using QuickStat.Domain.Matrix;
-using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
 using QuickStat.Services;
 
@@ -25,10 +23,13 @@ namespace QuickStat.ViewModels;
 /// <c>05-ui-spec.md</c> §B.1.1.
 /// </para>
 /// <para>
-/// <b>The prepare sequence is a contract.</b> <see cref="PersonMatrix"/> raises no notifications, so
-/// <see cref="IShellWorkspace"/> cannot observe it and the order below is what makes
-/// <see cref="IShellWorkspace.HasPopulation"/> read the new cohort rather than the previous one -
-/// see <see cref="PreparePopulationCommand"/>.
+/// <b>The prepare sequence is a contract, and it is <see cref="PopulationLoader"/>'s.</b>
+/// <see cref="PersonMatrix"/> raises no notifications, so <see cref="IShellWorkspace"/> cannot
+/// observe it and the order is what makes <see cref="IShellWorkspace.HasPopulation"/> read the new
+/// cohort rather than the previous one. That order used to be written out twice - here and in
+/// step 3.4's package replay - which is PORT-PLAN.md §8.10 (b); it is now written once, in the
+/// loader, and this view-model contributes only what is its own: the busy scope, the reporting and
+/// the audit row.
 /// </para>
 /// </remarks>
 public sealed partial class PopulationPickerViewModel : ObservableObject, IDisposable
@@ -64,8 +65,7 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     public const string NoMatchesText = "No populations match the filter.";
 
     private readonly IPopulationRepository _catalogue;
-    private readonly IPatientRepository _patients;
-    private readonly IQueryParameterResolver _parameters;
+    private readonly PopulationLoader _loader;
     private readonly ISessionService _session;
     private readonly IShellWorkspace _workspace;
     private readonly IShellProgress _progress;
@@ -100,8 +100,13 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
 
     /// <summary>Creates the picker's view-model.</summary>
     /// <param name="catalogue">The population catalogue and the selection audit.</param>
-    /// <param name="patients">Runs a population's own SQL.</param>
-    /// <param name="parameters">Resolves the population's <c>:Name</c> placeholders.</param>
+    /// <param name="loader">
+    /// Runs a population and puts its cohort in the matrix. The whole of the load sequence, shared
+    /// with the package replay - PORT-PLAN.md §8.10 (b). It is what used to be
+    /// <c>IPatientRepository</c> plus <c>IQueryParameterResolver</c> plus thirty lines of ordering
+    /// here, and taking it rather than those two is deliberate: this view-model no longer holds the
+    /// pieces from which a second copy of the sequence could be assembled.
+    /// </param>
     /// <param name="session">Study and database version; the source of the reload trigger.</param>
     /// <param name="workspace">Cross-tab state: the matrix and the loaded population.</param>
     /// <param name="progress">Status line and busy flag.</param>
@@ -110,8 +115,7 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <param name="logger">Log.</param>
     public PopulationPickerViewModel(
         IPopulationRepository catalogue,
-        IPatientRepository patients,
-        IQueryParameterResolver parameters,
+        PopulationLoader loader,
         ISessionService session,
         IShellWorkspace workspace,
         IShellProgress progress,
@@ -120,8 +124,7 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
         ILogger<PopulationPickerViewModel> logger)
     {
         ArgumentNullException.ThrowIfNull(catalogue);
-        ArgumentNullException.ThrowIfNull(patients);
-        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(loader);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(progress);
@@ -130,8 +133,7 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
         ArgumentNullException.ThrowIfNull(logger);
 
         _catalogue = catalogue;
-        _patients = patients;
-        _parameters = parameters;
+        _loader = loader;
         _session = session;
         _workspace = workspace;
         _progress = progress;
@@ -215,10 +217,21 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <para>
     /// Delphi <c>TfrmPopulations.TrySelect(AProcId, ALoadIt := true, …)</c>
     /// (<c>EPR.VclFrame.Populations.pas:186-200</c>), which exists for one caller: the package replay
-    /// (<c>MainQuickStat.pas:789</c>). <b>Step 3.4 calls this rather than rebuilding the load
-    /// sequence</b> - the ordering below is a contract, not a formality, and two copies of it is
-    /// exactly how it comes apart. It is awaitable for the same reason: the replay has to know the
-    /// cohort is in the grid before it starts collecting.
+    /// (<c>MainQuickStat.pas:789</c>).
+    /// </para>
+    /// <para>
+    /// <b>The replay does not, in the end, come through here</b>, and an earlier revision of this
+    /// comment claimed it did.
+    /// <see cref="QuickStat.ViewModels.PackagesTabViewModel.OpenPackageCommand"/> has to tell
+    /// "this study has no such population" (which warns and stops) apart from "the population is
+    /// there but its placeholders would not resolve" (which is quiet), it words its failures around
+    /// the <em>package</em> rather than the population, and it writes the audit row fire-and-forget
+    /// inside a busy scope it opened itself - so it does its own lookup and its own reporting. What
+    /// it must not do, and no longer does, is repeat the load sequence: both paths run
+    /// <see cref="PopulationLoader.LoadAsync"/>, which is PORT-PLAN.md §8.10 (b). This overload
+    /// remains the answer to "load the population with this <c>ProcId</c>", it selects the row as
+    /// <c>TrySelect</c> does, and it is awaitable because a replay has to know the cohort is in the
+    /// grid before it starts collecting.
     /// </para>
     /// <para>
     /// <b>Two deliberate differences from the Delphi, both reported.</b>
@@ -358,18 +371,19 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <c>LoadPopulationIntoGrid</c> (<c>:554-575</c>).
     /// </para>
     /// <para>
-    /// <b>Ordering matters.</b> <c>ClearPopulation</c> is what unlocks the matrix, and
-    /// <see cref="PersonMatrix.SortBy"/> throws on a locked one - so the second population of a
-    /// session would fail without it. Then <see cref="PersonMatrix.PreparePopulation"/>, and only
-    /// then <see cref="IShellWorkspace.SetPopulation"/>, because the workspace reads
-    /// <c>Rows.Count</c> at that moment. The Delphi does exactly this at <c>:532</c> and
-    /// <c>:564-566</c>.
+    /// <b>Ordering matters, and the order is <see cref="PopulationLoader.LoadAsync"/>'s</b> - clear
+    /// (which unlocks, because <see cref="PersonMatrix.SortBy"/> throws on a locked matrix and a
+    /// collect run locks it), sort, prepare, and only then
+    /// <see cref="IShellWorkspace.SetPopulation"/>, with the national-id recovery between the cohort
+    /// query and <see cref="PersonMatrix.PreparePopulation"/> because <c>PreparePopulation</c> copies
+    /// the ids onto the rows it builds and never reads the patients again. All of it is reasoned out
+    /// there, against <c>MainQuickStat.pas:532</c>, <c>:536-540</c> and <c>:564-566</c>; it is stated
+    /// once because it used to be stated twice (PORT-PLAN.md §8.10 (b)).
     /// </para>
     /// <para>
-    /// <see cref="NationalIdRecovery.EnsureNationalIdsAsync"/> sits between the cohort query and
-    /// <see cref="PersonMatrix.PreparePopulation"/>, where <c>AddNationalIds</c> sits in the Delphi
-    /// (<c>MainQuickStat.pas:536-540</c>) and where it has to sit here: the ids are copied onto the
-    /// rows by <c>PreparePopulation</c>.
+    /// What is left here is what the package replay does <em>differently</em>: this path opens its
+    /// own busy scope under the population's title, reports an unresolvable placeholder to the user,
+    /// asks for the <c>Collections</c> tab, and awaits the audit row.
     /// </para>
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanPreparePopulation))]
@@ -404,68 +418,47 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
 
         try
         {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-
-            // Placeholders first, and the whole load is abandoned if the user cancels the period
-            // dialog. PORT-PLAN.md §7.2: the Delphi cleared the grid before asking, so a cancel left
-            // the previous cohort on screen under the new population's title.
-            ParameterResolution resolution = await _parameters
-                .ResolveAsync(population.QueryText, cancellationToken)
+            // Placeholders, cohort, national ids, matrix, workspace - PopulationLoader.LoadAsync,
+            // which the package replay runs too.  The one outcome it does not report is an
+            // unresolved parameter set, because the two callers word that differently; everything
+            // else it can fail at throws, and lands in the catch blocks below.
+            PopulationLoadResult result = await _loader
+                .LoadAsync(population, _logger, cancellationToken)
                 .ConfigureAwait(true);
 
-            if (!resolution.Succeeded)
+            if (result.Unresolved is { } resolution)
             {
                 await ReportUnresolvedParametersAsync(population, resolution).ConfigureAwait(true);
 
                 return;
             }
 
-            IReadOnlyList<Patient> cohort = await _patients
-                .LoadPopulationAsync(population, resolution.Values, cancellationToken)
-                .ConfigureAwait(true);
-
-            // The two lines this repository has commented out as
-            // "// TODO: Disse feiler, hvor er de??" (MainQuickStat.pas:536-540), restored:
-            // unconditional, and here rather than after PreparePopulation, which copies the ids onto
-            // the rows it builds (PersonMatrix.cs:151).  Not conditioned on the identification mode -
-            // NationalIdRecovery's remarks say why, and why a failure only degrades this one column.
-            await NationalIdRecovery
-                .EnsureNationalIdsAsync(_patients, cohort, _logger, cancellationToken)
-                .ConfigureAwait(true);
-
-            PersonMatrix matrix = _workspace.Matrix;
-
-            // Clear unlocks; SortBy throws on a locked matrix and the matrix is locked from the
-            // previous collect run. Delphi: fGrid.Clear (:532), fGrid.Data.ClearPopulation (:564).
-            matrix.Clear();
-            matrix.SortBy = MatrixSortOrder.PersonId;
-            matrix.PreparePopulation(cohort);
-
-            _workspace.SetPopulation(population);
-
             if (activateCollectionsTab)
             {
                 _workspace.RequestCollectionsTab();
             }
 
-            stopwatch.Stop();
-
             _logger.LogInformation(
                 "Loaded population {ProcId} '{Title}': {RowCount} patients in {Elapsed} ms.",
                 population.ProcId,
                 population.Title,
-                matrix.Rows.Count,
-                stopwatch.ElapsedMilliseconds);
+                result.RowCount,
+                result.ElapsedMilliseconds);
 
             // Unconditional, and outside the observers' failure path. The Delphi wrote it after the
             // observers inside the same try, so a grid failure lost the audit row that feeds the
             // "frequently used" ranking (IPopulationRepository.LogPopulationSelectedAsync).
+            //
+            // Awaited, with the token, and inside this try - unlike the replay, which fires it and
+            // forgets it.  That is a real difference and it is left alone: it means a study id of
+            // zero still writes a row here, and that a failing audit write is reported as a failed
+            // load even though the cohort is already on screen.
             await _catalogue
                 .LogPopulationSelectedAsync(
                     _session.Current?.StudyId ?? 0,
                     population.ProcId,
                     population.Title,
-                    stopwatch.ElapsedMilliseconds,
+                    result.ElapsedMilliseconds,
                     cancellationToken)
                 .ConfigureAwait(true);
         }

@@ -59,6 +59,11 @@ public static class ShellServiceCollectionExtensions
         services.TryAddSingleton<IWindowStateService, WindowStateService>();
         services.TryAddSingleton<IConnectionCoordinator, ConnectionCoordinator>();
 
+        // Registered as the concrete type, deliberately: PopulationLoader is the one description of
+        // the population-load sequence (PORT-PLAN.md §8.10 (b)), and an interface here would let a
+        // test fake the very ordering the two callers exist to share.  Both of them take it.
+        services.TryAddSingleton<PopulationLoader>();
+
         // --- the two seams Phase 2 left for the UI ----------------------------------------
         services.Replace(ServiceDescriptor.Singleton<IUserNotificationPresenter, WpfNotificationPresenter>());
         services.TryAddSingleton<IPeriodPrompt, WpfPeriodPrompt>();

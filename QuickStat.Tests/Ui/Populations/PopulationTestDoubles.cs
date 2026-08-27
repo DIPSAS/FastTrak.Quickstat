@@ -418,10 +418,15 @@ internal sealed class PopulationHarness : IDisposable
             NullLogger<WindowStateService>.Instance);
         Coordinator = new FakeConnectionCoordinator(Session);
 
+        // The real loader over the fakes, not a stand-in: PORT-PLAN.md §8.10 (b) collapsed the load
+        // sequence into it, so faking it here would stop these tests proving the very thing they were
+        // written to prove - that the cohort query, the national-id recovery and PreparePopulation
+        // run in that order.
+        Loader = new PopulationLoader(Parameters, Patients, Workspace);
+
         Picker = new PopulationPickerViewModel(
             Catalogue,
-            Patients,
-            Parameters,
+            Loader,
             Session,
             Workspace,
             Progress,
@@ -461,6 +466,8 @@ internal sealed class PopulationHarness : IDisposable
     internal FakeConnectionCoordinator Coordinator { get; }
 
     internal RecordingUserNotifier Notifier { get; } = new();
+
+    internal PopulationLoader Loader { get; }
 
     internal PopulationPickerViewModel Picker { get; }
 
