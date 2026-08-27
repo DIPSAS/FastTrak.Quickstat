@@ -26,6 +26,12 @@ Last updated: 2026-08-27
 > `clFocusedSelectionColor` is still unmeasured — the other two are now corrected. §8.10 has only (h)
 > left, and that is a summary row. The `05-ui-spec.md` walkthrough is still a human job.
 >
+> **A field report from 2023 was handed over on 2026-08-27 and is now root-caused (§8.13):** date of
+> birth and sex go missing from a SWEET extract. They are the only two items on `SWEET_PATIENT` that
+> are `MetaFormItem.Expression` macros over the person record, so QuickStat is reading a client-written
+> copy of two `NOT NULL` columns it already holds in memory. Pre-existing product behaviour, faithfully
+> ported; the fix is three lines of policy and one decision, and it is not made.
+>
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
 > definition (§8.4). The other — the spelling of `KB.AntibioticResistance2` — was **settled on
 > 2026-08-27: the object exists, as a view, under exactly that name.** The availability gate stays
@@ -1209,6 +1215,85 @@ returning true while the registry was still gated, and the status line reading
 The eleventh, `DisconnectingWithNothingInFlightStillDisconnects`, passes either way and is a guard,
 not a control; so is `ALoginCopiesTheStudyIdOntoTheMatrix`, which pins where the study id is written
 now that the build no longer writes it.
+
+### 8.13 Reported from the field: date of birth and sex missing from a SWEET extract
+
+A note handed over on 2026-08-27, written 2023-08-08 and never followed up:
+
+> Når en ikke signerer FT Sweet startskjema, blir pasientens fødselsdato og kjønn ikke tatt med i
+> quickstat excel fil. Når skjema signeres, kommer de med i uttrekket.
+> (per 08.08.23 er det ikke testet /feilsøkt i vår database)
+
+**The cause is identified and it is not in QuickStat's SQL. Those two fields are not form data.**
+
+The form is `SWEET_PATIENT` (`FormId` 1265, *SWEET – pasientdata*), reached in QuickStat as the data
+element **`Skjema-data: SWEET - pasientdata (SWEET_PATIENT)`** — one of the `2 × N` per-form
+collectors `Report.GetFormClasses` generates, backed by `QaSql.SnapshotFormDataAll`. It carries ten
+items. Two of them are special, and they are exactly the two the report names:
+
+| Order | `VarName` | Type | `MetaFormItem.Expression` | `ItemText` |
+|---|---|---|---|---|
+| 1 | `SEX` (4255) | 2, enumeration | **`Patient.GenderId`** | Kjønn |
+| 2 | `DateOfBirth` (11567) | 5, date | **`Patient.Dob`** | Fødselsdato |
+| 3-10 | `BDR_DIAGNOSE`, `SWEET_TYPE`, `SWEET_SUBTYPE`, … | | *(none)* | |
+
+The other eight are ordinary user-entered items with no expression. So the failing pair is precisely
+the expression pair — a match too exact to be coincidence.
+
+`Patient.GenderId` and `Patient.Dob` are **macros over the person record**, not answers:
+`MainFastTrak.pas:1873-1878` registers `Sex → Patient.GenderId` and `DOB → Patient.DOB` as macro
+synonyms, and the FastTrak client evaluates them and writes the result into `dbo.ClinDataPoint` as if
+it were an answer. Whether that write happens is a client decision — `TCRFItem.NeedsSaving`
+(`CRF.Input.Item.pas:437-447`) — and the XML the client posts to `CRF.UpdateClinFormData` contains
+only the items that predicate accepts. **QuickStat reads the copy and nothing else.** No datapoint
+row, no cell. There is no signature predicate anywhere in QuickStat's SQL, so signing is not
+something the port can see; what it sees is whether the row exists.
+
+**The values are never actually unknown.** `dbo.Person.DOB` and `dbo.Person.GenderId` are both
+`NOT NULL` (`FastTrak.Schema/dbo/Tables/Person.sql:3,7`), with CHECK constraints tying each to the
+national id, and QuickStat already loads the person for every patient in the cohort. It is reading a
+second-hand copy of a column it is holding in memory.
+
+**Partial mitigation that already exists, and its gap.** `^ Kjønn` (`PATIENT.SEX`) reads
+`dbo.Person.GenderId` directly and emits `VarName = 'SEX'` — the same name as item 4255. Ticking it
+alongside the form element therefore fills the column, because a missing form datapoint cannot
+overwrite what is already there (`MatrixRow.TryAddDataPoint`), and the port collapses the two into one
+column where the Delphi produced two identical ones (`PersonMatrix.cs:221-238`). **There is no
+equivalent for the date of birth**: the catalogue has `^ Fødselsår` and `^ Fødselsmåned` but no
+full-date collector, and the fixed `Født` column is dropped in both anonymised modes (§6). Nobody can
+be expected to know any of this.
+
+**What was verified, and what was not.** Verified against `EFT00028_TEST_020`, metadata only: the
+form, its ten items, the two expressions, and the `NOT NULL` guarantee. One more number makes the
+point — item 11567 `DateOfBirth` appears on **exactly one form in the entire metadata set**, this one,
+and item 4255 `SEX` appears on 181 forms of which 179 hide it (`Visibility = -1`); `SWEET_PATIENT` is
+one of the two that show it. **Not verified: that signing is the trigger.** The test database holds
+zero `SWEET_PATIENT` instances, so there was nothing to reproduce; across all forms in it, expression
+items have a datapoint 57 % of the time on unsigned forms and 61 % on signed, which is no signal, and
+that base was script-loaded so it cannot speak for client behaviour anyway. Settling the trigger needs
+the FastTrak client, not QuickStat — and it does not change the fix, because the port should not be
+sourcing person data from a form copy whenever the client happens to have written one.
+
+**Proposed fix, not implemented — needs a decision.** When a per-form collector's item carries a
+`MetaFormItem.Expression` that QuickStat can evaluate itself over the loaded `Patient`
+(`Patient.DOB`, `Patient.GenderId`, `Patient.Age`, `Patient.YOB`, `Patient.PersonId`), fill the cell
+from the person record. Three variants, and the choice is the protocol owner's because it changes
+values in a national-registry extract:
+
+1. **Fill only when the datapoint is missing.** Smallest change; the form copy still wins when it
+   exists, so a stale copy stays stale.
+2. **Always compute, ignore the copy.** Consistent, and matches what the item *means*; diverges from
+   the shipped build for every patient whose person record changed after the form was signed.
+3. **Do nothing to the values; surface it.** Leave the export alone and make the two rescue collectors
+   discoverable instead.
+
+The port is faithful today: it reproduces the shipped behaviour exactly. This is a pre-existing
+product defect, not a port regression, and it is recorded here so that it is a decision rather than an
+oversight.
+
+**Raised and deferred on 2026-08-27.** The three variants above were put to the product owner, who
+chose to leave it. Nothing was implemented and no exported value changed. Do not re-open this as a
+port task: what is missing is a ruling on which value belongs in the cell, not an analysis.
 
 ### 8.9 Surfaced during Phase 3 wave 1 — one of these still needs a human
 
