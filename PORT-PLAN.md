@@ -1,22 +1,27 @@
 # QuickStat → WPF / .NET 10 port plan
 
-Status: **in implementation — Phases 0–4 complete. Resume at Phase 5 (verification).**
+Status: **in implementation — Phases 0–5 largely complete. Resume in Phase 5 (see below).**
 Branch: `feature/dotnet`
 Last updated: 2026-08-27
 
-> **Resume here. Phases 0–4 are complete.** The application is built and the functionality lost in
-> the extraction is restored. Verified at `HEAD` independently of the implementing agents'
-> reports: from-scratch Debug **and** Release builds with **zero warnings**, **2254 tests** passing
-> under the machine's own `nn-NO` plus `nb-NO` and `en-US`, and `QuickStat.exe`
-> launching from a foreign working directory with the full DI graph, loading a real
-> `QuickStat.config.xml`, and logging no `[ERR]`, `[CRT]` or exception. The banner reads
-> **`26.0.0.0`**.
+> **Resume here. Phases 0–4 are complete and Phase 5 is well advanced.** The application is built,
+> the functionality lost in the extraction is restored, and — since 2026-08-27 — both it and the
+> shipped Delphi build have been run against a real database. **2 416 tests** pass with zero
+> warnings under the machine's own `nn-NO` plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
-> **Next: Phase 5 — verification.** It is now the only phase with unknowns in it, and §8.10 (h) is
-> the big one: *nothing has ever run against a database.* Phase 5 needs a human with a real server
-> and the deployed `22.12.21.547` exe for a side-by-side parity pass; §8.10 lists the carried-forward
-> items — (a) is done, six remain — and §8.9 (a) — three palette colours — is the last question
-> needing a decision.
+> **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
+> independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
+> satisfy the five-column contract; §8.10 (a) and (b) done; the shipped `22.12.21.547` build was set
+> up and driven far enough to read two of §8.9 (a)'s three colours exactly and to lift its whole
+> 213-element data-element list out of the check list. **Two real defects came out of it, neither
+> reachable without a server:** a table type that never existed, which was silently blanking
+> `Fødselsnummer`, and an ICU-vs-NLS sort that put five export columns in the wrong place.
+>
+> **What is left in Phase 5.** No collector has actually *executed* — binding is not rows — so the
+> byte-for-byte CSV comparison (R4) still has no fixture captured from the Delphi, and no package has
+> been read or written. `clFocusedSelectionColor` is still unmeasured and the theme still ships two
+> palette values now known to be wrong. §8.10 has five items left. The `05-ui-spec.md` walkthrough is
+> still a human job.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
 > definition (§8.4). The other — the spelling of `KB.AntibioticResistance2` — was **settled on
@@ -641,20 +646,31 @@ Three decisions that were settled while implementing it, recorded so they are no
   fatal failure would destroy a load in `PersonIdOnly` or `RandomPersonId` whose result never needed
   the ids. `OperationCanceledException` is re-thrown: that means the whole load is being abandoned.
 
-### Phase 5 — Verification  *(one agent + human)*
+### Phase 5 — Verification  *(agents + human; largely done, see §8.11)*
 
-- Golden-file tests over generated SQL for every collector — the cheapest way to prove a 150-entry
-  registry is faithful without a database.
-- **Static resolution of every database object the 131 collectors name**, against the schema project
-  at `C:\work\FastTrak.Database` (§2.3) — trusting `Upgrades\` over `FastTrak.Schema\` where they
-  disagree. Catches a misspelled table, a procedure that moved schema, and a column a join relies
-  on, all without a server. Pair it with the golden files: the golden file pins *what* is generated,
-  this pins that what is generated can *bind*. Remember `dbo.KBAtcIndex` is a synonym, so resolution
-  has to follow those.
-- Byte-for-byte CSV comparison tests against fixtures captured from the Delphi build.
-- Unit tests for connection-string translation, `:Name`→`@Name` rewriting, anonymisation,
-  the colour ladders, and matrix assembly.
-- Manual parity pass against a real database, using `Docs/Port/05-ui-spec.md` as the checklist.
+- ~~Golden-file tests over generated SQL for every collector.~~ **Done.**
+  `QuickStat.Tests/Collectors/Golden/` holds 131 files, each derived from the Delphi Pascal by a
+  reader forbidden from seeing `QuickStat.Core/Collectors/`; 131 of 131 match. Changing one means
+  changing it *from the Pascal* — a corpus regenerated from our own output would agree with its own
+  bugs and prove nothing.
+- ~~**Resolution of every database object the 131 collectors name.**~~ **Done, and better than
+  planned.** A live catalog was available, so instead of parsing the schema project each generated
+  statement went through `sp_describe_first_result_set`, which binds every object, column and join
+  and executes nothing. All 131 bind; all 131 satisfy the five-column contract. The schema project
+  (§2.3) remains the fallback where no server is available — and remember `dbo.KBAtcIndex` is a
+  synonym, so a static resolver has to follow those.
+- **Byte-for-byte CSV comparison tests against fixtures captured from the Delphi build.** *Still
+  open.* `Export/CsvByteParityTests.cs` exists but its fixtures are derived from the specification,
+  not captured from a run. Capturing real ones needs a collect run in the shipped build followed by
+  an export — the app is set up for it (§8.9 a) and the study to use is `NDV`.
+- ~~Unit tests for connection-string translation, `:Name`→`@Name` rewriting, anonymisation, the
+  colour ladders, and matrix assembly.~~ **Already covered** by `ConnectionStringTranslatorTests`,
+  `SqlTextRewriterTests`, `MatrixAnonymiserTests`, `RgbTests` and `PersonMatrixTests`.
+- **Manual parity pass against a real database, using `Docs/Port/05-ui-spec.md` as the checklist.**
+  *Still open, and still a human job.* Two things now make it much cheaper: the shipped build is
+  installed and working at `C:\work\qs-delphi`, and its controls can be read programmatically
+  (§8.9 a), so "what does the reference actually show" is a query rather than a squint.
+- **Fix the two palette values now known to be wrong**, and measure the third (§8.9 a).
 
 ### Phase 6 — Cleanup  *(one agent; only after sign-off)*
 
@@ -929,19 +945,91 @@ the test suite now looks the way it does. Six remain.
 | # | Item | Note |
 |---|---|---|
 | a | ~~**No view can be instantiated under test if it uses `{StaticResource}` and does not merge the theme itself.**~~ | **Done** (Phase 5). `QuickStat.Tests/Ui/WpfApplicationFixture.cs` puts the shipped `App` — so the merge is `App.xaml`'s, not a second copy of it — on one dedicated background STA thread, behind a `static Lazy` for the single-instance guarantee and an `ICollectionFixture` for the handle. `Ui/ViewInstantiationTests.cs` constructs all seven views plus `MainWindow` through it and sweeps their bindings for `System.Windows.Data Error: 40`. Two consequences worth knowing: the assembly now runs sequentially, because `Application` registers every `Window` on unsynchronised collections from whichever apartment made it; and `Assert.Null(Application.Current)` is no longer a legitimate assertion anywhere, since nothing can un-set it — the four places that used it now read the window's own `Resources` instead, which is what they meant |
-| b | **Two population-loading code paths.** 3.2 owns `PopulationPickerViewModel.TryLoadPopulationAsync`; 3.4's replay has its own ~30-line equivalent because 3.2's command was synchronous when 3.4 was written. Both are tested and agree today | Exactly the "two halves each locally correct" shape that produced defects 3 and 4 above. Collapse onto 3.2's method; deferred because both halves are green and the merge was already large |
+| b | ~~**Two population-loading code paths.**~~ | **Done** (Phase 5). `QuickStat.App/Services/PopulationLoader.cs` is now the one place the sequence exists — resolve placeholders, cohort query, `NationalIdRecovery`, prepare the matrix, tell the workspace. Both view models take the loader *instead of* `IPatientRepository` and `IQueryParameterResolver`, which they only ever held in order to write their own copy, so neither can assemble a second one. It lives in `QuickStat.App` and not `Core` because its last step is `IShellWorkspace.SetPopulation`; moving the first four to `Core` and leaving the fifth to each caller would split the ordering contract in half again. Differences that are real stayed parameters or stayed at the call sites (logger, progress scope, audit row, failure wording, `RequestCollectionsTab`); differences nobody chose — what an unresolvable placeholder reports — are marked in code and left alone |
 | c | **The busy overlay's Cancel button can never appear.** `IShellProgress.BeginOperation(string)` takes no `CancellationTokenSource`, so nothing can offer one to `BusyOverlayViewModel.OfferCancellation` | One overload. The overlay is correct and tested; the button is simply never shown |
 | d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |
 | e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
 | f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
 | g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
-| h | **Nothing has ever run against a database.** No collector has executed, no population has loaded, no package has been read or written, no period prompt has fired for a real query | This is Phase 5, and it is the largest remaining unknown by a wide margin. **Partly attackable without a server since 2026-08-27**: the schema project at `C:\work\FastTrak.Database` (§2.3) lets every object a collector names be resolved statically. That turns "does this query even bind" from a server question into a file-existence one; it leaves "does it return the right rows" untouched |
+| h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. Still untouched: **no collector has actually executed**, so "does it return the right rows" and the CSV byte comparison remain open, and no package has been read or written |
+
+### 8.11 What Phase 5 found by running things
+
+Two databases' worth of assumption turned out to be wrong, and neither was reachable without a
+server. Both are fixed; both now have a regression test that fails if they come back.
+
+**(1) `SqlOptions.PersonIdListTypeName` named a table type that has never existed.** It defaulted to
+`"Report.PersonIdList"`, a name that comes from `Docs/Port/03-collectors.md` §C.4 item 2 — which
+*proposes* the migration. It is in no Delphi source, in none of the 1 422 schema files or 375 upgrade
+scripts of the schema project, and not in `EFT00028_TEST_020`; the only user-defined table type in
+the whole product is `dbo.QuantityTableType`. `PatientSql.NationalIdRequests` branches on whether the
+name is *set*, not on whether the type *exists*, so every run bound a TVP of an unknown type and the
+server answered `Msg 2715: Cannot find data type Report.PersonIdList`. `NationalIdRecovery` caught it
+and degraded — so the symptom was a blank `Fødselsnummer` column, i.e. **exactly the bug Phase 4
+restored the feature to fix** (§10.5). The collectors escaped only because `AddCollectors`
+hard-registers `InlineLiteralPersonIdListBinder`.
+
+The default is now `null`, the shared chunked path, which recovers 342 national ids for the first 500
+patients of the test database. §C.4 item 3 asks for a `TYPE_ID` probe at login, exactly as
+`CollectorAvailability` already probes `OBJECT_ID`; that is the proper fix and is not built. **Every
+test took the TVP path by default**, so the suite only ever exercised the branch production could not
+reach — which is why nothing caught it, and why the tests that mean to use the table type now have to
+ask for it by name.
+
+**(2) The data-element list was sorted with ICU where the Delphi sorts with NLS.** Column order in
+every export is check-list order, and the check list is a Win32 list box with `LBS_SORT`, i.e.
+`CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE)`. The port used
+`StringComparer.CurrentCultureIgnoreCase`, documented as "the .NET equivalent, down to reading the
+user's locale". The locale part is right; the collation part is not — since .NET 5 the framework
+collates with ICU and the list box with NLS, and they disagree about punctuation. Measured against
+the running build: of 213 data elements 208 agreed, and NLS puts the five `Skjema: Antall …` at
+positions 41-45 where ICU puts them at 209-213. Five columns at the wrong edge of every file a
+customer has scripts against — the drift §6 forbids. `QuickStat.App/ViewModels/LbsSortComparer.cs`
+now calls `CompareStringEx` instead of approximating it.
+
+**The 131-entry static catalog sorts identically under both comparers**, which is why no test could
+see this: the collision only exists once the per-form elements from `Report.GetFormClasses` are in
+the list, because they are what introduce `Skjema-alder:` and `Skjema-data:`. This is §8.10 (h) in
+one sentence.
+
+**What was confirmed rather than corrected**
+
+- **All 131 collectors bind** against a real catalog — `sp_describe_first_result_set` resolves every
+  object, column and join and executes nothing. Zero failures.
+- **All 131 satisfy the five-column positional contract.** One collector projects a non-string at
+  ordinal 1 (`DRUG.NorGEP`, `EXEC Report.NorGeP`, whose `VarName` is an `int`); `SqlRow.GetString`
+  coerces it exactly as Delphi's `AsString` did, so it is parity-correct, but nothing pinned it.
+- **`R13` is settled in practice: the shipped build runs.** `22.12.21.547` was copied to a scratch
+  folder, pointed at the test database and driven to a loaded population. The legacy `SQLOLEDB`
+  provider **cannot** reach SQL Server 2022 here (`[DBNETLIB][ConnectionOpen] SQL Server does not
+  exist or access denied`); `MSOLEDBSQL` connects. That is worth knowing independently of the port.
+- **Golden files for all 131 collectors**, re-derived from the Pascal by readers forbidden from
+  seeing the C#. 131 of 131 matched, so the registry transcription is sound (R3). Two of the four
+  derivations additionally re-extracted the Pascal string concatenations mechanically.
+- **§6's linguistic-sort conclusion is now observed, not reasoned.** The `^ ` elements really do come
+  first in the shipped build, so the "sort ordinally" instruction in three documents really is
+  backwards.
+
+**Left open by Phase 5**
+
+- **No collector has executed.** Binding is not rows. The CSV byte comparison (R4, §10.6) still has
+  no fixture captured from the Delphi.
+- **`clFocusedSelectionColor` is still unmeasured** — see §8.9 (a).
+- **`ATC_A11EA = 'A11EA'` has no trailing `%`** (`EPR.QA.Collector.Drug.pas:44`), so `DRUG.A11EA`
+  matches one exact code while its title calls it a group ("Vitamin B-kompleks"). Every other
+  group-level constant carries `%`; the ones without it are all full 7-character codes. Reproduced
+  faithfully. **A second question for whoever answers the `J01FF%` one in §8.4** — same shape, same
+  owner, and cheap to ask at the same time.
+- **Unverified lead, worth one look:** `Docs/Port/01-data-access.md` §7.5 says `PiiRedactor.ForLog`
+  is applied in the logger provider. A subagent reported it is not — only `UserNotifier` and
+  `IniSettingsStore` call the redactor. If true it is an R6 item and therefore release-blocking, so
+  check it rather than take it on trust.
 
 ### 8.9 Surfaced during Phase 3 wave 1 — one of these still needs a human
 
 | # | Question | Status |
 |---|---|---|
-| a | **Three palette colours in `05-ui-spec.md` §F.1 describe `develop_old`, not the parity baseline** | **Needs a decision.** See below |
+| a | **Three palette colours in `05-ui-spec.md` §F.1 describe `develop_old`, not the parity baseline** | **Two of three measured in Phase 5; one still open.** See below |
 | b | **No `<Version>` is set**, so the banner reads `1.0.0.0` | **Resolved: `26.0.0.0`**, decided by the product owner at the start of Phase 4 and set once as `<Version>` in `Directory.Build.props`. MSBuild derives `AssemblyVersion`, `FileVersion` and `InformationalVersion` from it, and the banner reads `AssemblyFileVersion` — so the single property covers the banner, the file properties and the `@AppVer` the login sends to `dbo.AddSession` |
 | c | §H.2 lists two cross-tab items; there is a **third**, `ExportTimestamps` — owned by the Collections tab, read by the Dataset tab's export commands | Resolved: it lives on `IShellWorkspace`. Recorded in `07-ui-contracts.md` |
 | d | §C.3 is wrong in three places — fixed-column header alignment, missing horizontal grid lines, and a two-header-row tooltip rule for a grid with `FixedRows = 1` | Resolved toward the `.pas` in each case, with evidence. Recorded in the step 3.5 report and `07-ui-contracts.md` |
@@ -950,11 +1038,24 @@ the test suite now looks the way it does. Six remain.
 **(a) in full, because it is the R11 failure mode landing again.** Step 3.1 found it while transcribing
 §F.4 and it was verified independently:
 
-| Constant | §F.1 / this repo's `FastTrak\` (`develop_old`) | `origin/tarmscreening/develop` (the pinned baseline) |
-|---|---|---|
-| `clCodeColor` — population/package id column | `$00A4294B` → **`#4B29A4`** purple | `$00888888` → **`#888888`** grey |
-| `clStatusTextColor` — `ProcGroup` / `Pop#n` | `$00822EB8` → **`#B82E82`** fuchsia | `clMandatoryGeometryFill` = `$00054689` → **`#894605`** brown |
-| `clFocusedSelectionColor` — grid current cell | `$00D4FBFF` → **`#FFFBD4`** pale yellow | `clSelectedBk` = `$00E9D9C8` → **`#C8D9E9`** pale blue |
+| Constant | §F.1 / this repo's `FastTrak\` (`develop_old`) | `origin/tarmscreening/develop` (the pinned baseline) | Measured off the running `22.12.21.547` |
+|---|---|---|---|
+| `clCodeColor` — population/package id column | `$00A4294B` → **`#4B29A4`** purple | `$00888888` → **`#888888`** grey | **`#888888`** — exact, stroke core of the id column |
+| `clStatusTextColor` — `ProcGroup` / `Pop#n` | `$00822EB8` → **`#B82E82`** fuchsia | `clMandatoryGeometryFill` = `$00054689` → **`#894605`** brown | **`#894605`** — exact, darkest warm pixel of the category column |
+| `clFocusedSelectionColor` — grid current cell | `$00D4FBFF` → **`#FFFBD4`** pale yellow | `clSelectedBk` = `$00E9D9C8` → **`#C8D9E9`** pale blue | **not yet measured** — needs a populated grid with a cell clicked |
+
+**Phase 5 measured the first two and they are the right-hand column, exactly.** The shipped build was
+run against `EFT00028_TEST_020`, the population list was screenshotted, and the stroke cores of the
+two text columns were sampled: `#888888` and `#894605`, byte for byte, no interpretation needed. So
+the dated-chain argument below was correct, and **the theme's current values for those two are
+wrong** — three hex values in `Theme/QuickStat.Brushes.xaml` plus the inventory test, of which two
+can be changed on evidence today.
+
+The third resisted automation: clicking into the grid produced no change at all, so the grid appears
+to hold no rows until a collect run, and chasing it further was not worth the screen time against
+patient data. It is a one-click job for whoever does the parity pass — load a population, click a
+cell, sample the cell background. Both candidate colours were also searched for across the whole
+screen and neither appears, so this is genuinely unmeasured rather than quietly decided.
 
 Commit **`98f493bbc`** (2022-09-29, "Mindre retninger") made the change. It is on **both** tarmscreening
 refs and predates the shipped `v22.12.21.547` by nearly three months, so by the same dated-chain
@@ -967,7 +1068,8 @@ The theme currently ships the **left-hand** column, because §F.4 was transcribe
 3.1 was right not to change a spec unilaterally. Reversal cost is three hex values in
 `Theme/QuickStat.Brushes.xaml` plus the inventory test. **R13 applies: settle it by looking at the
 deployed exe**, not by reasoning further — this is precisely the kind of "what ships today" claim
-R11 warns is unverified in `01`–`02` and `04`–`05`.
+R11 warns is unverified in `01`–`02` and `04`–`05`. *Two of the three were looked at in Phase 5 and
+the dated-chain argument held; the paragraphs below describe why that took running the thing.*
 
 **The deployed exe is on this machine, and it cannot be inspected statically.** Four copies exist —
 `C:\Users\chs\Downloads\QuickStat.exe`, `…\Downloads\FastTrakUpgrade.v22011\bin\`,
@@ -986,9 +1088,25 @@ resource reads fine. Two searches were run and both are **inconclusive, not nega
 | Collector names and titles as ANSI/UTF-16 (`QST_LAB_INTERLEUKINS`, `Autommunitet`, `J01XX05`, …) | 0 hits — and so were the controls `J01FF` and `LabClassName`, which are certainly in any build |
 
 No UPX binary is installed, and unpacking to read a colour constant would be disproportionate.
-**Therefore R13's "check the deployed exe" means run it and look**, which is a human step and belongs
-to Phase 5's parity pass. Do it against the population list (id and category columns) and a populated
-grid (current cell) — three colours, one screen each.
+**Therefore R13's "check the deployed exe" means run it and look.**
+
+**Phase 5 ran it.** `QuickStat.exe` was copied to `C:\work\qs-delphi` with a `QuickStat.config.xml`
+and a `FastTrak.UDL` pointing at `EFT00028_TEST_020`, and driven — connection selected, population
+loaded — far enough to read the population list and the data-element check list. Two of the three
+colours came off that screen exactly (table above). Reproducing it takes three things worth writing
+down:
+
+- **The UDL must not say `Provider=SQLOLEDB.1`.** The legacy MDAC/DBNETLIB stack fails against SQL
+  Server 2022 here with `[DBNETLIB][ConnectionOpen (Connect()).]SQL Server does not exist or access
+  denied`, while `Microsoft.Data.SqlClient` and `sqlcmd` connect to the same instance without
+  complaint. `Provider=MSOLEDBSQL` works. Both `MSOLEDBSQL` and `MSOLEDBSQL19` are installed.
+- **The UDL is UTF-16 LE with a byte-order mark**, three lines, CRLF. Written any other way the app
+  reads an empty connection string.
+- The controls are ordinary Win32, so the window can be driven and *read* programmatically:
+  `EnumChildWindows` finds them by class (`TComboBox`, `TCheckListBox`, `TStudyOverviewGrid`), and
+  `LB_GETCOUNT`/`LB_GETTEXT` lift the whole data-element list straight out of the check list. That is
+  where `QuickStat.Tests/Ui/Collections/DelphiCheckList.NDV.txt` came from, and it is a better
+  artefact than a screenshot because it is exact and carries no patient data.
 
 ---
 
@@ -998,17 +1116,17 @@ grid (current cell) — three colours, one screen each.
 |---|---|---|
 | R1 | `Encrypt=true` breaks every existing connection | Explicit defaults + a connectivity smoke test before rollout |
 | R2 | Population SQL is stored **in the database**, not in this repo — arbitrary text with `:Name` parameters | The `:Name`→`@Name` rewriter needs a real scanner (skipping literals, `[]`, `""`, `--`, `/* */`, `::`) plus a dry-run diagnostic over production `SqlText` before release |
-| R3 | The 150-entry collector registry is transcribed by hand | Golden-file SQL tests; the inventory table in `03-collectors.md` is the acceptance checklist |
+| R3 | The 150-entry collector registry is transcribed by hand | **Discharged** (Phase 5). `QuickStat.Tests/Collectors/Golden/` holds one Pascal-derived statement per collector and **131 of 131 match** what the port generates. The derivations were made blind to the C#, so agreement is evidence rather than tautology; the comparison was negative-controlled. The inventory table in `03-collectors.md` remains the acceptance checklist |
 | R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | Byte-comparison tests against fixtures from the Delphi build |
 | R5 | Custom grid control is the largest single piece of UI work | Time-boxed; `DataGrid` fallback documented with a ~150-column ceiling |
 | R6 | Privacy regressions around anonymisation | Dedicated tests; treated as release-blocking |
 | R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
 | R10 | Most `maxint`-batch collectors carry **no `{IdList}` at all** and scan the whole database, discarding non-cohort rows client-side | Pre-existing behaviour, preserved for parity; recorded as a separate performance follow-up, not fixed during the port |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
-| R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass |
+| R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass. **Partly lifted on 2026-08-27**: `EFT00028_TEST_020` on `localhost` was made available for Phase 5 and is the only database that may be used. Everything learned from it is in §8.11. The rule still stands for the *suite* — no test may require a server, and none does |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
-| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | Regardless of how the Continua half resolves, do not rely on a Delphi build as a check — nobody has demonstrated one succeeding. Phase 5's parity pass runs against the **existing deployed exe**, not a freshly built one. **That exe is already on this machine** — four byte-identical copies of `22.12.21.547`, listed in §8.9(a) — so this row no longer blocks Phase 5. It is UPX-packed, so it must be *run*, not read. To settle R13 properly, someone with Continua access should read the `FastTrakDevelop` source definition; it is a five-minute check and it would either confirm this row or overturn it |
+| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | Regardless of how the Continua half resolves, do not rely on a Delphi build as a check — nobody has demonstrated one succeeding. Phase 5's parity pass runs against the **existing deployed exe**, not a freshly built one. **That exe is already on this machine** — four byte-identical copies of `22.12.21.547`, listed in §8.9(a) — so this row no longer blocks Phase 5. It is UPX-packed, so it must be *run*, not read. To settle R13 properly, someone with Continua access should read the `FastTrakDevelop` source definition; it is a five-minute check and it would either confirm this row or overturn it. **Neutralised in practice on 2026-08-27:** the deployed exe was copied to `C:\work\qs-delphi`, configured against `EFT00028_TEST_020` and *run* — it connects, lists populations, loads one and shows its data elements. So a reference build exists to compare against whether or not anyone can compile one, and §8.9 (a) records the two setup traps (`MSOLEDBSQL`, not `SQLOLEDB`; UTF-16 LE UDL) |
 | R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos |
 
 ---
@@ -1057,6 +1175,15 @@ grid (current cell) — three colours, one screen each.
    two agree, so the gating regexes are not in doubt — only the totals above depend on which tree
    you count.
 5. "Fully identified patients" produces national IDs.
+
+   **Restored by Phase 4 and unblocked by Phase 5.** Phase 4 wrote the recovery; §8.11 (1) explains
+   why it could not have worked on any real database until the table-type default was fixed, and why
+   the failure was invisible — the recovery degrades rather than throwing, so the symptom was the
+   blank column the feature exists to fill. The statement it now issues recovers 342 ids for the
+   first 500 patients of `EFT00028_TEST_020`. **Not yet demonstrated end to end through the running
+   application**, which belongs to the parity pass.
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
+
+   Still open: the fixtures are specification-derived, not captured from a Delphi run. See Phase 5.
 7. The three identification modes behave exactly as specified in §6.
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.
