@@ -17,8 +17,9 @@ Last updated: 2026-08-27
 > colours exactly and to lift its whole 213-element data-element list out of the check list.
 > **Three real defects came out of it, none reachable without a server:** a table type that never
 > existed, which was silently blanking `Fødselsnummer`; an ICU-vs-NLS sort that put five export
-> columns in the wrong place; and a shutdown path that logs *"The connection did not close cleanly"*
-> on every clean exit.
+> columns in the wrong place; and a disposal order that meant the application **never closed its own
+> session row** — every `dbo.UserLog` row left open, and *"The connection did not close cleanly"*
+> logged on every clean exit. All three are fixed, each with a regression test.
 >
 > **What is left in Phase 5.** The byte-for-byte CSV comparison (R4) has the port's half but no
 > fixture captured from the Delphi, and no package has been read or written.
@@ -1002,8 +1003,10 @@ build is only useful if the subscribers have run too.
 
 ### 8.11 What Phase 5 found by running things
 
-Two databases' worth of assumption turned out to be wrong, and neither was reachable without a
-server. Both are fixed; both now have a regression test that fails if they come back.
+Three defects, none of them reachable without a server, and one of them the kind that only appears
+when a real process actually exits. All three are fixed, and each has a regression test that fails if
+it comes back — every one of those tests was negative-controlled by reverting the production change
+and watching it fail. (3) is not a defect but the thing this phase existed to do.
 
 **(1) `SqlOptions.PersonIdListTypeName` named a table type that has never existed.** It defaulted to
 `"Report.PersonIdList"`, a name that comes from `Docs/Port/03-collectors.md` §C.4 item 2 — which
@@ -1087,18 +1090,39 @@ is correctly silent too. What did return rows covers every collector *shape*: `P
 **What the export bytes show.** No BOM; `CRLF` only, one per row plus the header, and the file ends
 with one; `;` after **every** field including the last; every field quoted; `"PID";"AGE";"SEX";` as
 the header, i.e. VarNames and not titles; and with timestamps on, `"AGE";"AGE.DATE";"SEX";"SEX.DATE";`
-— §6's format, observed rather than specified. Two caveats: this data produced only six decimal
-commas, so `%g` with a comma separator is barely exercised, and **not one byte above `0x7F`**, so the
-CP1252 half of §6 is still untested. A fixture that pins the encoding needs a column with Norwegian
-text in it.
+— §6's format, observed rather than specified.
 
-**A third real defect, found by running it: every clean shutdown logs a failure.**
-`SessionService.Dispose` → `SafeDisconnectAsync` → `QuickStatDatabase.DisconnectAsync` runs *after*
-the container has disposed `QuickStatDatabase`, so it waits on a disposed `SemaphoreSlim` and logs
-**"The connection did not close cleanly"** with an `ObjectDisposedException` — twice, on a shutdown
-where the connection had already been closed cleanly. It is caught, so nothing breaks; the harm is
-that a log line which should mean something now means nothing, which is how a real failure gets
-missed. Not fixed here only because §8.10 (g) was editing the same file concurrently.
+One caveat, and it is about *this* evidence rather than about the code: the run produced **not one
+byte above `0x7F`** and only six decimal commas in 93 kB, so the live files say nothing about CP1252
+or about `%g` with a comma. Those two are not unpinned — `Export/CsvByteParityTests` asserts them at
+byte level (`ø = 0xF8`, `æ = 0xE6`, `"3,5"`) — but those fixtures are specification-derived, which is
+exactly what acceptance criterion 6 asks to replace. A cohort with Norwegian text in a data column is
+what would let a live run confirm the part the specification currently vouches for on its own.
+
+**(4) A third real defect, and the worst of the three: the application never closed its session
+row.** Running the harness produced **"The connection did not close cleanly"** twice on every clean
+exit, with an `ObjectDisposedException`. That is noise, and noise was the small half of it: the same
+teardown order meant `dbo.CloseSession` never ran either, so **every `dbo.UserLog` row was left
+open** — indistinguishable, to anyone reading that table, from a crash, which is precisely what its
+`DirtyClose` column exists to tell apart.
+
+The cause is a **factory alias to a disposable singleton**. `ServiceProvider` disposes in reverse
+order of *capture* and captures once per descriptor that yields the instance, so an alias books a
+second disposal slot at the moment it is first resolved. `SessionService` took `QuickStatDatabase`
+concretely (captured early); a repository asked for `ISqlExecutor` later (same instance, captured
+late); the late slot was disposed first, and the connection died before the session that owns it.
+Nothing in the suite could see it: the two existing disposal tests resolve `ISqlExecutor` *first*,
+which happens to produce the right order.
+
+Fixed by making `ISqlExecutor` the primary registration and the concrete type the alias — then
+`SessionService` cannot be built without resolving the alias, which resolves the primary, so the
+database is always captured first whatever the resolution order — and by making both types
+idempotent on disposal, since the instance is still captured twice. For `SessionService` that is not
+tidiness: without it, `dbo.CloseSession` runs a second time for a session already closed.
+
+Measured, not argued: sessions **814** and **815** were run down the application's own shutdown path
+before the fix and still have `ClosedAt` NULL; session **816**, the same path after it, has
+`ClosedAt` set and `DirtyClose = 0`.
 
 **Left open by Phase 5**
 
@@ -1280,7 +1304,7 @@ down:
 | R1 | `Encrypt=true` breaks every existing connection | Explicit defaults + a connectivity smoke test before rollout |
 | R2 | Population SQL is stored **in the database**, not in this repo — arbitrary text with `:Name` parameters | The `:Name`→`@Name` rewriter needs a real scanner (skipping literals, `[]`, `""`, `--`, `/* */`, `::`) plus a dry-run diagnostic over production `SqlText` before release |
 | R3 | The 150-entry collector registry is transcribed by hand | **Discharged** (Phase 5). `QuickStat.Tests/Collectors/Golden/` holds one Pascal-derived statement per collector and **131 of 131 match** what the port generates. The derivations were made blind to the C#, so agreement is evidence rather than tautology; the comparison was negative-controlled. The inventory table in `03-collectors.md` remains the acceptance checklist |
-| R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | Byte-comparison tests against fixtures from the Delphi build |
+| R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | Byte-comparison tests against fixtures from the Delphi build. **Half discharged** (Phase 5): the port's own writer produced real files from a real matrix and the separator, quoting, line-ending, trailing-separator and header rules all hold (§8.11 (3)). The two riskiest properties are pinned only by specification-derived fixtures, because this test database has no data that would show them live — **not one byte above `0x7F`** in 93 kB of export, and six decimal commas. `Export/CsvByteParityTests` asserts both at byte level; a cohort with Norwegian text in a data column is what would let a real run confirm them |
 | R5 | Custom grid control is the largest single piece of UI work | Time-boxed; `DataGrid` fallback documented with a ~150-column ceiling |
 | R6 | Privacy regressions around anonymisation | Dedicated tests; treated as release-blocking |
 | R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
@@ -1344,9 +1368,17 @@ down:
    the failure was invisible — the recovery degrades rather than throwing, so the symptom was the
    blank column the feature exists to fill. The statement it now issues recovers 342 ids for the
    first 500 patients of `EFT00028_TEST_020`. **Not yet demonstrated end to end through the running
-   application**, which belongs to the parity pass.
+   application**, though Phase 5 got most of the way: through the port's own services against
+   `EFT00028_TEST_020`, **280 of 281** patients came back with a national id (§8.11 (3)).
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
 
-   Still open: the fixtures are specification-derived, not captured from a Delphi run. See Phase 5.
+   **Half done.** The port now writes real CSV from a real matrix, and the shape is right where it
+   can be seen: no BOM, CRLF, `;` after every field including the last, every field quoted, VarNames
+   in the header, `.DATE` columns interleaved with timestamps on (§8.11 (3)). What is missing is the
+   other side of the comparison — the same population and data elements exported from
+   `22.12.21.547`. Note that the live run could not exercise **CP1252** or the **decimal comma**,
+   because this test database has no Norwegian text in any data column and produced six commas in
+   93 kB; both are pinned at byte level by `Export/CsvByteParityTests`, but from the specification,
+   which is the half this criterion exists to replace.
 7. The three identification modes behave exactly as specified in §6.
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.
