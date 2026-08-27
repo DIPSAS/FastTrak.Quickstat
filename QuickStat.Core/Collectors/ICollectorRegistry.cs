@@ -15,6 +15,34 @@ public interface ICollectorRegistry
     /// <summary>The collectors for the current session; empty before <see cref="BuildAsync"/>.</summary>
     IReadOnlyList<ICollector> Collectors { get; }
 
+    /// <summary>
+    /// Raised at the end of a successful <see cref="BuildAsync"/>, with the new
+    /// <see cref="Collectors"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>It exists to carry an ordering guarantee that <c>ISessionService.SessionChanged</c> cannot</b>
+    /// (PORT-PLAN.md §8.10 (g)). It is raised <em>inside</em> <see cref="BuildAsync"/>, before that
+    /// task completes, so whoever awaits the build knows every handler has already run. The session
+    /// event gives no such promise: three view-models hang off it, an event fixes no order between
+    /// them, and the one that used to start the build from there could still be working long after
+    /// <c>IConnectionCoordinator.ConnectAsync</c> had reported the connection as finished.
+    /// </para>
+    /// <para>
+    /// This is the port's stand-in for the fact that Delphi's list was filled by
+    /// <c>TfrmQuickStat.AfterLogin</c> (<c>MainQuickStat.pas:471-493</c>) - a login observer called
+    /// synchronously from inside <c>TSimpleDatabase.Connect</c>
+    /// (<c>Emetra.Database.Simple.pas:391-406</c>), so <c>Connect</c> could not return until the
+    /// check list was populated.
+    /// </para>
+    /// <para>
+    /// Raised on whichever thread ran the build, which in the shell is a thread-pool thread; a
+    /// handler that touches bound state must marshal. Nothing is raised for a failed or cancelled
+    /// build - <see cref="Collectors"/> is not replaced in that case either.
+    /// </para>
+    /// </remarks>
+    event EventHandler<IReadOnlyList<ICollector>>? Rebuilt;
+
     /// <summary>Rebuilds the list for a session.</summary>
     /// <param name="session">Supplies the study name for gating and the study id for the SQL.</param>
     /// <param name="cancellationToken">Cancels the build.</param>
@@ -33,6 +61,13 @@ public interface ICollectorRegistry
     /// <para>
     /// Descriptors whose <see cref="CollectorAvailability"/> is not satisfied are dropped here, so
     /// they never reach the list. The object probe is one round trip for the whole registry.
+    /// </para>
+    /// <para>
+    /// <b>Awaited by <c>IConnectionCoordinator.ConnectAsync</c></b>, which is what makes a returned
+    /// session mean "the list is ready" (PORT-PLAN.md §8.10 (g)). It therefore throws where it used
+    /// to be swallowed: a failure here fails the connect. A database that is merely <em>missing</em>
+    /// an object is not a failure - that is what <see cref="CollectorAvailability"/> is for, and it
+    /// drops the collector and logs the skip.
     /// </para>
     /// </remarks>
     Task<IReadOnlyList<ICollector>> BuildAsync(SessionContext session, CancellationToken cancellationToken = default);

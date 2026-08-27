@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Extensions.Logging.Abstractions;
+using QuickStat.Data;
 using QuickStat.Domain.Anonymisation;
 using QuickStat.Services;
 using QuickStat.Tests.Ui.Services;
@@ -209,9 +210,14 @@ public class CollectionsTabViewTests
             new RecordingUserNotifier(),
             NullLogger<CollectionsTabViewModel>.Instance);
 
-        session.Raise(FakeSessionService.NewSession());
+        SessionContext context = FakeSessionService.NewSession();
 
-        // The fake registry answers synchronously, so the list is already there.
+        // Both halves of a login, because the shell has both: the event empties the list, and
+        // IConnectionCoordinator.ConnectAsync then awaits the build that fills it - PORT-PLAN.md
+        // §8.10 (g). Ungated, the fake registry answers synchronously, so this does not block.
+        session.Raise(context);
+        _ = registry.BuildAsync(context).GetAwaiter().GetResult();
+
         Assert.Equal(elements, viewModel.DataElements.Count);
 
         workspace.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(8)]);

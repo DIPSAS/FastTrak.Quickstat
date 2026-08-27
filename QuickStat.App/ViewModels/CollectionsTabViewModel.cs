@@ -23,6 +23,12 @@ namespace QuickStat.ViewModels;
 /// itself.
 /// </para>
 /// <para>
+/// Of <c>AfterLogin</c> it keeps only the two list operations - the <c>Clear</c> and the fill. The
+/// <c>fQuickStat.PrepareStudy</c> that supplies them is awaited by
+/// <see cref="IConnectionCoordinator.ConnectAsync"/> instead (PORT-PLAN.md §8.10 (g)), so this tab
+/// reacts to <see cref="ICollectorRegistry.Rebuilt"/> and never starts a query of its own.
+/// </para>
+/// <para>
 /// <b>The order of <see cref="DataElements"/> is the column order of every export</b> - PORT-PLAN.md
 /// §6 - because the run walks the list from index 0 and the matrix appends columns in the order it
 /// is given them. See <see cref="DataElementViewModel.TitleOrder"/> for the rule and for why it is
@@ -63,12 +69,6 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     /// <summary>The timestamp check box. Delphi <c>cbExportDates</c>.</summary>
     public const string ExportTimestampsCaption = "Export timestamp for every data element";
 
-    /// <summary>
-    /// Status line while the registry is being built. Delphi <c>TXT_LOADING_COLLECTORS</c>
-    /// (<c>QuickStat.Collectors.pas:86</c>), listed in <c>05-ui-spec.md</c> §G.6.
-    /// </summary>
-    public const string LoadingCollectorsText = "Loading collectors";
-
     private readonly IShellWorkspace _workspace;
     private readonly IIdentificationPolicy _identification;
     private readonly ICollectorRegistry _registry;
@@ -88,9 +88,11 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     /// <summary>Creates the tab's view-model.</summary>
     /// <param name="workspace">Cross-tab state; owns the timestamp flag and the ticked names.</param>
     /// <param name="identification">The one shared identification mode.</param>
-    /// <param name="registry">Supplies the data elements for the connected study.</param>
+    /// <param name="registry">
+    /// Supplies the data elements for the connected study, and says when they have changed.
+    /// </param>
     /// <param name="runner">Runs one collector over the cohort.</param>
-    /// <param name="session">Tells this tab when to rebuild the list, and supplies the study id.</param>
+    /// <param name="session">Tells this tab when to empty the list, and supplies the study id.</param>
     /// <param name="progress">Status line, percentage and the busy flag.</param>
     /// <param name="dispatcher">Marshals a session change onto the user-interface thread.</param>
     /// <param name="notifier">Reports a failed run to the user.</param>
@@ -128,6 +130,7 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
 
         _identification.ModeChanged += OnIdentificationModeChanged;
         _session.SessionChanged += OnSessionChanged;
+        _registry.Rebuilt += OnRegistryRebuilt;
     }
 
     /// <summary>
@@ -153,18 +156,6 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     /// <c>AfterLogin</c>. <b>This order is the column order of every export</b> (PORT-PLAN.md §6).
     /// </remarks>
     public ObservableCollection<DataElementViewModel> DataElements { get; } = [];
-
-    /// <summary>
-    /// The reload started by the most recent session change; already completed when nothing is in
-    /// flight.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="ISessionService.SessionChanged"/> is a plain event and building the registry is
-    /// asynchronous, so the handler starts the work and does not wait for it. This is how a test -
-    /// or anything else that needs the list to be there - waits. It never faults: see
-    /// <see cref="ReloadDataElementsAsync"/>.
-    /// </remarks>
-    public Task PendingReload { get; private set; } = Task.CompletedTask;
 
     /// <summary>
     /// The radio group, bound through <see cref="QuickStat.Converters.EnumToBooleanConverter"/>.
@@ -213,68 +204,6 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
             _workspace.ExportTimestamps = value;
 
             OnPropertyChanged();
-        }
-    }
-
-    /// <summary>
-    /// Rebuilds <see cref="DataElements"/> for a session. Delphi <c>AfterLogin</c>.
-    /// </summary>
-    /// <param name="session">The session that has just been established.</param>
-    /// <param name="cancellationToken">Cancels the registry build.</param>
-    /// <returns>A task that completes when the list has been replaced.</returns>
-    /// <remarks>
-    /// <para>
-    /// <b>It never throws.</b> The only caller that matters is the
-    /// <see cref="ISessionService.SessionChanged"/> handler, which cannot await it; an escaping
-    /// exception would surface as an unobserved task exception and, through
-    /// <c>TaskScheduler.UnobservedTaskException</c>, as a crash dialog. A failure leaves the list
-    /// empty and the status line red.
-    /// </para>
-    /// <para>
-    /// It also copies the study id onto the matrix, which is the other half of Delphi
-    /// <c>AfterLogin</c>'s <c>fGrid.Data.PrepareStudy</c>: nothing else in the port sets
-    /// <see cref="PersonMatrix.StudyId"/>, and a saved package records it.
-    /// </para>
-    /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
-    public async Task ReloadDataElementsAsync(SessionContext session, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-
-        using IDisposable operation = _progress.BeginOperation(LoadingCollectorsText);
-
-        try
-        {
-            _workspace.Matrix.StudyId = session.StudyId;
-
-            IReadOnlyList<ICollector> collectors =
-                await _registry.BuildAsync(session, cancellationToken).ConfigureAwait(false);
-
-            _dispatcher.Invoke(() => Replace(collectors));
-
-            _logger.LogInformation(
-                "The Collections tab lists {ElementCount} data elements for study {StudyName}.",
-                collectors.Count,
-                session.StudyName);
-
-            // Delphi TQuickStatCollectors.PrepareStudy ends with fStatus.Done, in a finally.  Only
-            // the success path does so here: "Task completed" is a lie after a failure, and unlike
-            // the Delphi there is no automatic exception dialog behind it to say otherwise.
-            _progress.Done();
-        }
-        catch (OperationCanceledException)
-        {
-            _dispatcher.Invoke(Clear);
-
-            _logger.LogInformation("Loading the data elements was cancelled.");
-        }
-        catch (Exception exception)
-        {
-            _dispatcher.Invoke(Clear);
-
-            _progress.Fail(exception.Message);
-
-            _logger.LogError(exception, "Could not load the data elements for study {StudyName}.", session.StudyName);
         }
     }
 
@@ -355,6 +284,7 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
 
         _identification.ModeChanged -= OnIdentificationModeChanged;
         _session.SessionChanged -= OnSessionChanged;
+        _registry.Rebuilt -= OnRegistryRebuilt;
     }
 
     /// <summary>
@@ -583,17 +513,73 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
         OnPropertyChanged(nameof(Identification));
     }
 
+    /// <summary>
+    /// Empties the list, and records the study on the matrix. The first half of Delphi
+    /// <c>AfterLogin</c>.
+    /// </summary>
+    /// <param name="sender">The session service.</param>
+    /// <param name="session">The new session, or <see langword="null"/> for a disconnect.</param>
+    /// <remarks>
+    /// <para>
+    /// <b>This handler no longer builds anything</b> - PORT-PLAN.md §8.10 (g). It used to start
+    /// <see cref="ICollectorRegistry.BuildAsync"/> and abandon the task, which meant the shell could
+    /// call itself connected while two round trips were still outstanding.
+    /// <see cref="IConnectionCoordinator.ConnectAsync"/> awaits the build now, and the list arrives
+    /// through <see cref="OnRegistryRebuilt"/>; what is left here is the <c>cbDataCollector.Clear</c>
+    /// at <c>MainQuickStat.pas:481</c>, which runs on <em>every</em> session change so that a project
+    /// switch cannot leave the previous study's elements on screen while the new list is fetched.
+    /// </para>
+    /// <para>
+    /// It also copies the study id onto the matrix, which is the other half of <c>AfterLogin</c>'s
+    /// <c>fGrid.Data.PrepareStudy</c> (<c>:479</c>): nothing else in the port sets
+    /// <see cref="PersonMatrix.StudyId"/>, and a saved package records it. It belongs to the session
+    /// rather than to the registry, which is why it stayed behind.
+    /// </para>
+    /// </remarks>
     private void OnSessionChanged(object? sender, SessionContext? session)
     {
-        if (session is null)
+        if (session is not null)
         {
-            // ISessionService.ConnectAsync awaits with ConfigureAwait(false) throughout, so this can
-            // arrive on a thread-pool thread and DataElements is bound to a ListBox.
-            _dispatcher.Invoke(Clear);
+            _workspace.Matrix.StudyId = session.StudyId;
+        }
+
+        // ISessionService.ConnectAsync awaits with ConfigureAwait(false) throughout, so this can
+        // arrive on a thread-pool thread and DataElements is bound to a ListBox.
+        _dispatcher.Invoke(Clear);
+    }
+
+    /// <summary>Shows the list the registry has just built. The second half of <c>AfterLogin</c>.</summary>
+    /// <param name="sender">The registry.</param>
+    /// <param name="collectors">Its new contents, in registry order.</param>
+    /// <remarks>
+    /// <para>
+    /// Raised from inside <see cref="ICollectorRegistry.BuildAsync"/>, so the marshalling below
+    /// finishes before the build's caller resumes: when
+    /// <see cref="IConnectionCoordinator.ConnectAsync"/> hands a session back, this list is on
+    /// screen. That is the ordering the Delphi got for free by filling <c>cbDataCollector</c> from a
+    /// login observer.
+    /// </para>
+    /// <para>
+    /// <b>A build that lands after a disconnect is dropped.</b> Cancelling the connect is the main
+    /// defence and covers the reachable cases, but <c>ISessionService.DisconnectAsync</c> can also be
+    /// called straight past this coordinator - <c>SessionService.Dispose</c> does exactly that at
+    /// shutdown - and a list re-appearing under a session that is gone is worse than an empty one.
+    /// </para>
+    /// </remarks>
+    private void OnRegistryRebuilt(object? sender, IReadOnlyList<ICollector> collectors)
+    {
+        if (_session.Current is not { } current)
+        {
+            _logger.LogInformation("A collector list arrived after the session had closed; it was discarded.");
 
             return;
         }
 
-        PendingReload = ReloadDataElementsAsync(session);
+        _dispatcher.Invoke(() => Replace(collectors));
+
+        _logger.LogInformation(
+            "The Collections tab lists {ElementCount} data elements for study {StudyName}.",
+            collectors.Count,
+            current.StudyName);
     }
 }

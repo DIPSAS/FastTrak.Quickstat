@@ -32,6 +32,9 @@ public sealed class CollectorRegistry : ICollectorRegistry
     }
 
     /// <inheritdoc />
+    public event EventHandler<IReadOnlyList<ICollector>>? Rebuilt;
+
+    /// <inheritdoc />
     public IReadOnlyList<ICollector> Collectors { get; private set; } = [];
 
     /// <inheritdoc />
@@ -64,6 +67,10 @@ public sealed class CollectorRegistry : ICollectorRegistry
             session.StudyName,
             StudyGates.For(session.StudyName),
             formClasses.Count);
+
+        // Last, and inside the build rather than after it: the caller's await is then also an await
+        // on every handler having run.  See ICollectorRegistry.Rebuilt.
+        Rebuilt?.Invoke(this, Collectors);
 
         return Collectors;
     }
