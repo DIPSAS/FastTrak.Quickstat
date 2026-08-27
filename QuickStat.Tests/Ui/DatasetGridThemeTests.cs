@@ -50,7 +50,7 @@ public class DatasetGridThemeTests
         Color tint = GridDefault(MatrixGrid.CurrentRowTintProperty);
 
         // 05-ui-spec.md §F.1 derives one from the other: clUnfocusedSelectionColor #E7F2FC at 50 %
-        // over white is the #F3F9FE the theme ships.  If someone retunes QsCurrentRowBrush without
+        // over white is the #F3F9FD the theme ships.  If someone retunes QsCurrentRowBrush without
         // retuning the tint, an ordinary cell in the current row and a faintly-coloured one beside
         // it stop matching - visible, and with nothing to explain it.
         Assert.Equal(

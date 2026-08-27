@@ -470,10 +470,12 @@ exist, not where their columns land.
 - ~~**No database.**~~ **Settled in Phase 5.** Against `EFT00028_TEST_020`: the connect path, the
   caption load and the population load all run, all 213 data elements build, and all 213 collectors
   execute. `PORT-PLAN.md` §8.11.
-- ~~**Three §F.1 palette entries do not match the pinned parity baseline.**~~ **Two settled in
-  Phase 5, by measurement; the third is still open.** `QsCodeBrush` is now `#888888` and
-  `QsCategoryBrush` `#894605`, sampled off the running `22.12.21.547`. `QsCurrentCellBrush` stays
-  `#FFFBD4` because nothing could be measured — see `PORT-PLAN.md` §8.9 (a). The original analysis,
+- ~~**Three §F.1 palette entries do not match the pinned parity baseline.**~~ **All three settled in
+  Phase 5, by measurement.** `QsCodeBrush` is `#888888`, `QsCategoryBrush` `#894605` and
+  `QsCurrentCellBrush` `#C8D9E9`, each sampled off the running `22.12.21.547`. The third took a
+  second sitting because the grid holds no rows to click until a collect has run; with 213 elements
+  collected, one click put 933 px of `#C8D9E9` on a screen that had held none — see
+  `PORT-PLAN.md` §8.9 (a). The original analysis,
   which the measurement confirmed, was: `05-ui-spec.md` §F.1 gives
   `clCodeColor = $00A4294B` (`#4B29A4` purple), `clStatusTextColor = $00822EB8` (`#B82E82` fuchsia)
   and `clFocusedSelectionColor = $00D4FBFF` (`#FFFBD4` pale yellow). Those are this repository's

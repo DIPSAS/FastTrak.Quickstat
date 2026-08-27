@@ -74,11 +74,13 @@ public class ThemeResourceTests
             { "QsCellEmptyBrush", "#F5F5F5" },
             { "QsCellNoDataBrush", "#FFFAFA" },
 
-            // Third of the develop_old set, and the one Phase 5 could NOT measure: the grid holds no
-            // rows until a collect run, so there was no cell to click. Its counterpart is #C8D9E9.
-            // Left as transcribed rather than changed by analogy - PORT-PLAN.md §8.9 (a).
-            { "QsCurrentCellBrush", "#FFFBD4" },
-            { "QsCurrentRowBrush", "#F3F9FE" },
+            // Third of the develop_old set, and the last one to be measured: it needed a collect run
+            // before the grid had a cell to click. 933 px of #C8D9E9 appeared on that click and none
+            // of #FFFBD4 - PORT-PLAN.md §8.9 (a). QsCurrentRowBrush is Blend(white, #E7F2FC, 50) and
+            // moved with the blend's rounding rule, §8.14.
+            { "QsCurrentCellBrush", "#C8D9E9" },
+            { "QsCurrentRowBrush", "#F3F9FD" },
+            { "QsUnfocusedSelectionBrush", "#E7F2FC" },
             { "QsHintBackgroundBrush", "#FFFFE1" },
             { "QsHintBorderBrush", "#D8D2A8" },
 

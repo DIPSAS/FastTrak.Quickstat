@@ -20,8 +20,8 @@ public class MatrixGridCellPainterTests
         Default = Hex("#FFFFFF"),
         MissingObject = Hex("#FFFAFA"),
         Fixed = Hex("#F4FBFB"),
-        CurrentCell = Hex("#FFFBD4"),
-        CurrentRow = Hex("#F3F9FE"),
+        CurrentCell = Hex("#C8D9E9"),
+        CurrentRow = Hex("#F3F9FD"),
         CurrentRowTint = Hex("#E7F2FC"),
         Text = Hex("#202020"),
         FixedText = Hex("#035F66"),
@@ -70,7 +70,7 @@ public class MatrixGridCellPainterTests
                 isCurrentCell: true,
                 isCurrentRow: true);
 
-            Assert.Equal(Hex("#FFFBD4"), paint.Background);
+            Assert.Equal(Hex("#C8D9E9"), paint.Background);
         }
     }
 
@@ -79,7 +79,7 @@ public class MatrixGridCellPainterTests
     {
         MatrixGridCellPaint paint = Resolve(MatrixGridCellKind.Data, Cell(background: null), isCurrentRow: true);
 
-        Assert.Equal(Hex("#F3F9FE"), paint.Background);
+        Assert.Equal(Hex("#F3F9FD"), paint.Background);
     }
 
     [Fact]
@@ -108,13 +108,16 @@ public class MatrixGridCellPainterTests
     [Fact]
     public void AnEmptyCellInTheCurrentRowIsBlendedToo()
     {
-        // 245 + (231-245)/2 = 238, 245 + (242-245)/2 = 244, 245 + (252-245)/2 = 248.
+        // 245 + round(-7.0) = 238, 245 + round(-1.5) = 243, 245 + round(3.5) = 249, i.e. #EEF3F9 -
+        // which is what the running 22.12.21.547 build paints over the empty-variable cells of the
+        // current row (PORT-PLAN.md §8.14).  Truncating toward zero, as an earlier revision of
+        // MatrixGridPalette.Blend did, gives #EEF4F8 and misses in two channels.
         MatrixGridCellPaint paint = Resolve(
             MatrixGridCellKind.Data,
             Cell(RiskPalette.EmptyCell, hasValue: false),
             isCurrentRow: true);
 
-        Assert.Equal(Color.FromRgb(238, 244, 248), paint.Background);
+        Assert.Equal(Color.FromRgb(238, 243, 249), paint.Background);
     }
 
     [Fact]
@@ -136,7 +139,7 @@ public class MatrixGridCellPainterTests
             ordinal: FixedColumns.PersonId,
             isCurrentRow: true);
 
-        Assert.Equal(Hex("#F3F9FE"), paint.Background);
+        Assert.Equal(Hex("#F3F9FD"), paint.Background);
     }
 
     [Fact]

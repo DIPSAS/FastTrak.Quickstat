@@ -61,8 +61,9 @@
     <!-- Grid semantics -->
     <SolidColorBrush x:Key="QsCellEmptyBrush"      Color="#F5F5F5" po:Freeze="True" />
     <SolidColorBrush x:Key="QsCellNoDataBrush"     Color="#FFFAFA" po:Freeze="True" />
-    <SolidColorBrush x:Key="QsCurrentCellBrush"    Color="#FFFBD4" po:Freeze="True" />
-    <SolidColorBrush x:Key="QsCurrentRowBrush"     Color="#F3F9FE" po:Freeze="True" />
+    <SolidColorBrush x:Key="QsCurrentCellBrush"    Color="#C8D9E9" po:Freeze="True" /><!-- clFocusedSelectionColor; measured, see below -->
+    <SolidColorBrush x:Key="QsCurrentRowBrush"     Color="#F3F9FD" po:Freeze="True" /><!-- = Blend(white, tint, 50) -->
+    <SolidColorBrush x:Key="QsUnfocusedSelectionBrush" Color="#E7F2FC" po:Freeze="True" /><!-- clUnfocusedSelectionColor, unblended -->
     <SolidColorBrush x:Key="QsHintBackgroundBrush" Color="#FFFFE1" po:Freeze="True" />
     <SolidColorBrush x:Key="QsHintBorderBrush"     Color="#D8D2A8" po:Freeze="True" />
 
@@ -77,11 +78,25 @@
         ran that binary against EFT00028_TEST_020 and sampled the stroke cores of the two columns:
         #888888 and #894605 exactly, no interpretation.  PORT-PLAN.md §8.9 (a) has the full table.
 
-        The third of the same set, QsCurrentCellBrush (#FFFBD4), is deliberately NOT changed.  Its
-        counterpart is #C8D9E9, but the grid holds no rows until a collect run, so nothing could be
-        clicked to sample it; neither candidate colour appears anywhere on the screen of a loaded
-        population.  It is unmeasured, not measured-and-kept, and changing it on the strength of the
-        other two would be exactly the reasoning-instead-of-looking that R13 exists to forbid.
+        QsCurrentCellBrush is the third of that set and was left at #FFFBD4 through most of Phase 5,
+        because the grid holds no rows until a collect run and there was nothing to click.  A later
+        Phase 5 pass ran the collect: 213 data elements over population 282, then one click on a data
+        cell.  #C8D9E9 appeared, 933 px of it, in a grid that had held none of it before - one cell,
+        exactly.  #FFFBD4 is not on the screen at all, and neither is clWebOrange (#FFA500), which is
+        what TStudyOverviewGrid.UpdateStyle would set if anything ever called it; nothing does, so
+        the constructor's clFocusedSelectionColor stands.  All three of §F.4's disputed colours are
+        now sampled off the running binary.
+
+        QsCurrentRowBrush moved with it, from #F3F9FE to #F3F9FD, for a different reason: it is
+        Blend(white, #E7F2FC, 50) and the blend was rounding the wrong way.  See
+        MatrixGridPalette.Blend and PORT-PLAN.md §8.14.
+
+        QsUnfocusedSelectionBrush is clUnfocusedSelectionColor itself, unblended.  The two lists paint
+        a selection with the raw pair - clFocusedSelectionColor when focused, clUnfocusedSelectionColor
+        when not (Emetra.VclUtil.ListBoxPainter.pas:490-492, Emetra.VclComp.ListView.pas:271-272) - and
+        only the grid blends.  QsPackageItem used QsCurrentRowBrush for its unfocused state, which is
+        the blend result and a colour no list in the Delphi ever shows; 05-ui-spec.md §B.3 always said
+        #E7F2FC.  PORT-PLAN.md §8.14.
     -->
 
 </ResourceDictionary>

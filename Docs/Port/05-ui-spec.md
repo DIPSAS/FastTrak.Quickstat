@@ -288,8 +288,10 @@ Top-to-bottom (everything inside one container panel, 4 px margins):
 └────────────────────────────────────────────────────────────────┘   1 px #F0F0F0 divider
 ```
 
-Selected + focused: `#FFFBD4`; selected + unfocused: `#E7F2FC`; otherwise white. Variable row
-height. Horizontal padding 2 px, no vertical padding.
+Selected + focused: **`#C8D9E9`**; selected + unfocused: `#E7F2FC`; otherwise white. Variable row
+height. Horizontal padding 2 px, no vertical padding. Both come straight from
+`Emetra.VclUtil.ListBoxPainter.pas:490-492` — a list paints the raw pair and **never** the 50 %
+blend the grid uses for its current row.
 
 **Double click** (`PreparePackagedSelection`) does a full replay:
 find the package → `frmPopulations.TrySelect(PopulationId, load=true)` → load into the grid →
@@ -389,9 +391,10 @@ Column resizing by drag is allowed (`goColSizing`); clicking a fixed cell select
 3. Object exists but is empty for a known variable → `clWebWhiteSmoke` **`#F5F5F5`**
    (these are the light-grey blocks in screenshot 3).
 4. Otherwise → `#FFFFFF`.
-5. **Current cell** (`Col == Col && Row == CurrentRow`) → `#FFFBD4` (pale yellow) — overrides all
+5. **Current cell** (`Col == Col && Row == CurrentRow`) → **`#C8D9E9`** (pale blue) — overrides all
    of the above.
-6. **Current row** (any other cell in the row) → 50 % blend of the cell colour with `#E7F2FC`.
+6. **Current row** (any other cell in the row) → 50 % blend of the cell colour with `#E7F2FC`,
+   rounding half to even: `#F3F9FD` over white and `#EEF3F9` over `#F5F5F5`.
 7. **Fixed cells** → `FixedColor` = `#F4FBFB`.
 
 **Text.**
@@ -609,8 +612,8 @@ All values verified twice: from the Delphi constants **and** by sampling the scr
 | Grid normal cell | `clWhite` | — | `#FFFFFF` | ✔ |
 | Grid "known empty" cell | `clWebWhiteSmoke` | — | **`#F5F5F5`** | ✔ |
 | Grid "no object" cell | `clWebSnow` | — | `#FFFAFA` | — |
-| Grid current cell | `clFocusedSelectionColor` | `$00D4FBFF` | **`#FFFBD4`** (pale yellow) | ✔ |
-| Grid current row tint | `clUnfocusedSelectionColor` | `$00FCF2E7` | `#E7F2FC` → 50 % ≈ `#F3F9FE` | — |
+| **Grid current cell** | `clFocusedSelectionColor` | `$00E9D9C8` | **`#C8D9E9`** (pale blue) | ✔ measured, see below |
+| Grid current row tint | `clUnfocusedSelectionColor` | `$00FCF2E7` | `#E7F2FC` → 50 % = `#F3F9FD` | ✔ measured |
 | Grid line | `clSilver` | — | `#C0C0C0` | ✔ |
 | Panel bevel (light) | — | — | `#A0A0A0` + 1 px `#FFFFFF` inner | ✔ |
 | Panel border (grid host) | — | — | `#646464` | ✔ |
@@ -621,7 +624,7 @@ All values verified twice: from the Delphi constants **and** by sampling the scr
 | List divider | `clBtnFace` | — | `#F0F0F0` | ✔ |
 | Window border | OS accent (**not** app-controlled) | — | `#96C254` in the screenshots | ✔ |
 
-**Three rows of this table described a build nobody runs, and Phase 5 corrected two of them.** The
+**Three rows of this table described a build nobody runs, and Phase 5 corrected all three.** The
 `✔` column means "checked against the 2019 screenshots", and for `clCodeColor`, `clStatusTextColor`
 and `clFocusedSelectionColor` that is the problem rather than the assurance: the screenshots are of
 build `19.8.14.477`, and commit `98f493bbc` (2022-09-29, "Mindre retninger") changed all three in the
@@ -632,9 +635,14 @@ copy of the library still holds, which is why the transcription looked right.
 
 Phase 5 settled it the only way that settles it: it ran `22.12.21.547` against a real database and
 sampled the stroke cores of the two columns. `#888888` and `#894605`, byte for byte.
-`clFocusedSelectionColor` (**`#FFFBD4`** below, counterpart `#C8D9E9`) is the third of the set and is
-**still unmeasured** — the grid holds no rows until a collect run, so there was no cell to click, and
-neither candidate appears anywhere on the screen of a loaded population. `PORT-PLAN.md` §8.9 (a).
+
+`clFocusedSelectionColor` is the third of the set and took a second sitting, because the grid holds
+no rows to click until a collect has run. With 213 data elements collected over population 282 and
+one click on a data cell, **933 px of `#C8D9E9` appeared where the grid had held none** — one cell,
+which is what a 64 × 17 cell comes to once its text is subtracted. `#FFFBD4` is nowhere on that
+screen, and neither is `clWebOrange` `#FFA500`, which `TStudyOverviewGrid.UpdateStyle` would set if
+anything ever called it (nothing does). The current-row tint came off the same screen and is
+recorded above. `PORT-PLAN.md` §8.9 (a) and §8.14.
 
 ### F.2 Typography (as shipped)
 
@@ -713,8 +721,9 @@ inside a tab: `Margin="4"` horizontally, `8` between logical groups. No `BorderT
 <!-- Grid semantics -->
 <SolidColorBrush x:Key="QsCellEmptyBrush"         Color="#F5F5F5"/>
 <SolidColorBrush x:Key="QsCellNoDataBrush"        Color="#FFFAFA"/>
-<SolidColorBrush x:Key="QsCurrentCellBrush"       Color="#FFFBD4"/>
-<SolidColorBrush x:Key="QsCurrentRowBrush"        Color="#F3F9FE"/>
+<SolidColorBrush x:Key="QsCurrentCellBrush"       Color="#C8D9E9"/>  <!-- clFocusedSelectionColor; measured -->
+<SolidColorBrush x:Key="QsCurrentRowBrush"        Color="#F3F9FD"/>  <!-- = Blend(white, tint, 50) -->
+<SolidColorBrush x:Key="QsUnfocusedSelectionBrush" Color="#E7F2FC"/> <!-- clUnfocusedSelectionColor, unblended -->
 <SolidColorBrush x:Key="QsHintBackgroundBrush"    Color="#FFFFE1"/>
 <SolidColorBrush x:Key="QsHintBorderBrush"        Color="#D8D2A8"/>
 
@@ -723,7 +732,7 @@ inside a tab: `Margin="4"` horizontally, `8` between logical groups. No `BorderT
 <SolidColorBrush x:Key="QsProgressTrackBrush"     Color="#E3E9E9"/>
 ```
 
-**Three of these were transcribed from `develop_old` and two are now corrected.** `QsCodeBrush` and
+**Three of these were transcribed from `develop_old` and all three are now corrected.** `QsCodeBrush` and
 `QsCategoryBrush` read `#4B29A4` and `#B82E82` above until Phase 5; commit `98f493bbc` (2022-09-29)
 changed both in the shared library, three months before the shipped `v22.12.21.547`, so the binary
 customers run has never shown the old pair. Phase 5 ran that binary against a real database and
@@ -731,10 +740,15 @@ sampled the stroke cores of the two columns: `#888888` and `#894605`, exactly. �
 are against screenshots of build `19.8.14.477` from 2019, which predate the change — which is why
 the screenshots and `develop_old` agree with each other and both describe the old palette.
 
-`QsCurrentCellBrush` (`#FFFBD4`) is the third of that set and is **left as it is, unmeasured**. Its
-counterpart is `#C8D9E9`. The grid holds no rows until a collect run, so no cell could be clicked to
-sample it, and neither candidate appears anywhere on the screen of a merely-loaded population.
-`PORT-PLAN.md` §8.9 (a) carries the open item.
+`QsCurrentCellBrush` is the third of that set. It needed a collect run before there was a cell to
+click, and once there was one it read **`#C8D9E9`** — 933 px of it, none of `#FFFBD4`. §F.1 above has
+the detail. `QsCurrentRowBrush` moved from `#F3F9FE` to `#F3F9FD` at the same time, because it is
+`Blend(white, #E7F2FC, 50)` and Delphi's `Round` is half-to-even where the port was truncating
+(`PORT-PLAN.md` §8.14).
+
+`QsUnfocusedSelectionBrush` is new, and it is not new paint: it is `clUnfocusedSelectionColor`
+itself. `QsPackageItem` bound its unfocused state to `QsCurrentRowBrush`, i.e. to the grid's *blend
+result*, which no list in the Delphi ever paints — §B.3 has said `#E7F2FC` all along.
 
 `Themes/QuickStat.Styles.xaml` — the named styles the XAML author needs:
 

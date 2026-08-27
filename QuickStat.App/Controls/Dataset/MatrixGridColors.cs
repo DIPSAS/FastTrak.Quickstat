@@ -27,10 +27,10 @@ public readonly record struct MatrixGridColors
     /// <summary>The header row and the frozen identity columns. Delphi <c>FixedColor</c> <c>#F4FBFB</c>.</summary>
     public required Color Fixed { get; init; }
 
-    /// <summary>The current cell, which overrides every other background. <c>#FFFBD4</c>.</summary>
+    /// <summary>The current cell, which overrides every other background. <c>#C8D9E9</c>.</summary>
     public required Color CurrentCell { get; init; }
 
-    /// <summary>The rest of the current row when the cell has no colour of its own. <c>#F3F9FE</c>.</summary>
+    /// <summary>The rest of the current row when the cell has no colour of its own. <c>#F3F9FD</c>.</summary>
     public required Color CurrentRow { get; init; }
 
     /// <summary>

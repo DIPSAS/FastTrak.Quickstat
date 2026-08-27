@@ -4,27 +4,31 @@ Status: **in implementation — Phases 0–5 largely complete. Resume in Phase 5
 Branch: `feature/dotnet`
 Last updated: 2026-08-27
 
-> **Resume here. Phases 0–4 are complete and Phase 5 is well advanced.** The application is built,
-> the functionality lost in the extraction is restored, and — since 2026-08-27 — both it and the
-> shipped Delphi build have been run against a real database. **2 416 tests** pass with zero
-> warnings under the machine's own `nn-NO` plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
+> **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
+> machine.** The application is built, the functionality lost in the extraction is restored, and —
+> since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
+> their exports compared. **2 490 tests** pass with zero warnings under the machine's own `nn-NO`
+> plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
-> **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
+> **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
 > independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
 > satisfy the five-column contract; **all 213 data elements then executed against that database, none
 > threw**, and the port exported the result through its own CSV writer; §8.10 (a) through (g) done;
-> the shipped `22.12.21.547` build was set up and driven far enough to read two of §8.9 (a)'s three
-> colours exactly and to lift its whole 213-element data-element list out of the check list.
-> **Three real defects came out of it, none reachable without a server:** a table type that never
-> existed, which was silently blanking `Fødselsnummer`; an ICU-vs-NLS sort that put five export
-> columns in the wrong place; and a disposal order that meant the application **never closed its own
-> session row** — every `dbo.UserLog` row left open, and *"The connection did not close cleanly"*
-> logged on every clean exit. All three are fixed, each with a regression test.
+> the shipped `22.12.21.547` build was set up, driven through a full collect, and **its export
+> compared with the port's, cell by cell: 0 differences in 12 462 cells** across three identification
+> variants (§8.14). All three of §8.9 (a)'s disputed colours are now sampled off that running binary.
+> **Six real defects came out of the exercise, none reachable without a server:** a table type that
+> never existed, which was silently blanking `Fødselsnummer`; an ICU-vs-NLS sort that put five export
+> columns in the wrong place; a disposal order that meant the application **never closed its own
+> session row**; a current-cell colour that was three years out of date; a colour blend that
+> truncated where Delphi rounds; and a packages list painting its unfocused selection with the grid's
+> blend result. All six are fixed, each with a regression test, and the last three were
+> negative-controlled by reverting the production change and watching eight tests fail.
 >
-> **What is left in Phase 5.** The byte-for-byte CSV comparison (R4) has the port's half but no
-> fixture captured from the Delphi, and no package has been read or written.
-> `clFocusedSelectionColor` is still unmeasured — the other two are now corrected. §8.10 has only (h)
-> left, and that is a summary row. The `05-ui-spec.md` walkthrough is still a human job.
+> **What is left in Phase 5, and both need a person.** No package has been read or written, and the
+> `05-ui-spec.md` walkthrough is still a human job. §8.10 has only (h) left, and that is a summary
+> row. Two structural differences between the two CSVs are known, attributed and deliberate — read
+> §8.14 before treating either as a bug.
 >
 > **A field report from 2023 was handed over on 2026-08-27 and is now root-caused (§8.13):** date of
 > birth and sex go missing from a SWEET extract. They are the only two items on `SWEET_PATIENT` that
@@ -1005,7 +1009,7 @@ build is only useful if the subscribers have run too.
 | e | ~~**Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush~~ | **Done** (Phase 5). `QsErrorBrush` and `QsWarningBrush` are in `QuickStat.Brushes.xaml`, in §F.4, and in the inventory test. Three call sites, not two: `AppBannerView` had the same red inline for the failed status line (§G.2), which is the actual argument for the promotion — one of the two colours already existed twice and could drift. The hex is unchanged. `NotificationDialogTests` still asserts the literal rather than the key, on purpose: it is a rendering assertion and must keep failing if someone repoints the brush |
 | f | ~~**The busy overlay blocks the mouse but not the keyboard.**~~ | **Done** (Phase 5). The note's mechanism — disable `MainWindow`'s content — is the right one and **is not sufficient by itself**, which `Ui/Shell/MainWindowBusyLockoutTests.cs` measures rather than assumes. `IsEnabled = false` on the content host does stop the keyboard *arriving*: `Focus()` on anything inside returns `false`, tab traversal skips the whole subtree, and unlike `KeyboardNavigation.TabNavigation="None"` it also covers access keys, `Ctrl+Tab` and typing. But it does **not** evict focus that is already inside. The focused control stays focused while disabled and then handles no input, so a user who was in the check list when the run started would have the keyboard stranded on a dead control with the Cancel button unreachable — worse than the bug. `MainWindow.OnBusyOverlayVisibilityChanged` therefore does both: disable the content host, move focus onto the overlay (which is `Focusable` for that one reason, and puts Cancel one `Tab` away), then re-enable and put focus back where the user left it. It hangs off the overlay's `IsVisibleChanged` and not off `IsBusy` because a collapsed element cannot take focus and the binding may not have run yet, and the order is load-bearing in both directions: disable before taking focus, re-enable before giving it back. One cost, accepted: the shell is drawn greyed under the scrim for the duration, which `Screen.Cursor := crSqlWait` did not do |
 | g | ~~**`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load.~~ | **Done** (Phase 5). `ConnectAsync` is now login → captions → `BuildAsync` → `Done`, all awaited, and the Collections tab renders the result instead of fetching it: it empties the list on `SessionChanged` and fills it from a new `ICollectorRegistry.Rebuilt`, which `BuildAsync` raises *before it returns* — so the caller's `await` is also an await on the check list being on screen. That is what the Delphi got for free: `AfterLogin` (`MainQuickStat.pas:471-493`) is a login observer that `TSimpleDatabase.Connect` calls synchronously (`Emetra.Database.Simple.pas:391-406`), so `SelectConnection` cannot give the mouse back before `cbDataCollector` is populated. `TXT_LOADING_COLLECTORS` moved to `ConnectionCoordinator` with the query it describes. **Was it a race?** See §8.12 — the answer is "not the obvious one" |
-| h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. Still untouched: **no collector has actually executed**, so "does it return the right rows" and the CSV byte comparison remain open, and no package has been read or written |
+| h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. That row then went further than it said: **all 213 collectors executed** (§8.11 (3)) and **both builds' exports were compared cell by cell** (§8.14). The one thing still untouched is that **no package has been read or written** |
 
 ### 8.11 What Phase 5 found by running things
 
@@ -1132,10 +1136,11 @@ before the fix and still have `ClosedAt` NULL; session **816**, the same path af
 
 **Left open by Phase 5**
 
-- **The Delphi half of the CSV comparison.** The port's half exists (above); R4 / §10.6 still needs
-  the same population and data elements exported from `22.12.21.547` and the two files compared byte
-  for byte. The rig is set up and the population is reproducible — see §8.9 (a) and below.
-- **`clFocusedSelectionColor` is still unmeasured** — see §8.9 (a). The other two are now corrected.
+- ~~**The Delphi half of the CSV comparison.**~~ **Done** — §8.14. Same cohort, same 213 elements,
+  three identification variants: 0 differing cells in 12 462, and the two structural differences are
+  named. It also produced two more defects, one in the colour blend and one in the packages list.
+- ~~**`clFocusedSelectionColor` is still unmeasured.**~~ **Measured** — §8.9 (a). It needed the grid
+  to be *collected*, not merely loaded, which is why the first attempt saw nothing.
 - **`ATC_A11EA = 'A11EA'` has no trailing `%`** (`EPR.QA.Collector.Drug.pas:44`), so `DRUG.A11EA`
   matches one exact code while its title calls it a group ("Vitamin B-kompleks"). Every other
   group-level constant carries `%`; the ones without it are all full 7-character codes. Reproduced
@@ -1295,11 +1300,106 @@ oversight.
 chose to leave it. Nothing was implemented and no exported value changed. Do not re-open this as a
 port task: what is missing is a ruling on which value belongs in the cell, not an analysis.
 
-### 8.9 Surfaced during Phase 3 wave 1 — one of these still needs a human
+### 8.14 The two sides of the CSV comparison, side by side at last
+
+The last two things Phase 5 owed — the Delphi half of the byte comparison (R4, §10.6) and the third
+palette colour (§8.9 a) — needed the same setup, so they were done in one sitting on 2026-08-27:
+`22.12.21.547` driven from `C:\work\qs-delphi` against `EFT00028_TEST_020`, and the port's headless
+harness at `C:\work\qs-harness` run over the same cohort.
+
+**Both sides were given the same job**, which is the part that took the care:
+
+| | |
+|---|---|
+| Population | ProcId **282** *"Diagnoseår mangler"* — 31 patients. Confirmed from `dbo.PopulationLog`, not from the screen |
+| Data elements | **all 213**, checked one by one through `LB_SETCURSEL` + `WM_CHAR ' '` |
+| Order | the port ran them in the shipped build's own check-list order, read out with `LB_GETTEXT`. That list is **byte-identical** to `QuickStat.Tests/Ui/Collections/DelphiCheckList.NDV.txt`, so the §8.11 (2) sort fix reproduces exactly, and the comparison below is of the *export* rather than of the sort |
+| Variants | PID-only; PID-only with timestamps; fully identified. `rbKeepPids` is the form's default and maps to `pgiPersonIdOnly` = `PersonIdentification.PersonIdOnly` |
+
+**Result: every value matches, and the two structural differences are both understood.**
+
+| | PID only | + timestamps | fully identified |
+|---|---|---|---|
+| Rows | 31 + header, both | same | same |
+| Columns, Delphi / port | 102 / 100 | 203 / 199 | 105 / 103 |
+| Column names present in one and not the other | **none** | none | none |
+| **Data cells that differ** | **0** of 3 100 | **0** of 6 169 | **0** of 3 193 |
+| BOM / line ends / trailing `;` / quoting | none, 32 CRLF and 0 bare LF, yes, every field — identical | identical | identical |
+| Bytes above `0x7F` | 0 / 0 | 0 / 0 | **`0xD8` ×2, `0xE6` ×1, `0xF8` ×5** — identical |
+| Decimal commas | 6 / 6 | 6 / 6 | 37 / 37 |
+
+The cells were compared **by column name**, programmatically, and only positions were ever printed;
+the six files were deleted as soon as they had been measured. Both sides are also deterministic: two
+independent runs of each produced the same SHA-256.
+
+**The fully-identified pair is what discharges the CP1252 half of R4.** §8.11 recorded that the live
+run had produced *"not one byte above `0x7F` in 93 kB"*, so `ø` and `æ` were pinned only by
+specification-derived fixtures. With `Født` and `Fødselsnummer` in the header and Norwegian names in
+the data, both files now carry the same eight high bytes in the same places — the port's CP1252
+encoder and the Delphi's ANSI writer agree on real data, not on a fixture.
+
+**Difference 1 — the two duplicate columns — is the deliberate one.** The Delphi emits
+`NDV_TREATMENT_TYPE` twice and `NDV_INSULIN_DEVICE` twice, because `TPersonGridData.AddData` appends
+whatever each collector reports without checking what is already there
+(`EPR.QA.Matrix.Column.pas:83`); `PersonMatrix.AddColumns` de-duplicates. Nothing is lost: the second
+copy carries the same value, which is why removing it leaves 0 differing cells. Recorded in
+`PersonMatrix.cs:215-242` since Phase 2; this is the first time it has been seen against a real
+export.
+
+**Difference 2 — `FORM.*` column order — was not known before and is not fixable.** Once the
+duplicates are removed the two headers agree at 91 of 100 positions; the 9 that differ are a
+permutation of the ten `FORM.<formname>` columns, and nothing else moves. The cause is
+`TPersonGridData.AddData` iterating **`for personId in fPopulation.Keys`** over a
+`TObjectDictionary<integer, TPersonGridRow>` (`EPR.QA.Matrix.pas:42`, `:152`) — Delphi's hash order,
+not sorted order. Column order is first-seen order, so for a collector with `FMaxBatchSize = 1` the
+patient iteration order *is* the column order, and `TFormInstanceCollector` is the only batch-size-1
+collector in the library. Everything else sends one statement per batch and takes its column order
+from the server, which is why `FORMS12M.*`, `FORMS24M.*` and `FORMAGE.*` all agree exactly. The port
+iterates by ascending `PersonId`. Matching the Delphi would mean reimplementing Delphi's
+`TDictionary` hashing and growth in C#, to reproduce a permutation nobody chose; the port's order is
+stable, and consumers that key on the column *name* — which is what the header is for — see no
+difference.
+
+**Difference 3 — found by the same screen, and this one was the port's fault.** The current-row tint
+is `Blend(cellColour, #E7F2FC, 50)`, and `TColorCalculator.BlendColors` does
+`Round( (B - A) * pct / 100 )` in floating point
+(`Emetra.VclUtil.ColorCalculator.pas:229-238`). Delphi's `Round` is the FPU's — **half to even**.
+`MatrixGridPalette.Blend` used C# integer division, which truncates toward zero, and its own comment
+asserted that the Pascal did too. At exactly 50 % every channel lands on a `.5`, so the tie-break
+rule *is* the answer:
+
+| Base | Delphi, measured | port before | port now |
+|---|---|---|---|
+| `#FFFFFF` an ordinary cell | **`#F3F9FD`** | `#F3F9FE` | `#F3F9FD` |
+| `#F5F5F5` a known variable with no value | **`#EEF3F9`** | `#EEF4F8` | `#EEF3F9` |
+
+Fixed in `MatrixGridPalette.BlendChannel`; `QsCurrentRowBrush` moved from `#F3F9FE` to `#F3F9FD` with
+it. `MatrixGridPaletteTests.TheCurrentRowTintRoundsHalfToEvenLikeTheDelphi` pins both measured values
+and `MatrixGridCellPainterTests.AnEmptyCellInTheCurrentRowIsBlendedToo` the second; reverting either
+production change fails eight tests across the theme and the painter, which was checked.
+
+**And one more, from reading rather than measuring.** `QsPackageItem` painted its *unfocused*
+selection with `QsCurrentRowBrush`, i.e. with the grid's blend result. A list never blends:
+`Emetra.VclUtil.ListBoxPainter.pas:490-492` and `Emetra.VclComp.ListView.pas:271-272` both use the
+raw pair, `clFocusedSelectionColor` focused and `clUnfocusedSelectionColor` not — and
+`05-ui-spec.md` §B.3 has said `#E7F2FC` since it was written. `clUnfocusedSelectionColor` is
+`$00FCF2E7` in **both** copies of the library, so unlike the three colours above there is no
+branch ambiguity to measure away. New brush `QsUnfocusedSelectionBrush` `#E7F2FC`, in the theme, in
+§F.4 and in the inventory test. The focused half was wrong too and is now right for free, because it
+binds `QsCurrentCellBrush`.
+
+**What this leaves for §10.6.** The criterion says *byte-identical for a fixture dataset*. Taken
+literally it cannot be met while the port de-duplicates columns, and it cannot be met at all for a
+dataset containing the form-instance collector, because the Delphi's own column order there is an
+artefact of its dictionary. What can be met — and now is — is: **same rows, same column names, same
+values, same encoding, same delimiters, same line ends, and the same column order everywhere except
+one collector.** The two exceptions are named, attributed and reproducible.
+
+### 8.9 Surfaced during Phase 3 wave 1 — all five are now closed
 
 | # | Question | Status |
 |---|---|---|
-| a | **Three palette colours in `05-ui-spec.md` §F.1 describe `develop_old`, not the parity baseline** | **Two of three measured in Phase 5; one still open.** See below |
+| a | **Three palette colours in `05-ui-spec.md` §F.1 describe `develop_old`, not the parity baseline** | **Closed.** All three measured off the running binary in Phase 5. See below |
 | b | **No `<Version>` is set**, so the banner reads `1.0.0.0` | **Resolved: `26.0.0.0`**, decided by the product owner at the start of Phase 4 and set once as `<Version>` in `Directory.Build.props`. MSBuild derives `AssemblyVersion`, `FileVersion` and `InformationalVersion` from it, and the banner reads `AssemblyFileVersion` — so the single property covers the banner, the file properties and the `@AppVer` the login sends to `dbo.AddSession` |
 | c | §H.2 lists two cross-tab items; there is a **third**, `ExportTimestamps` — owned by the Collections tab, read by the Dataset tab's export commands | Resolved: it lives on `IShellWorkspace`. Recorded in `07-ui-contracts.md` |
 | d | §C.3 is wrong in three places — fixed-column header alignment, missing horizontal grid lines, and a two-header-row tooltip rule for a grid with `FixedRows = 1` | Resolved toward the `.pas` in each case, with evidence. Recorded in the step 3.5 report and `07-ui-contracts.md` |
@@ -1312,21 +1412,43 @@ port task: what is missing is a ruling on which value belongs in the cell, not a
 |---|---|---|---|
 | `clCodeColor` — population/package id column | `$00A4294B` → **`#4B29A4`** purple | `$00888888` → **`#888888`** grey | **`#888888`** — exact, stroke core of the id column |
 | `clStatusTextColor` — `ProcGroup` / `Pop#n` | `$00822EB8` → **`#B82E82`** fuchsia | `clMandatoryGeometryFill` = `$00054689` → **`#894605`** brown | **`#894605`** — exact, darkest warm pixel of the category column |
-| `clFocusedSelectionColor` — grid current cell | `$00D4FBFF` → **`#FFFBD4`** pale yellow | `clSelectedBk` = `$00E9D9C8` → **`#C8D9E9`** pale blue | **not yet measured** — needs a populated grid with a cell clicked |
+| `clFocusedSelectionColor` — grid current cell | `$00D4FBFF` → **`#FFFBD4`** pale yellow | `clSelectedBk` = `$00E9D9C8` → **`#C8D9E9`** pale blue | **`#C8D9E9`** — 933 px, one cell, after a collect run |
 
-**Phase 5 measured the first two and they are the right-hand column, exactly.** The shipped build was
+**All three are the right-hand column, exactly.** The shipped build was
 run against `EFT00028_TEST_020`, the population list was screenshotted, and the stroke cores of the
 two text columns were sampled: `#888888` and `#894605`, byte for byte, no interpretation needed. So
-the dated-chain argument below was correct, and the theme's values for those two were wrong.
-**Both are now corrected**, in `Theme/QuickStat.Brushes.xaml`, `ThemeResourceTests`, §F.1, §F.4, the
-two §F.1 mock-ups that quoted them, `04-matrix-export.md` §7.5 and `07-ui-contracts.md` — nine places
-in all, which is itself the argument for having a single inventory test.
+the dated-chain argument below was correct, and the theme's values for all three were wrong.
+**The first two were corrected as soon as they were measured**, in `Theme/QuickStat.Brushes.xaml`,
+`ThemeResourceTests`, §F.1, §F.4, the two §F.1 mock-ups that quoted them, `04-matrix-export.md` §7.5
+and `07-ui-contracts.md` — nine places in all, which is itself the argument for having a single
+inventory test. The third took the same nine, plus `MatrixGrid`'s own dependency-property default.
 
-The third resisted automation: clicking into the grid produced no change at all, so the grid appears
-to hold no rows until a collect run, and chasing it further was not worth the screen time against
-patient data. It is a one-click job for whoever does the parity pass — load a population, click a
-cell, sample the cell background. Both candidate colours were also searched for across the whole
-screen and neither appears, so this is genuinely unmeasured rather than quietly decided.
+**The third took a second sitting, and the first sitting's guess about why was right.** Clicking into
+the grid had produced no change at all, and the reason is that `TStudyOverviewGrid` only installs its
+`OnDrawCell` handler in `StartPainting`, which `Lock` calls at the end of a collect
+(`EPR.QA.GUI.Grid.Study.pas:272-277`) — before that the grid is on VCL's default drawing and the
+custom colours are not in play at all. So the measurement needs a *collected* grid, not a loaded one.
+
+With all 213 data elements collected over ProcId 282 and one click on a data cell, the grid's own
+pixels were counted before and after — rendered with `PrintWindow` into a memory bitmap, so nothing
+was written to disk and no cell was ever read:
+
+| Colour | before the click | after |
+|---|---|---|
+| **`#C8D9E9`** `clFocusedSelectionColor` | 0 | **933** — one 64 × 17 cell, less its text |
+| `#F3F9FD` = `Blend(#FFFFFF, #E7F2FC, 50)` | 1 024 | 13 285 — the current row over ordinary cells |
+| `#EEF3F9` = `Blend(#F5F5F5, #E7F2FC, 50)` | 0 | 22 610 — the current row over empty-variable cells |
+| `#FFFBD4` — what the theme shipped | 0 | **0** |
+| `#FFA500` `clWebOrange` — what `UpdateStyle` would set | 0 | **0** |
+
+The last row settles a live alternative rather than a straw man. `TStudyOverviewGrid.UpdateStyle`
+*does* overwrite `CurrentCellColor := clWebOrange` (`:281`), and if anything called it the answer
+would have been orange and neither column of the table above. Nothing calls it: `UpdateStyle` is only
+reachable from `TGuiStyle.RegisterClient`/`NotifyClients`, `MainQuickStat` never registers the grid,
+and `TArenaColors.StyleForm` sets a form's `Color` and `Font` and does not walk its children
+(`Emetra.VclUtil.Style.pas:486-491`). The screen agrees: not one orange pixel.
+
+The two blends are the second finding of the sitting and have their own section — see §8.14.
 
 Commit **`98f493bbc`** (2022-09-29, "Mindre retninger") made the change. It is on **both** tarmscreening
 refs and predates the shipped `v22.12.21.547` by nearly three months, so by the same dated-chain
@@ -1338,10 +1460,11 @@ palette.
 The theme shipped the **left-hand** column until Phase 5, because §F.4 was transcribed as written and
 step 3.1 was right not to change a spec unilaterally. **R13 applied: settle it by looking at the
 deployed exe**, not by reasoning further — this is precisely the kind of "what ships today" claim
-R11 warns is unverified in `01`–`02` and `04`–`05`. *Two of the three were looked at in Phase 5, the
-dated-chain argument held, and both are now changed; the paragraphs below describe why that took
-running the thing.* The third stays as transcribed, because changing it by analogy with the other two
-would be the same mistake in the opposite direction.
+R11 warns is unverified in `01`–`02` and `04`–`05`. *All three were looked at in Phase 5, the
+dated-chain argument held for all three, and all three are now changed; the paragraphs below describe
+why that took running the thing.* The third was deliberately **not** changed by analogy with the
+other two while it was unmeasured — that would have been the same mistake in the opposite direction —
+and it is changed now because it was measured, not because the pattern held.
 
 **The deployed exe is on this machine, and it cannot be inspected statically.** Four copies exist —
 `C:\Users\chs\Downloads\QuickStat.exe`, `…\Downloads\FastTrakUpgrade.v22011\bin\`,
@@ -1389,7 +1512,7 @@ down:
 | R1 | `Encrypt=true` breaks every existing connection | Explicit defaults + a connectivity smoke test before rollout |
 | R2 | Population SQL is stored **in the database**, not in this repo — arbitrary text with `:Name` parameters | The `:Name`→`@Name` rewriter needs a real scanner (skipping literals, `[]`, `""`, `--`, `/* */`, `::`) plus a dry-run diagnostic over production `SqlText` before release |
 | R3 | The 150-entry collector registry is transcribed by hand | **Discharged** (Phase 5). `QuickStat.Tests/Collectors/Golden/` holds one Pascal-derived statement per collector and **131 of 131 match** what the port generates. The derivations were made blind to the C#, so agreement is evidence rather than tautology; the comparison was negative-controlled. The inventory table in `03-collectors.md` remains the acceptance checklist |
-| R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | Byte-comparison tests against fixtures from the Delphi build. **Half discharged** (Phase 5): the port's own writer produced real files from a real matrix and the separator, quoting, line-ending, trailing-separator and header rules all hold (§8.11 (3)). The two riskiest properties are pinned only by specification-derived fixtures, because this test database has no data that would show them live — **not one byte above `0x7F`** in 93 kB of export, and six decimal commas. `Export/CsvByteParityTests` asserts both at byte level; a cohort with Norwegian text in a data column is what would let a real run confirm them |
+| R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | **Discharged** (Phase 5, §8.14). The same cohort and the same 213 data elements were exported from `22.12.21.547` and from the port, in three identification variants, and compared programmatically: **0 differing cells in 12 462**, identical encoding, delimiters, quoting, line ends and trailing separator. The fully-identified pair carries `0xD8` ×2, `0xE6` ×1 and `0xF8` ×5 in both files, which is the CP1252 evidence this row used to lack — the earlier run had produced *no* byte above `0x7F`. Two structural differences remain and both are attributed: the port de-duplicates two repeated column names (deliberate, `PersonMatrix.cs:215-242`), and the ten `FORM.*` columns are ordered differently because the Delphi feeds a batch-size-1 collector from a hash dictionary. `Export/CsvByteParityTests` still pins the format from the specification; it is now corroborated rather than sole |
 | R5 | Custom grid control is the largest single piece of UI work | Time-boxed; `DataGrid` fallback documented with a ~150-column ceiling |
 | R6 | Privacy regressions around anonymisation | Dedicated tests; treated as release-blocking |
 | R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
@@ -1457,13 +1580,22 @@ down:
    `EFT00028_TEST_020`, **280 of 281** patients came back with a national id (§8.11 (3)).
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
 
-   **Half done.** The port now writes real CSV from a real matrix, and the shape is right where it
-   can be seen: no BOM, CRLF, `;` after every field including the last, every field quoted, VarNames
-   in the header, `.DATE` columns interleaved with timestamps on (§8.11 (3)). What is missing is the
-   other side of the comparison — the same population and data elements exported from
-   `22.12.21.547`. Note that the live run could not exercise **CP1252** or the **decimal comma**,
-   because this test database has no Norwegian text in any data column and produced six commas in
-   93 kB; both are pinned at byte level by `Export/CsvByteParityTests`, but from the specification,
-   which is the half this criterion exists to replace.
+   **Met, with two named exceptions — §8.14 has the evidence.** Both sides exported the same 31-patient
+   cohort with the same 213 data elements in the same order, in three identification variants:
+   **0 differing cells in 12 462**, same rows, same set of column names, same encoding (including the
+   eight CP1252 bytes this criterion existed to check), same delimiters, quoting, line ends and
+   trailing separator. Two structural differences survive and neither is a value:
+
+   - the Delphi repeats two column names and the port does not — a deliberate port change
+     (`PersonMatrix.cs:215-242`), and the repeat carries the same value, which is why no cell differs;
+   - the ten `FORM.*` columns are in a different order, because `TPersonGridData.AddData` iterates
+     `fPopulation.Keys` — a `TObjectDictionary` — and that order *is* the column order for the one
+     batch-size-1 collector in the library. Reproducing it would mean reimplementing Delphi's hashing
+     to copy a permutation nobody chose.
+
+   So *byte-identical* is not achievable for a dataset containing the form-instance collector, and the
+   remaining prose above is what was achieved instead. If a literal byte comparison is wanted for
+   sign-off, exclude that one data element and remove the two duplicate columns from the Delphi file
+   first; everything else already matches byte for byte.
 7. The three identification modes behave exactly as specified in §6.
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.

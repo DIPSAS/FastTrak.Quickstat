@@ -17,14 +17,26 @@ public class MatrixGridPaletteTests
         Assert.Equal(255, color.A);
     }
 
-    [Fact]
-    public void TheDelphiBlendTruncatesTowardZeroRatherThanRounding()
+    [Theory]
+    [InlineData(0xFF, 0xFF, 0xFF, 0xF3, 0xF9, 0xFD)]   // an ordinary cell
+    [InlineData(0xF5, 0xF5, 0xF5, 0xEE, 0xF3, 0xF9)]   // a known variable with no value
+    public void TheCurrentRowTintRoundsHalfToEvenLikeTheDelphi(byte r, byte g, byte b, byte er, byte eg, byte eb)
     {
-        // #FFFFFF blended 50 % with #E7F2FC. Rounding gives #F3FAFE; Delphi's integer division gives
-        // #F3F9FE, which is the value 05-ui-spec.md §F.1 records as the current-row tint.
-        Color blended = MatrixGridPalette.Blend(Colors.White, Color.FromRgb(0xE7, 0xF2, 0xFC), 50);
+        // Both rows were read off the running 22.12.21.547 build: 213 data elements collected over
+        // population 282, one cell clicked, and the grid's own pixels counted.  #F3F9FD covered the
+        // white cells of the current row and #EEF3F9 the empty-variable cells - PORT-PLAN.md §8.14.
+        //
+        // Only half-to-even produces both, and it is the rule Delphi's Round follows because Round
+        // is the FPU's (Emetra.VclUtil.ColorCalculator.pas:229-238 divides in floating point and
+        // rounds).  An earlier revision truncated toward zero and this test asserted #F3F9FE, one
+        // step out in blue.  Every channel here lands exactly on .5, because the tint is applied at
+        // 50 %, so the tie-break rule is the whole answer rather than a rounding detail:
+        //
+        //   white       G 255 + round(-6.5) = 255 - 6 = 249    B 255 + round(-1.5) = 255 - 2 = 253
+        //   whitesmoke  G 245 + round(-1.5) = 245 - 2 = 243    B 245 + round( 3.5) = 245 + 4 = 249
+        Color blended = MatrixGridPalette.Blend(Color.FromRgb(r, g, b), Color.FromRgb(0xE7, 0xF2, 0xFC), 50);
 
-        Assert.Equal(Color.FromRgb(0xF3, 0xF9, 0xFE), blended);
+        Assert.Equal(Color.FromRgb(er, eg, eb), blended);
     }
 
     [Theory]
@@ -40,11 +52,13 @@ public class MatrixGridPaletteTests
     [Fact]
     public void TheBlendIsDirectional()
     {
+        // round(255 * 0.25) = round(63.75) = 64 either way; the two are not each other's complement
+        // because both start from their own endpoint.
         Color forward = MatrixGridPalette.Blend(Colors.Black, Colors.White, 25);
         Color backward = MatrixGridPalette.Blend(Colors.White, Colors.Black, 25);
 
-        Assert.Equal(Color.FromRgb(63, 63, 63), forward);
-        Assert.Equal(Color.FromRgb(192, 192, 192), backward);
+        Assert.Equal(Color.FromRgb(64, 64, 64), forward);
+        Assert.Equal(Color.FromRgb(191, 191, 191), backward);
     }
 
     [Fact]

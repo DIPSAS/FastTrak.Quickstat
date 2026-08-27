@@ -178,14 +178,14 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         nameof(CurrentCellBackground),
         typeof(Brush),
         typeof(MatrixGrid),
-        new FrameworkPropertyMetadata(Frozen("#FFFBD4"), FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(Frozen("#C8D9E9"), FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="CurrentRowBackground"/> dependency property.</summary>
     public static readonly DependencyProperty CurrentRowBackgroundProperty = DependencyProperty.Register(
         nameof(CurrentRowBackground),
         typeof(Brush),
         typeof(MatrixGrid),
-        new FrameworkPropertyMetadata(Frozen("#F3F9FE"), FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(Frozen("#F3F9FD"), FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="CurrentRowTint"/> dependency property.</summary>
     public static readonly DependencyProperty CurrentRowTintProperty = DependencyProperty.Register(
@@ -431,6 +431,12 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     }
 
     /// <summary>Fill for the current cell. Overrides every other cell colour.</summary>
+    /// <remarks>
+    /// Delphi <c>clFocusedSelectionColor</c> = <c>clSelectedBk</c> = <c>$00E9D9C8</c>, i.e.
+    /// <c>#C8D9E9</c> (<c>EPR.QA.GUI.Grid.pas:109</c>, <c>Emetra.Vcl.Consts.pas:82</c>). Phase 5
+    /// sampled it off the running <c>22.12.21.547</c> build after a collect run; see
+    /// <c>PORT-PLAN.md</c> §8.9 (a), whose table this closes.
+    /// </remarks>
     public Brush CurrentCellBackground
     {
         get => (Brush)GetValue(CurrentCellBackgroundProperty);
@@ -442,7 +448,8 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     /// A risk-coloured cell is not filled with this - it is blended toward
     /// <see cref="CurrentRowTint"/> instead, so selecting a row cannot hide a red haemoglobin. The
     /// two agree by construction: blending the default white with the default tint at 50 % produces
-    /// exactly this brush's default, <c>#F3F9FE</c>.
+    /// exactly this brush's default, <c>#F3F9FD</c> - which is also what the running
+    /// <c>22.12.21.547</c> build paints (<c>PORT-PLAN.md</c> §8.14).
     /// </remarks>
     public Brush CurrentRowBackground
     {

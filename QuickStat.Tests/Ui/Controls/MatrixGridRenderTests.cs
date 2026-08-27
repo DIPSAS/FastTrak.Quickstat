@@ -28,8 +28,8 @@ public class MatrixGridRenderTests
     private static readonly Color FixedFill = Color.FromRgb(0xF4, 0xFB, 0xFB);
     private static readonly Color EmptyCell = Color.FromRgb(0xF5, 0xF5, 0xF5);
     private static readonly Color Moderate = Color.FromRgb(0xFF, 0xED, 0xBF);
-    private static readonly Color CurrentCell = Color.FromRgb(0xFF, 0xFB, 0xD4);
-    private static readonly Color CurrentRow = Color.FromRgb(0xF3, 0xF9, 0xFE);
+    private static readonly Color CurrentCell = Color.FromRgb(0xC8, 0xD9, 0xE9);
+    private static readonly Color CurrentRow = Color.FromRgb(0xF3, 0xF9, 0xFD);
     private static readonly Color GridLine = Color.FromRgb(0xE2, 0xE6, 0xE6);
     private static readonly Color FixedLine = Color.FromRgb(0xD0, 0xD6, 0xD6);
 

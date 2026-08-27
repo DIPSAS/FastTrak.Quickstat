@@ -42,11 +42,20 @@ internal sealed class MatrixGridPalette
     /// <returns>The blended colour, fully opaque.</returns>
     /// <remarks>
     /// <para>
-    /// <c>Result := A + (B - A) * pct / 100</c> per channel, with Delphi's integer division, which
-    /// truncates toward zero (<c>Emetra.VclUtil.ColorCalculator.pas:203-231</c>). Reproducing the
-    /// truncation rather than rounding is what makes the documented result exact: blending white
-    /// with <c>#E7F2FC</c> at 50 % gives <c>#F3F9FE</c>, the value <c>05-ui-spec.md</c> §F.1 records
-    /// as the current-row tint. Rounding would give <c>#F3FAFE</c>.
+    /// <c>Result := A + Round( (B - A) * pct / 100 )</c> per channel
+    /// (<c>Emetra.VclUtil.ColorCalculator.pas:229-238</c>). The division is floating point and the
+    /// rounding is Delphi's <c>Round</c>, which is the FPU's - <b>half to even</b>, the same rule
+    /// <see cref="Math.Round(double)"/> follows.
+    /// </para>
+    /// <para>
+    /// <b>An earlier revision truncated toward zero and said so in this comment, citing the same
+    /// unit.</b> The Pascal says <c>round</c>, and the difference is visible: blending white with
+    /// <c>#E7F2FC</c> at 50 % gives <c>#F3F9FD</c> with the FPU's rule and <c>#F3F9FE</c> with
+    /// truncation - one step in blue, in the tint that covers the whole current row. Phase 5 read
+    /// both blends off the running <c>22.12.21.547</c> build: over white it paints <c>#F3F9FD</c>
+    /// and over the empty-cell grey <c>#F5F5F5</c> it paints <c>#EEF3F9</c>, and only half-to-even
+    /// produces both (see <c>PORT-PLAN.md</c> §8.14). Every midpoint here lands on <c>.5</c>,
+    /// because the tint is applied at exactly 50 %, so the rule is not a detail.
     /// </para>
     /// <para>
     /// The guard for VCL system colours is not ported: nothing here can be one, because every colour
@@ -83,5 +92,5 @@ internal sealed class MatrixGridPalette
     }
 
     private static byte BlendChannel(byte from, byte to, int percent) =>
-        (byte)(from + ((to - from) * percent / 100));
+        (byte)(from + (int)Math.Round((to - from) * percent / 100d, MidpointRounding.ToEven));
 }

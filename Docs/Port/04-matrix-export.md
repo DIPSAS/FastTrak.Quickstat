@@ -879,7 +879,7 @@ registered in `QuickStat.Collectors.pas:238-240`). They appear first because `cb
         if Supports(ICellText)  → cellText := obj.CellText;  if obj.AlignLeft then left+ellipsis
         else if Supports(IVarName) → brushColor := SelectEmptyColor(varName)   // #F5F5F5
  7  colour mixing (first match wins):
-        (col = Col) and (row = CurrentRow)      → brushColor := CurrentCellColor        (#FFFBD4)
+        (col = Col) and (row = CurrentRow)      → brushColor := CurrentCellColor        (#C8D9E9)
         gdSelected in State or row = CurrentRow → brushColor := Blend(brushColor, CurrentRowColor, 50)
         gdFixed in State                        → brushColor := FixedColor              (#F4FBFB)
  8  font colour:
@@ -954,13 +954,21 @@ Delphi `TColor` literals are `$00BBGGRR` — the byte order is reversed relative
 | Fixed row/col background (`FixedColor`) | `clMyGreenColor` (`MainQuickStat.pas:375`) | `$00FBFBF4` | `#F4FBFB` |
 | PID column font (`FixedFontColor`) | `clMenuBackgroundDarkBrush` (`:376`) | `$00665F03` | `#035F66` |
 | Splitter (`splMain.Color`) | `clMyGreenColor` (`:374`) | `$00FBFBF4` | `#F4FBFB` |
-| Current cell | `clFocusedSelectionColor` (`GUI.Grid.pas:109`) | `$00D4FBFF` | `#FFFBD4` |
+| Current cell | `clFocusedSelectionColor` (`GUI.Grid.pas:109`) | `$00E9D9C8` | **`#C8D9E9`** — measured |
 | Current row (blend base, 50 %) | `clUnfocusedSelectionColor` (`:110`) | `$00FCF2E7` | `#E7F2FC` |
 | Hint panel | `clInfoBk` (DFM) | system | `#FFFFE1` (default) |
 | Tab sheet background | DFM `Color = 15987699` | `$00F3F3F3` | `#F3F3F3` |
 
 `UpdateStyle` *would* set `CurrentCellColor := clWebOrange` (`#FFA500`) and
 `CurrentRowColor := Blend(#FFA500, white, 50)` = `#FFD280`, but it is never invoked (§6.1).
+**Phase 5 confirmed that on the running binary rather than by reading:** after a collect run and one
+click, the grid holds 933 px of `#C8D9E9` and not a single pixel of `#FFA500`.
+
+The blend is `A + Round( (B - A) * pct / 100 )` per channel, and Delphi's `Round` is the FPU's —
+**half to even**. Over an ordinary white cell the current-row tint is therefore `#F3F9FD`, and over
+the `#F5F5F5` of a known variable with no value it is `#EEF3F9`; both were counted off the same
+screen. Truncating instead gives `#F3F9FE` and `#EEF4F8`, which is what the port did until Phase 5
+(`PORT-PLAN.md` §8.14).
 
 ### 7.4 Arena theme — `Emetra.VclUtil.ArenaColors.pas:11-42`
 
@@ -993,7 +1001,7 @@ Fonts: `Calibri` 10 pt for forms/tabs/lists, 11 pt for header panels, 9 pt for s
 | Constant | Delphi | Hex RGB |
 | --- | --- | --- |
 | `clTextColor` | `$00333333` | `#333333` |
-| `clFocusedSelectionColor` | `$00D4FBFF` | `#FFFBD4` |
+| `clFocusedSelectionColor` | `$00D4FBFF` | `#FFFBD4` | ← `develop_old` only; shipped build uses `#C8D9E9` |
 | `clUnfocusedSelectionColor` | `$00FCF2E7` | `#E7F2FC` |
 | `clStatusTextColor` | `$00822EB8` | `#B82E82` | ← `develop_old` only; shipped build uses `#894605` |
 | `clCodeColor` | `$00A4294B` | `#4B29A4` | ← `develop_old` only; shipped build uses `#888888` |
@@ -1016,8 +1024,8 @@ is `develop_old`.** Three of its constants were changed by commit `98f493bbc` (2
 shared library, three months before the shipped `v22.12.21.547`, so for those three the table records
 history rather than behaviour: `clCodeColor` is `$00888888` (`#888888`), `clStatusTextColor` is
 `clMandatoryGeometryFill` (`#894605`), and `clFocusedSelectionColor` is `clSelectedBk` (`#C8D9E9`).
-Phase 5 measured the first two off the running binary and the port now uses them; the third is still
-unmeasured. `PORT-PLAN.md` §8.9 (a).
+**Phase 5 measured all three off the running binary and the port uses all three.** The third needed a
+collect run first, because the grid holds no rows to click until then. `PORT-PLAN.md` §8.9 (a).
 
 ---
 
