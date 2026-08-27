@@ -55,10 +55,12 @@
                            TextWrapping="Wrap" />
 
                 <!--
-                    Determinate, bound to the same percentage the banner shows: a collect run
-                    reports one per patient (§G.6).  QsProgressBar has no indeterminate animation -
-                    its template is a plain track and indicator - so IsIndeterminate would render a
-                    bar that never moves and says nothing.
+                    Determinate, bound to the same percentage the banner shows.  That is §G.6's
+                    choice rather than the theme's: the collect run this overlay is mostly up for
+                    reports one step per patient, so there is a real number, and a spinner would
+                    throw it away.  QsProgressBar does animate IsIndeterminate as of PORT-PLAN.md
+                    §8.10 (d) - step 3.6 wrote this comment when it did not - so the reason to stay
+                    determinate is now the progress that exists, not a gap in the style.
                 -->
                 <ProgressBar x:Name="ProgressIndicator"
                              Width="260"

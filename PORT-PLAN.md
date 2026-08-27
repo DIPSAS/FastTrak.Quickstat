@@ -11,7 +11,7 @@ Last updated: 2026-08-27
 >
 > **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
 > independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
-> satisfy the five-column contract; §8.10 (a) and (b) done; the shipped `22.12.21.547` build was set
+> satisfy the five-column contract; §8.10 (a), (b) and (d) done; the shipped `22.12.21.547` build was set
 > up and driven far enough to read two of §8.9 (a)'s three colours exactly and to lift its whole
 > 213-element data-element list out of the check list. **Two real defects came out of it, neither
 > reachable without a server:** a table type that never existed, which was silently blanking
@@ -20,7 +20,7 @@ Last updated: 2026-08-27
 > **What is left in Phase 5.** No collector has actually *executed* — binding is not rows — so the
 > byte-for-byte CSV comparison (R4) still has no fixture captured from the Delphi, and no package has
 > been read or written. `clFocusedSelectionColor` is still unmeasured and the theme still ships two
-> palette values now known to be wrong. §8.10 has five items left. The `05-ui-spec.md` walkthrough is
+> palette values now known to be wrong. §8.10 has four items left. The `05-ui-spec.md` walkthrough is
 > still a human job.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
@@ -976,15 +976,16 @@ None of these blocked Phase 4, and none is fixed by it. Each is recorded so it i
 Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
 are two copies of one more step — which is exactly the argument for collapsing them.
 
-**Item (a) is closed in Phase 5**; the row is kept, struck through, because its "why" is the reason
-the test suite now looks the way it does. Six remain.
+**Items (a), (b) and (d) are closed in Phase 5**; the rows are kept, struck through, because their
+"why" is still load-bearing — (a)'s is the reason the test suite now looks the way it does, and
+(d)'s is the reason the busy overlay does *not* spin. Four remain.
 
 | # | Item | Note |
 |---|---|---|
 | a | ~~**No view can be instantiated under test if it uses `{StaticResource}` and does not merge the theme itself.**~~ | **Done** (Phase 5). `QuickStat.Tests/Ui/WpfApplicationFixture.cs` puts the shipped `App` — so the merge is `App.xaml`'s, not a second copy of it — on one dedicated background STA thread, behind a `static Lazy` for the single-instance guarantee and an `ICollectionFixture` for the handle. `Ui/ViewInstantiationTests.cs` constructs all seven views plus `MainWindow` through it and sweeps their bindings for `System.Windows.Data Error: 40`. Two consequences worth knowing: the assembly now runs sequentially, because `Application` registers every `Window` on unsynchronised collections from whichever apartment made it; and `Assert.Null(Application.Current)` is no longer a legitimate assertion anywhere, since nothing can un-set it — the four places that used it now read the window's own `Resources` instead, which is what they meant |
 | b | ~~**Two population-loading code paths.**~~ | **Done** (Phase 5). `QuickStat.App/Services/PopulationLoader.cs` is now the one place the sequence exists — resolve placeholders, cohort query, `NationalIdRecovery`, prepare the matrix, tell the workspace. Both view models take the loader *instead of* `IPatientRepository` and `IQueryParameterResolver`, which they only ever held in order to write their own copy, so neither can assemble a second one. It lives in `QuickStat.App` and not `Core` because its last step is `IShellWorkspace.SetPopulation`; moving the first four to `Core` and leaving the fifth to each caller would split the ordering contract in half again. Differences that are real stayed parameters or stayed at the call sites (logger, progress scope, audit row, failure wording, `RequestCollectionsTab`); differences nobody chose — what an unresolvable placeholder reports — are marked in code and left alone |
 | c | **The busy overlay's Cancel button can never appear.** `IShellProgress.BeginOperation(string)` takes no `CancellationTokenSource`, so nothing can offer one to `BusyOverlayViewModel.OfferCancellation` | One overload. The overlay is correct and tested; the button is simply never shown |
-| d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |
+| d | ~~**`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view.~~ | **Done** (Phase 5). One storyboard, in a `MultiTrigger` in the template. Two things decided rather than guessed. **The geometry is a fraction, not a pixel offset**: `ProgressBar.SetProgressBarIndicatorLength` sizes `PART_Indicator` from `PART_Track.ActualWidth` and gives it the full 100 % while the flag is set, so a `ScaleX` of 0→1 over it is a fraction of whatever the splitter has left the bar — the usual `TranslateTransform` sweep would be in device-independent pixels and wrong after a resize. The bar grows from the left edge and shrinks into the right; `RenderTransformOrigin` is what anchors it and is animated with two *discrete* key frames, since changing it invalidates the element's transforms, while `ScaleX` alone goes to the composition thread. **The clock is released, not parked**: `RepeatBehavior="Forever"` never completes on its own, so `ExitActions` *removes* the storyboard — both properties then fall back to their base values, which are the determinate identity transform — and `IsVisible` is a second condition alongside `IsIndeterminate`, because the busy overlay collapses its subtree rather than unloading it and would otherwise leave a live animation clock in the `MediaContext` for the rest of the process. `Ui/Theme/ProgressBarIndeterminateTests.cs` pins all of it from rendered geometry rather than from the markup, so a different future template still passes; against the unmodified style its first test reads *"the indicator took only 1 distinct positions in 2.3 s"*. **The busy overlay keeps determinate progress** and the workaround is gone rather than moved: §G.6 gives the collect run a real percentage per patient, so the reason not to spin is now the data, which is what `BusyOverlayView.xaml`, `BusyOverlayViewModel.Percent` and `BusyOverlayTests` say instead of what they used to say. §F.4's row records the state so the next reader does not rediscover the gap |
 | e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
 | f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
 | g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |

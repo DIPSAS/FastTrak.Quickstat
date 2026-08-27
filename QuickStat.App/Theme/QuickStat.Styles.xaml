@@ -464,8 +464,88 @@
                         <Border x:Name="PART_Track" />
                         <Border x:Name="PART_Indicator"
                                 Background="{TemplateBinding Foreground}"
-                                HorizontalAlignment="Left" />
+                                HorizontalAlignment="Left">
+                            <!--
+                                Identity while determinate - ScaleX defaults to 1 - and the only
+                                thing the indeterminate storyboard below moves.
+
+                                It is declared here, in the template, rather than assigned by the
+                                trigger: a Freezable used as a Setter value is frozen when the style
+                                is sealed, and animating a frozen Transform throws
+                                "Cannot animate ... on an immutable object instance".  Declared
+                                inline it is built once per templated control, unfrozen, and named
+                                in the template's own namescope, which is what Storyboard.TargetName
+                                resolves against.
+                            -->
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="IndicatorScale" />
+                            </Border.RenderTransform>
+                        </Border>
                     </Grid>
+                    <ControlTemplate.Triggers>
+                        <!--
+                            PORT-PLAN.md §8.10 (d).  Replacing the stock template also threw away the
+                            stock indeterminate animation, so IsIndeterminate="True" used to render a
+                            bar that never moved.  There is nothing in the Delphi to copy -
+                            TRzProgressBar is always determinate, and MainQuickStat.pas drives it per
+                            patient (§G.6) - but the state is part of WPF's own contract, it compiles
+                            and it is documented, so the port's ProgressBar style has to honour it.
+                            §F.4's row now records that it does.
+
+                            WIDTH INDEPENDENCE IS THE WHOLE DESIGN.  Nothing here is a pixel offset.
+                            ProgressBar.SetProgressBarIndicatorLength sizes PART_Indicator from
+                            PART_Track.ActualWidth, and for IsIndeterminate it uses the full 100 % -
+                            so the indicator is exactly the track, whatever the window has been
+                            resized to, and a ScaleX factor over it is a fraction of that width by
+                            construction.  A TranslateTransform, the usual way to write a sweep,
+                            would be in device-independent pixels and would be wrong the moment the
+                            splitter moved.
+
+                            The cycle: grow from the left edge to full width, then shrink into the
+                            right edge.  RenderTransformOrigin is what anchors it, and it is animated
+                            with two discrete key frames rather than continuously because a change to
+                            it invalidates the element's transforms - twice per 1.8 s cycle instead
+                            of once per frame - while ScaleX alone is handed to the composition
+                            thread.  Both ends of the cycle are zero width, so the wrap is seamless.
+
+                            IsVisible is a condition, not decoration.  RepeatBehavior="Forever" means
+                            the clock never completes on its own, and the busy overlay collapses its
+                            whole subtree rather than being unloaded (BusyOverlayView.xaml); without
+                            this the first indeterminate operation would leave a live animation clock
+                            ticking in the MediaContext for the rest of the process.  ExitActions
+                            removes the storyboard rather than stopping it, so the clock is released
+                            - measured: on the next TimeManager tick, not synchronously - and both
+                            animated properties fall back to their base values - ScaleX 1 and origin
+                            0,0, i.e. the determinate geometry - instead of being held at whatever
+                            frame the sweep had reached.
+                        -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsIndeterminate" Value="True" />
+                                <Condition Property="IsVisible" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <MultiTrigger.EnterActions>
+                                <BeginStoryboard x:Name="IndeterminateSweep">
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetName="IndicatorScale"
+                                                                       Storyboard.TargetProperty="ScaleX">
+                                            <LinearDoubleKeyFrame KeyTime="0:0:0" Value="0" />
+                                            <LinearDoubleKeyFrame KeyTime="0:0:0.9" Value="1" />
+                                            <LinearDoubleKeyFrame KeyTime="0:0:1.8" Value="0" />
+                                        </DoubleAnimationUsingKeyFrames>
+                                        <PointAnimationUsingKeyFrames Storyboard.TargetName="PART_Indicator"
+                                                                      Storyboard.TargetProperty="RenderTransformOrigin">
+                                            <DiscretePointKeyFrame KeyTime="0:0:0" Value="0,0" />
+                                            <DiscretePointKeyFrame KeyTime="0:0:0.9" Value="1,0" />
+                                        </PointAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </MultiTrigger.EnterActions>
+                            <MultiTrigger.ExitActions>
+                                <RemoveStoryboard BeginStoryboardName="IndeterminateSweep" />
+                            </MultiTrigger.ExitActions>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

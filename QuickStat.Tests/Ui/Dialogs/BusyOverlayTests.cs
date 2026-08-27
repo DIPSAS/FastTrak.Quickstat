@@ -214,15 +214,17 @@ public class BusyOverlayTests
     });
 
     [Fact]
-    public void TheBarIsDeterminateBecauseTheStyleHasNoAnimation() => StaTestRunner.Run(() =>
+    public void TheBarIsDeterminateBecauseThereIsARealPercentageToShow() => StaTestRunner.Run(() =>
     {
         ShellProgress progress = new(new InlineUiDispatcher());
         using BusyOverlayViewModel model = new(progress);
 
         RealisedWindow.RunControl(new BusyOverlayView { DataContext = model }, view =>
         {
-            // QsProgressBar's template is a track and an indicator with no indeterminate state, so
-            // IsIndeterminate would render a bar that never moves.
+            // §G.6: the collect run reports one step per patient, so the overlay has a number and
+            // shows it.  QsProgressBar has been able to animate IsIndeterminate since PORT-PLAN.md
+            // §8.10 (d) - Ui/Theme/ProgressBarIndeterminateTests.cs pins that - so what this
+            // asserts is the choice, no longer the absence of an alternative.
             Assert.False(view.ProgressIndicator.IsIndeterminate);
 
             using (progress.BeginOperation("Collecting data"))

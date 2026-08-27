@@ -64,8 +64,10 @@ public sealed partial class BusyOverlayViewModel : ObservableObject, IDisposable
 
     /// <summary>Completion, 0 to 100, mirroring the banner's bar.</summary>
     /// <remarks>
-    /// Determinate rather than a spinner: a collect run reports a real percentage per patient
-    /// (§G.6), and the <c>QsProgressBar</c> template has no indeterminate animation to fall back on.
+    /// Determinate rather than a spinner because there is a real percentage to show: a collect run
+    /// reports one step per patient (§G.6). <c>QsProgressBar</c> animates <c>IsIndeterminate</c> as
+    /// of PORT-PLAN.md §8.10 (d), so this is a choice about the data rather than, as it once was, a
+    /// gap in the theme.
     /// </remarks>
     public double Percent => _progress.Percent;
 
