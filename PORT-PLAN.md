@@ -11,7 +11,7 @@ Last updated: 2026-08-27
 >
 > **Phase 5 so far — see §8.11 for the detail.** Golden SQL files for all 131 collectors,
 > independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
-> satisfy the five-column contract; §8.10 (a) and (b) done; the shipped `22.12.21.547` build was set
+> satisfy the five-column contract; §8.10 (a), (b) and (g) done; the shipped `22.12.21.547` build was set
 > up and driven far enough to read two of §8.9 (a)'s three colours exactly and to lift its whole
 > 213-element data-element list out of the check list. **Two real defects came out of it, neither
 > reachable without a server:** a table type that never existed, which was silently blanking
@@ -20,7 +20,7 @@ Last updated: 2026-08-27
 > **What is left in Phase 5.** No collector has actually *executed* — binding is not rows — so the
 > byte-for-byte CSV comparison (R4) still has no fixture captured from the Delphi, and no package has
 > been read or written. `clFocusedSelectionColor` is still unmeasured and the theme still ships two
-> palette values now known to be wrong. §8.10 has five items left. The `05-ui-spec.md` walkthrough is
+> palette values now known to be wrong. §8.10 has four items left. The `05-ui-spec.md` walkthrough is
 > still a human job.
 >
 > **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
@@ -976,8 +976,8 @@ None of these blocked Phase 4, and none is fixed by it. Each is recorded so it i
 Item (b) grew slightly: both population-loading paths now also call `NationalIdRecovery`, so there
 are two copies of one more step — which is exactly the argument for collapsing them.
 
-**Item (a) is closed in Phase 5**; the row is kept, struck through, because its "why" is the reason
-the test suite now looks the way it does. Six remain.
+**Items (a), (b) and (g) are closed in Phase 5**; the rows are kept, struck through, because their
+"why" is the reason several other things now look the way they do. Four remain.
 
 | # | Item | Note |
 |---|---|---|
@@ -987,7 +987,7 @@ the test suite now looks the way it does. Six remain.
 | d | **`QsProgressBar` has no indeterminate state**, so `IsIndeterminate="True"` renders a bar that never moves. 3.6 worked around it in its own view | One storyboard in the style |
 | e | **Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush | Promote both into §F.4 and the theme |
 | f | **The busy overlay blocks the mouse but not the keyboard** — you can still tab into the shell beneath it | Disable `MainWindow`'s content while `IsBusy` |
-| g | **`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load | Consider moving it, so "connected" means the collector list is ready |
+| g | ~~**`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load.~~ | **Done** (Phase 5). `ConnectAsync` is now login → captions → `BuildAsync` → `Done`, all awaited, and the Collections tab renders the result instead of fetching it: it empties the list on `SessionChanged` and fills it from a new `ICollectorRegistry.Rebuilt`, which `BuildAsync` raises *before it returns* — so the caller's `await` is also an await on the check list being on screen. That is what the Delphi got for free: `AfterLogin` (`MainQuickStat.pas:471-493`) is a login observer that `TSimpleDatabase.Connect` calls synchronously (`Emetra.Database.Simple.pas:391-406`), so `SelectConnection` cannot give the mouse back before `cbDataCollector` is populated. `TXT_LOADING_COLLECTORS` moved to `ConnectionCoordinator` with the query it describes. **Was it a race?** See §8.12 — the answer is "not the obvious one" |
 | h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. Still untouched: **no collector has actually executed**, so "does it return the right rows" and the CSV byte comparison remain open, and no package has been read or written |
 
 ### 8.11 What Phase 5 found by running things
@@ -1061,6 +1061,76 @@ one sentence.
   is applied in the logger provider. A subagent reported it is not — only `UserNotifier` and
   `IniSettingsStore` call the redactor. If true it is an R6 item and therefore release-blocking, so
   check it rather than take it on trust.
+
+### 8.12 §8.10 (g) in full — what the fire-and-forget collector build actually cost
+
+Four questions were asked before the change, because the row could have been nothing but tidiness.
+
+**(1) Was it a race? Not the one it looks like — but two others, and both are now pinned.**
+
+The obvious fear is a package replayed before the check list exists:
+`PackagesTabViewModel.ApplyCollectorSelectionAsync` walks `CollectionsTabViewModel.DataElements` by
+name, so against an empty list every stored element is reported as
+`The selection contains an unknown data element.` and the replay collects nothing. Both tabs load
+from the same `SessionChanged`, the packages list is one query where the collector build is two, so
+the packages list really does appear first. **It is nevertheless unreachable in the shipped
+composition**, and the reason is an accident: `ReloadDataElementsAsync` opened its own
+`IShellProgress.BeginOperation` scope *synchronously* inside the event handler, before the
+coordinator's scope closed, so the busy depth never fell to zero while the build ran — and
+`OpenPackageCommand` is bound to nothing but `LeftDoubleClick` (`PackagesTabView.xaml:115`), which
+the overlay eats. Three unrelated facts had to hold at once for that to be safe. Saying so plainly:
+**no test was written for a bug that was not there.**
+
+What *was* reachable:
+
+- **A failed build was announced and then un-announced.** The build fails on its first round trip;
+  the caption load is a whole query slower; `ConnectAsync` then called `_progress.Done()`. The red
+  line lost the race to `Task completed` and the user was told the project had opened, with an empty
+  data-element list and no dialog. `ConnectionCoordinatorTests.AFailedCollectorBuildFailsTheConnect`.
+- **A stale build could win.** The handler passed `CancellationToken.None`, so nothing could call a
+  build off. Switch project while one is in flight — reachable, because the busy overlay blocks the
+  mouse but not the keyboard (§8.10 (f)) — and the older answer could land last, in both the registry
+  and the check list, and they could disagree with each other because they were written at different
+  moments. `ASecondConnectCancelsTheFirstRatherThanRacingIt`, and
+  `ABuildThatFinishesAfterADisconnectIsDiscarded` for the disconnect version.
+
+**(2) The other `SessionChanged` subscribers.** Three in total: this tab, `PackagesTabViewModel`
+(reloads `Report.QuickStat`) and `PopulationPickerViewModel` (reloads the catalogue). The event fixes
+no order between them, and the Delphi's order is not free — `AfterLogin` fills `cbDataCollector`
+*and then* calls `LoadPackagedSelections` (`MainQuickStat.pas:481-488`), so the package list cannot
+exist before the elements it names. Moving one subscriber out does not give the other two an order;
+what it gives is a *boundary*: everything on `SessionChanged` happens during the connect, and the
+collector list is ready when the connect returns. The two remaining subscribers are unchanged and
+still unordered with respect to each other, which is fine — neither reads the other's state.
+
+**(3) Failure semantics: the connect fails, the session stays.** Both halves are argued in
+`IConnectionCoordinator`. In short: `CollectorAvailability` already absorbs the degradation the port
+was designed for — a database without `KB.AntibioticResistance2` loses one collector, logged, no
+error (R7) — so what escapes `BuildAsync` is a round trip that failed, and a database that cannot
+answer `EXEC Report.GetFormClasses` cannot be collected from at all. Delphi agrees: a throwing
+`AfterLogin` becomes `EDatabaseLoginObserverError` and takes `Connect` down. But Delphi does **not**
+roll the connection back (`Docs/Port/01-data-access.md` §1.6), and neither does this: the login
+pipeline did finish, the session row is open, the population list works. So
+`ISessionService.IsConnected` is not a promise that the collector list exists — a successful return
+from `ConnectAsync` is.
+
+**(4) Cancellation and re-entrancy.** The build now runs on the connect's token. `ConnectAsync` keeps
+the in-flight `CancellationTokenSource`, and a second connect — or `DisconnectAsync` — cancels it;
+the superseded call throws `OperationCanceledException` and is barred from writing the status line,
+so it cannot stomp the connect that replaced it. `SessionService.Dispose` calls
+`ISessionService.DisconnectAsync` straight past the coordinator at shutdown, which the coordinator
+cannot see, so the Collections tab additionally drops a `Rebuilt` that arrives with no session.
+
+**Negative control.** The new tests were run against the old shape — the awaited build taken out of
+`ConnectAsync`, the fire-and-forget put back on `SessionChanged`, everything else including the
+tests left alone — and **13 of 2 464 failed**: ten of the eleven `ConnectionCoordinatorTests`, two of
+the new `CollectionsTabViewModelTests`, and `ASecondLoginReplacesTheListRatherThanAppendingToIt`,
+which counts builds and sees two of them. Representative failures: `Assert.False(connect.IsCompleted)`
+returning true while the registry was still gated, and the status line reading
+`["New project selected", "Connecting to …", "Task completed"]` with no `Loading collectors` between.
+The eleventh, `DisconnectingWithNothingInFlightStillDisconnects`, passes either way and is a guard,
+not a control; so is `ALoginCopiesTheStudyIdOntoTheMatrix`, which pins where the study id is written
+now that the build no longer writes it.
 
 ### 8.9 Surfaced during Phase 3 wave 1 — one of these still needs a human
 

@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using QuickStat.Collectors;
+using QuickStat.Data;
 using QuickStat.Domain.Anonymisation;
 using QuickStat.Domain.Matrix;
 using QuickStat.Services;
@@ -71,14 +73,22 @@ public class CollectionsTabViewModelTests
             Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation());
         }
 
-        /// <summary>Signals a login and waits for the list to be rebuilt.</summary>
+        /// <summary>Signals a login the way the shell does, and waits for the list.</summary>
         /// <param name="studyId">The study id the session carries.</param>
         /// <returns>A task that completes when <c>DataElements</c> is filled.</returns>
+        /// <remarks>
+        /// Two steps, because the shell has two: <c>ISessionService.SessionChanged</c> announces the
+        /// session, and <c>IConnectionCoordinator.ConnectAsync</c> then awaits the registry build
+        /// (PORT-PLAN.md §8.10 (g)). The tab is on the receiving end of both and starts neither, so a
+        /// harness that only raised the event would be testing a shell that no longer exists.
+        /// </remarks>
         internal async Task LoginAsync(int studyId = 42)
         {
-            Session.Raise(FakeSessionService.NewSession(studyId: studyId));
+            SessionContext session = FakeSessionService.NewSession(studyId: studyId);
 
-            await ViewModel.PendingReload;
+            Session.Raise(session);
+
+            _ = await Registry.BuildAsync(session);
         }
 
         /// <summary>Ticks elements by collector name.</summary>
@@ -145,6 +155,12 @@ public class CollectionsTabViewModelTests
         // sets it, and a saved package records it (MainQuickStat.pas:868).
         using Harness harness = new();
 
+        harness.Session.Raise(FakeSessionService.NewSession(studyId: 4711));
+
+        // On the session event, not on the build: it belongs to the session and not to the registry,
+        // which is why it stayed on this handler when the build moved out (PORT-PLAN.md §8.10 (g)).
+        Assert.Equal(4711, harness.Matrix.StudyId);
+
         await harness.LoginAsync(studyId: 4711);
 
         Assert.Equal(4711, harness.Matrix.StudyId);
@@ -189,56 +205,46 @@ public class CollectionsTabViewModelTests
     }
 
     [Fact]
-    public async Task ALoginSaysLoadingCollectorsAndThenTaskCompleted()
+    public void ALoginOnItsOwnFillsNothing()
     {
-        using Harness harness = new();
-
-        List<string> info = [];
-
-        harness.Progress.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ShellProgress.Info))
-            {
-                info.Add(harness.Progress.Info);
-            }
-        };
-
-        await harness.LoginAsync();
-
-        Assert.Equal([CollectionsTabViewModel.LoadingCollectorsText, ShellProgress.CompletedText], info);
-        Assert.False(harness.Progress.IsBusy);
-    }
-
-    [Fact]
-    public async Task AFailedRegistryBuildLeavesAnEmptyListAndARedStatusLine()
-    {
+        // PORT-PLAN.md §8.10 (g). The session event used to be the trigger for two round trips this
+        // tab abandoned the task of; now it only empties the list, and the elements arrive when
+        // IConnectionCoordinator.ConnectAsync has awaited the build.  Nothing may appear in between:
+        // that window is what let the shell call itself connected with the list still outstanding.
         using Harness harness = new();
 
         harness.Registry.With("A", "Alfa");
-        harness.Registry.Throws = new InvalidOperationException("Report.GetFormClasses is missing.");
-
-        await harness.LoginAsync();
-
-        Assert.Empty(harness.ViewModel.DataElements);
-        Assert.True(harness.Progress.IsError);
-        Assert.Equal("Report.GetFormClasses is missing.", harness.Progress.Info);
-        Assert.False(harness.Progress.IsBusy);
-    }
-
-    [Fact]
-    public async Task AFailedRegistryBuildDoesNotFaultTheTaskTheEventHandlerAbandoned()
-    {
-        // The SessionChanged handler cannot await, so an escaping exception would end up in
-        // TaskScheduler.UnobservedTaskException and, through App.Report, in a crash dialog.
-        using Harness harness = new();
-
-        harness.Registry.Throws = new InvalidOperationException("boom");
 
         harness.Session.Raise(FakeSessionService.NewSession());
 
-        await harness.ViewModel.PendingReload;
+        Assert.Empty(harness.ViewModel.DataElements);
+        Assert.Equal(0, harness.Registry.BuildCount);
+    }
 
-        Assert.Equal(TaskStatus.RanToCompletion, harness.ViewModel.PendingReload.Status);
+    [Fact]
+    public async Task ABuildThatFinishesAfterADisconnectIsDiscarded()
+    {
+        // SessionService.Dispose calls DisconnectAsync straight past the coordinator at shutdown, so
+        // a build can still be in flight when the session goes. Re-populating the list under a
+        // session that no longer exists is worse than leaving it empty.
+        using Harness harness = new();
+
+        harness.Registry.With("A", "Alfa");
+        harness.Registry.Gate = new TaskCompletionSource();
+
+        SessionContext session = FakeSessionService.NewSession();
+
+        harness.Session.Raise(session);
+
+        Task<IReadOnlyList<ICollector>> build = harness.Registry.BuildAsync(session);
+
+        harness.Session.Raise(null);
+
+        harness.Registry.Gate.SetResult();
+
+        _ = await build;
+
+        Assert.Empty(harness.ViewModel.DataElements);
     }
 
     // ---------------------------------------------------------- ValidateCollectorSelection
@@ -777,7 +783,7 @@ public class CollectionsTabViewModelTests
     }
 
     [Fact]
-    public async Task DisposingStopsListeningToTheSession()
+    public async Task DisposingStopsListeningToTheSessionAndToTheRegistry()
     {
         Harness harness = new();
 
@@ -785,11 +791,8 @@ public class CollectionsTabViewModelTests
 
         harness.ViewModel.Dispose();
 
-        harness.Session.Raise(FakeSessionService.NewSession());
-
-        await harness.ViewModel.PendingReload;
+        await harness.LoginAsync();
 
         Assert.Empty(harness.ViewModel.DataElements);
-        Assert.Equal(0, harness.Registry.BuildCount);
     }
 }

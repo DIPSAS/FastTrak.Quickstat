@@ -65,6 +65,9 @@ internal sealed class StubCollector(string name, string title) : ICollector
 /// <summary>An <see cref="ICollectorRegistry"/> whose list a test sets outright.</summary>
 internal sealed class FakeCollectorRegistry : ICollectorRegistry
 {
+    /// <inheritdoc />
+    public event EventHandler<IReadOnlyList<ICollector>>? Rebuilt;
+
     /// <summary>What <see cref="BuildAsync"/> will install, in registry order.</summary>
     public List<ICollector> Next { get; } = [];
 
@@ -78,6 +81,10 @@ internal sealed class FakeCollectorRegistry : ICollectorRegistry
     public Exception? Throws { get; set; }
 
     /// <summary>Awaited by <see cref="BuildAsync"/> before it answers, when set.</summary>
+    /// <remarks>
+    /// The wait honours the cancellation token, so a test can cancel a build that is parked here
+    /// without having to open the gate first - which is what a superseded connect does.
+    /// </remarks>
     public TaskCompletionSource? Gate { get; set; }
 
     /// <summary>Adds one collector to what the next build will install.</summary>
@@ -102,7 +109,7 @@ internal sealed class FakeCollectorRegistry : ICollectorRegistry
 
         if (Gate is not null)
         {
-            await Gate.Task.ConfigureAwait(false);
+            await Gate.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -113,6 +120,10 @@ internal sealed class FakeCollectorRegistry : ICollectorRegistry
         }
 
         Collectors = [.. Next];
+
+        // Inside the build, as CollectorRegistry does it: awaiting BuildAsync has to mean every
+        // handler has run, or the ordering PORT-PLAN.md §8.10 (g) bought is not being tested.
+        Rebuilt?.Invoke(this, Collectors);
 
         return Collectors;
     }
