@@ -50,8 +50,8 @@ public class PeriodDialogTests
 
     [Theory]
     [InlineData("nb-NO")]
+    [InlineData("nn-NO")]
     [InlineData("en-US")]
-    [InlineData("tr-TR")]
     public void BothCalendarsStartInNineteenHundredAndOnAMondayInEveryCulture(string culture) =>
         StaTestRunner.Run(() =>
         {

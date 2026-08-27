@@ -1750,12 +1750,16 @@ The fix in `4c96c3c3b` was:
   AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_J01XX05 ) );
 ```
 
-> 🚩 **External dependency — flag before shipping.** `KB.AntibioticResistance2` is in the `KB`
-> ("knowledge base") schema, not `dbo`, and it is the **only** reference to that schema anywhere in
-> the collector subsystem. It is not part of the core FastTrak schema and it will be **absent in
-> many customer databases** (or present under the misspelled name `AntibioticRestistance2`, given
-> that the original author wrote it that way). Also note the join is an **inner** `JOIN`, so a
-> missing table makes the whole query fail, not just return nothing.
+> 🚩 **External dependency.** `KB.AntibioticResistance2` is in the `KB` ("knowledge base") schema,
+> not `dbo`, and it is the **only** reference to that schema anywhere in the collector subsystem. It
+> is not part of the core FastTrak schema and it will be **absent in many customer databases**. Note
+> the join is an **inner** `JOIN`, so a missing object makes the whole query fail, not just return
+> nothing.
+>
+> **The name is confirmed: `KB.AntibioticResistance2` exists, as a view.** Not the author's original
+> `AntibioticRestistance2`, which `4c96c3c3b` corrected together with `AtcKode` → `AtcCode`. A view
+> rather than a table changes nothing here — `OBJECT_ID` resolves both, and an inner join to a view
+> fails the same way when it is missing — so the gate below stands unaltered.
 >
 > Required handling in the port:
 > 1. Probe at registry-build time — `SELECT OBJECT_ID('KB.AntibioticResistance2')` — and only
@@ -1765,8 +1769,8 @@ The fix in `4c96c3c3b` was:
 > 2. Log at info level when it is skipped, so support can tell "missing" from "empty". **Done**, via
 >    the `onUnavailable` callback `CollectorRegistryBuilder.Build` takes.
 > 3. Confirm with the DB owner which spelling actually exists before enabling it anywhere.
->    **Still open** — a support question, not a code one. The gate makes a wrong spelling degrade to
->    "collector not offered" instead of "query failed", which is the whole point of it.
+>    **Resolved 2026-08-27: `KB.AntibioticResistance2`, a view.** The gate stays regardless — its
+>    job is the databases that do not have the object at all, which is most of them.
 >
 > **This is the only collector that needs the gate.** `SpDrugsetAntibioticRecommended`
 > (`EPR.QA.SQL.pas:431`) writes its nine ATC codes into the statement and joins no `KB` object, so it

@@ -19,10 +19,20 @@ namespace QuickStat.Tests.Ui.Packages;
 /// <c>05-ui-spec.md</c> §D.1, the replay of §B.3, and the save half of decision (l).
 /// </summary>
 /// <remarks>
-/// Every case that folds case runs under a forced culture, and the filter cases run under
-/// <c>en-US</c> <b>and</b> <c>tr-TR</c>: the filter uppercases with the current culture on purpose,
-/// because Delphi's <c>AnsiUppercase</c> is locale-sensitive too, so the behaviour to pin is the
-/// rule and not an English outcome.
+/// <para>
+/// Every case that folds case runs under a forced culture — <c>nb-NO</c> and <c>en-US</c>, the two
+/// this application actually meets.
+/// </para>
+/// <para>
+/// <b>Exactly one case additionally runs under <c>tr-TR</c> —
+/// <c>AnAlreadyUppercaseNeedleFollowsTheCultureToo</c> — and Turkish is a probe there, not a
+/// supported locale.</b> The filter uppercases with the <em>current</em> culture on purpose, because
+/// Delphi's <c>AnsiUppercase</c> is locale-sensitive too (PORT-PLAN.md §8.8 (i), a decision still
+/// open to a customer). nb-NO and en-US fold identically, so no test under either can tell "current
+/// culture" from "invariant": switching the fold to <c>ToUpperInvariant</c> was tried, and that one
+/// case is the only thing in this file that notices. Delete it only together with the §8.8 (i)
+/// decision it documents.
+/// </para>
 /// </remarks>
 public class PackagesTabViewModelTests
 {
@@ -298,7 +308,6 @@ public class PackagesTabViewModelTests
 
     [Theory]
     [InlineData("en-US")]
-    [InlineData("tr-TR")]
     [InlineData("nb-NO")]
     public async Task AnEmptyFilterMatchesEverything(string culture)
     {
@@ -315,7 +324,7 @@ public class PackagesTabViewModelTests
 
     [Theory]
     [InlineData("en-US")]
-    [InlineData("tr-TR")]
+    [InlineData("nb-NO")]
     public async Task TheFilterIsTrimmed(string culture)
     {
         // The other list filter is not: PORT-PLAN.md §8.8 (i) records the two as deliberately
@@ -361,16 +370,19 @@ public class PackagesTabViewModelTests
     [Fact]
     public async Task TheFilterFoldsCaseWithTheCurrentCultureOnBothSides()
     {
-        // Under tr-TR, ToUpper("i") is "İ" and ToUpper("I") is "I".  A lower-case needle therefore
-        // still matches, because both sides fold the same way - which is the rule, and the same rule
+        // A lower-case needle matches because both sides fold the same way - the rule
         // AnsiUppercase gave the Delphi.
+        //
+        // No tr-TR row here on purpose: this assertion holds under invariant folding too (verified
+        // by switching the fold and watching it still pass), so Turkish would only look like a
+        // probe. AnAlreadyUppercaseNeedleFollowsTheCultureToo below is the one that discriminates.
         using Harness harness = new();
 
         harness.Repository.Stored.Add(NewPackage(41, "Diabetes"));
 
         await harness.ViewModel.ReloadAsync();
 
-        foreach (string culture in (string[])["en-US", "tr-TR", "nb-NO"])
+        foreach (string culture in (string[])["en-US", "nb-NO"])
         {
             using CultureScope scope = new(culture);
 
@@ -412,7 +424,6 @@ public class PackagesTabViewModelTests
 
     [Theory]
     [InlineData("en-US")]
-    [InlineData("tr-TR")]
     [InlineData("nb-NO")]
     public async Task TheComparisonIsOrdinalAndNotACollation(string culture)
     {

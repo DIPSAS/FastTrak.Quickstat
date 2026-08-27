@@ -30,9 +30,13 @@ public static class DrugSql
     /// <remarks>
     /// <para>
     /// <see cref="DrugSetAntibioticIntermediate"/> inner-joins it, and nothing else does. It is not
-    /// part of the core FastTrak schema, it is absent from many customer databases, and the original
-    /// author first spelled it <c>AntibioticRestistance2</c> - so it may exist under that name
-    /// instead (<c>EPR.QA.SQL.pas:453</c>, corrected by commit <c>4c96c3c3b</c>).
+    /// part of the core FastTrak schema and it is absent from many customer databases.
+    /// </para>
+    /// <para>
+    /// <b>The spelling is confirmed.</b> It is a <em>view</em> named <c>KB.AntibioticResistance2</c>
+    /// - not the author's original <c>AntibioticRestistance2</c>, which commit <c>4c96c3c3b</c>
+    /// corrected along with <c>AtcKode</c> to <c>AtcCode</c>. <c>OBJECT_ID</c> resolves views exactly
+    /// as it resolves tables, so the availability probe needs nothing special.
     /// </para>
     /// <para>
     /// Because the join is an <b>inner</b> join, a missing table makes the statement fail rather

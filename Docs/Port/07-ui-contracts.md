@@ -428,7 +428,7 @@ exist, not where their columns land.
   does this.
 - **`Assert.Empty(x.Where(...))` is a build error** (`xUnit2029`). Materialise and compare.
 - **Every test must be culture-independent.** This machine is `nb-NO`. Step 3.1's suite was swept
-  under a forced `en-US` *and* `tr-TR` and passes under both; do the same before reporting.
+  under a forced `nb-NO` *and* `en-US` and passes under both; do the same before reporting.
 - Tests are **xUnit v2 on VSTest**. Do not change the stack.
 - Source files are UTF-8 **without** a BOM and contain Norwegian characters (`Født`,
   `Fødselsnummer`, `Angi periode`, `Avbryt`).

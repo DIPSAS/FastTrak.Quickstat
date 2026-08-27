@@ -7,7 +7,7 @@ Last updated: 2026-08-27
 > **Resume here. Phases 0–4 are complete.** The application is built and the functionality lost in
 > the extraction is restored. Verified at `HEAD` independently of the implementing agents'
 > reports: from-scratch Debug **and** Release builds with **zero warnings**, **2254 tests** passing
-> under the machine's own `nn-NO` plus `en-US`, `tr-TR`, `ar-SA` and `th-TH`, and `QuickStat.exe`
+> under the machine's own `nn-NO` plus `nb-NO` and `en-US`, and `QuickStat.exe`
 > launching from a foreign working directory with the full DI graph, loading a real
 > `QuickStat.config.xml`, and logging no `[ERR]`, `[CRT]` or exception. The banner reads
 > **`26.0.0.0`**.
@@ -18,11 +18,10 @@ Last updated: 2026-08-27
 > carried-forward items, and §8.9 (a) — three palette colours — is the last question needing a
 > decision.
 >
-> **Two release-blocking questions still need an owner, neither of them code:** the `J01FF%`
-> clinical definition (§8.4) and the correct spelling of `KB.AntibioticResistance2` versus the
-> author's original `AntibioticRestistance2` (§5 Phase 4). The availability gate means a wrong
-> spelling degrades to "collector not offered" rather than "query failed", which is why the second
-> one does not block implementation.
+> **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
+> definition (§8.4). The other — the spelling of `KB.AntibioticResistance2` — was **settled on
+> 2026-08-27: the object exists, as a view, under exactly that name.** The availability gate stays
+> regardless; its job is the many customer databases that have no such object at all.
 >
 > **Six defects were found while integrating wave 2, five of them in code or contracts that earlier
 > phases had signed off.** Every one is fixed; they are listed here because they are the pattern to
@@ -51,6 +50,11 @@ Last updated: 2026-08-27
 > (`QuickStat.Tests/CultureSweep.cs`, `-e QUICKSTAT_TEST_CULTURE=xx-YY`) because three agents each
 > built and discarded one: `SqlParameterFactory` threw out of its own error message under a
 > non-Gregorian calendar, and a collector-SQL assertion used a collation where it meant a byte scan.
+> Both fixes are permanent and right on any locale. **The sweep itself is now `nb-NO` + `en-US`
+> only** — Bokmål because it is the field locale and is not this machine's, English because build
+> agents default to it. `tr-TR`, `ar-SA` and `th-TH` were dropped on 2026-08-27 at the product
+> owner's direction: QuickStat ships to Norwegian hospitals, so each was a full extra run of the
+> suite guarding a scenario no user can reach.
 > A flaky settings-store test was also diagnosed and fixed — `Save()` gave up after one transient
 > sharing violation, silently losing whatever the user had just changed.
 >
@@ -660,7 +664,7 @@ These are observable and must match the Delphi build exactly.
   The mechanism is `LBS_SORT` on a Win32 list box, whose default comparison is `CompareStringW` with
   `LOCALE_USER_DEFAULT` and `NORM_IGNORECASE` — culture-sensitive by construction, exactly like
   `CurrentCultureIgnoreCase`. The port is therefore culture-dependent in the same way the Delphi is;
-  nb-NO, nn-NO, en-US and tr-TR agree on the whole registry except one adjacent pair
+  nb-NO, nn-NO and en-US agree on the whole registry except one adjacent pair
   (`Medisin: Antall per behandlingstype` / `Medisin: Antall på utvalgte ATC-grupper`), and every
   Norwegian machine — the shipped configuration — agrees. Shipping ordinal would have moved eleven
   demographic columns from the left edge to the right edge of **every** CSV a customer has scripts

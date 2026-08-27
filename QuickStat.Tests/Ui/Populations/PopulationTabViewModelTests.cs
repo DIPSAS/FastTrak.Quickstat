@@ -78,7 +78,9 @@ public class PopulationTabViewModelTests
     [Fact]
     public void TheProjectOrderIsTheSameUnderAnyCulture()
     {
-        using CultureScope culture = new("tr-TR");
+        // The test above runs under the machine's nn-NO; this one pins the other Norwegian locale,
+        // which is the one the application actually meets in the field.
+        using CultureScope culture = new("nb-NO");
         using PopulationHarness harness = WithProjects("gamma", "Beta", "alpha");
 
         PopulationTabViewModel tab = NewTab(harness);

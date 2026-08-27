@@ -127,7 +127,6 @@ public class CollectorOrderTests
     [InlineData("nb-NO")]
     [InlineData("nn-NO")]
     [InlineData("en-US")]
-    [InlineData("tr-TR")]
     public void TheDemographicElementsComeFirstWhateverTheMachinesCultureIs(string cultureName)
     {
         // The whole point of the "^ " prefix (05-ui-spec.md §B.2: "a sort hack").  Punctuation sorts

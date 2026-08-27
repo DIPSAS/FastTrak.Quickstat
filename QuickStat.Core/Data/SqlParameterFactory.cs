@@ -85,14 +85,14 @@ internal static class SqlParameterFactory
                 if (timestamp.Year < MinimumSqlDateTimeYear)
                 {
                     // Formatted invariantly, and it matters more than it looks. An interpolated hole
-                    // uses CurrentCulture, and a culture whose default calendar is not Gregorian -
-                    // ar-SA uses Umm al-Qura, which starts in the twentieth century - cannot render
-                    // year 1 or 1752 at all. It throws ArgumentOutOfRangeException while building the
-                    // message for the exception we are in the middle of throwing, so on an Arabic
-                    // machine an out-of-range date produced a baffling error from inside string
-                    // formatting instead of the clear one written here. Diagnostics should be
-                    // invariant regardless: a log line saying 1752-01-01 is what an operator wants,
-                    // whatever their locale.
+                    // uses CurrentCulture, so the date in this message would otherwise be rendered
+                    // by whatever calendar the machine happens to run - and a calendar that cannot
+                    // represent the year at all throws ArgumentOutOfRangeException while building
+                    // the message for the exception we are in the middle of throwing. That turns a
+                    // clear diagnostic into a baffling one from inside string formatting.
+                    // Invariance is the right answer on its own terms anyway: an operator reading a
+                    // log wants 1752-01-01, and a support engineer reading it over their shoulder
+                    // wants the same string.
                     throw new SqlParameterBindingException(
                         string.Create(
                             CultureInfo.InvariantCulture,

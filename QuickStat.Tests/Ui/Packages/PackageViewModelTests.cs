@@ -56,7 +56,6 @@ public class PackageViewModelTests
     [Theory]
     [InlineData("en-US")]
     [InlineData("nb-NO")]
-    [InlineData("tr-TR")]
     public void ThePopulationLabelIsInvariantAndUngrouped(string culture)
     {
         // Delphi Format('Pop#%d', [fPopulationId]) - no digit grouping, whatever the machine's
@@ -69,7 +68,6 @@ public class PackageViewModelTests
     [Theory]
     [InlineData("en-US")]
     [InlineData("nb-NO")]
-    [InlineData("tr-TR")]
     public void TheSearchTextIsTheDelphisTabJoinedRow(string culture)
     {
         using CultureScope scope = new(culture);

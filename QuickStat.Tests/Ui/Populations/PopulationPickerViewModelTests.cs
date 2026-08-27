@@ -292,6 +292,10 @@ public class PopulationPickerViewModelTests
     {
         // AnsiLowercase is locale-sensitive (PORT-PLAN.md §8.8 (i)); Turkish is where that shows.
         // "I".ToLower("tr-TR") is the dotless "ı", so an upper-case I no longer finds a dotted i.
+        //
+        // Turkish is a probe here, not a supported locale: nb-NO and en-US fold identically, so
+        // neither can distinguish this from ToLowerInvariant, and a change to invariant folding
+        // would pass every other test in this file. This is the one case that would fail.
         using CultureScope culture = new("tr-TR");
         using PopulationHarness harness = new();
 

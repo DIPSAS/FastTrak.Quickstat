@@ -8,10 +8,11 @@ namespace QuickStat.Collectors;
 /// A concept the Delphi does not have, and the only genuinely new machinery the restored features
 /// need (PORT-PLAN.md §5 Phase 4, R7). Exactly one collector uses it:
 /// <c>QS_DRUG_ANTIBIOTIC_INTERMEDIATE</c> joins <c>KB.AntibioticResistance2</c> - the only reference
-/// to the <c>KB</c> schema anywhere in the subsystem, absent from many customer databases, and
-/// possibly present under the author's original misspelling <c>AntibioticRestistance2</c>. The join
-/// is an <b>inner</b> join, so a missing table makes the query <em>fail</em> rather than return
-/// nothing: the user ticks a box and gets an error, not an empty column.
+/// to the <c>KB</c> schema anywhere in the subsystem, and absent from many customer databases. The
+/// join is an <b>inner</b> join, so a missing object makes the query <em>fail</em> rather than
+/// return nothing: the user ticks a box and gets an error, not an empty column. The name is
+/// confirmed, and it is a view rather than a table - immaterial to <c>OBJECT_ID</c>, which resolves
+/// both.
 /// </para>
 /// <para>
 /// <c>QS_DRUG_ANTIBIOTIC_RECOMMENDED</c>, its neighbour in the registry, is <b>not</b> gated. Its
