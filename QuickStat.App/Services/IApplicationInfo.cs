@@ -15,15 +15,16 @@ public interface IApplicationInfo
     /// <summary>The wordmark next to the icon. <c>QuickStat</c>.</summary>
     string ProductName { get; }
 
-    /// <summary>The file version, as displayed - e.g. <c>22.12.21.547</c>.</summary>
+    /// <summary>The file version, as displayed - e.g. <c>26.0.0.0</c>.</summary>
     /// <remarks>
-    /// <b>This reads whatever the assembly reports, and nothing sets it.</b> No
-    /// <c>&lt;Version&gt;</c>, <c>&lt;FileVersion&gt;</c> or <c>&lt;InformationalVersion&gt;</c>
-    /// appears in <c>Directory.Build.props</c> or in any <c>.csproj</c>, so today it is
-    /// <c>1.0.0.0</c> while the shipped Delphi build is <c>22.12.21.547</c> - a date-derived number
-    /// produced by the FinalBuilder project. Inventing one here would put a false version in front
-    /// of users and in every log line; it is a packaging decision, and it belongs in the build
-    /// definition.
+    /// <b>This reads whatever the assembly reports, and one property sets it.</b>
+    /// <c>&lt;Version&gt;26.0.0.0&lt;/Version&gt;</c> in <c>Directory.Build.props</c>, decided by the
+    /// product owner at the start of Phase 4 (PORT-PLAN.md §8.9 b). MSBuild derives
+    /// <c>AssemblyVersion</c>, <c>FileVersion</c> and <c>InformationalVersion</c> from it, and this
+    /// reads <c>AssemblyFileVersion</c> - which is what the Delphi bound to - so the single property
+    /// covers the banner, the file properties, the <c>@AppVer</c> sent to <c>dbo.AddSession</c> and
+    /// the start-up log line. The scheme continues the Delphi build's year-led numbering without
+    /// pretending to be one of its dated builds; the shipped Delphi build is <c>22.12.21.547</c>.
     /// </remarks>
     string Version { get; }
 }

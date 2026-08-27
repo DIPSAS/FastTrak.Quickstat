@@ -117,8 +117,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// The build's file version, shown after the word <c>version</c>.
     /// </summary>
     /// <remarks>
-    /// Reads whatever the assembly carries and nothing sets one, so this says <c>1.0.0.0</c> today
-    /// while the shipped Delphi build says <c>22.12.21.547</c>. See <see cref="IApplicationInfo"/>.
+    /// Reads whatever the assembly carries, which <c>&lt;Version&gt;</c> in
+    /// <c>Directory.Build.props</c> sets to <c>26.0.0.0</c>; the shipped Delphi build says
+    /// <c>22.12.21.547</c>. See <see cref="IApplicationInfo"/>.
     /// </remarks>
     public string VersionText => _applicationInfo.Version;
 
