@@ -25,10 +25,15 @@ Last updated: 2026-08-27
 > blend result. All six are fixed, each with a regression test, and the last three were
 > negative-controlled by reverting the production change and watching eight tests fail.
 >
-> **What is left in Phase 5, and both need a person.** No package has been read or written, and the
-> `05-ui-spec.md` walkthrough is still a human job. §8.10 has only (h) left, and that is a summary
-> row. Two structural differences between the two CSVs are known, attributed and deliberate — read
-> §8.14 before treating either as a bug.
+> **What is left in Phase 5, and both need a person.** No package has been read or written — that
+> one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
+> them writes to the database, where everything so far has been read-only. And the `05-ui-spec.md`
+> walkthrough is still a human job, now written out as **`Docs/Port/08-parity-checklist.md`**:
+> ~60 items that need eyes, everything else marked as already covered and by what. The port
+> launches from **`C:\work\qs-run\run.ps1`**, which stages a working `QuickStat.config.xml` and a
+> correctly encoded UDL beside the executable. §8.10 has only (h) left, and that is a summary row.
+> Two structural differences between the two CSVs are known, attributed and deliberate — read §8.14
+> before treating either as a bug.
 >
 > **A field report from 2023 was handed over on 2026-08-27 and is now root-caused (§8.13):** date of
 > birth and sex go missing from a SWEET extract. They are the only two items on `SWEET_PATIENT` that
@@ -225,6 +230,9 @@ relevant document before writing code**; they contain verbatim SQL, exact captio
 | `Docs/Port/03-collectors.md` | Full collector inventory, collector class taxonomy, all SQL templates, the four recovered features |
 | `Docs/Port/04-matrix-export.md` | Matrix model, datapoints, cell colouring, anonymisation, CSV/Excel export, grid rendering |
 | `Docs/Port/05-ui-spec.md` | Window layout, every control and caption, commands, palette, WPF view/view-model breakdown |
+| `Docs/Port/06-contracts.md` | Phase 1's output: the type surface of `QuickStat.Core`, and which files each Phase 2 step owns |
+| `Docs/Port/07-ui-contracts.md` | Phase 3 step 3.1's output: what the wave-2 view-model agents inherit from the shell |
+| `Docs/Port/08-parity-checklist.md` | Phase 5's manual pass, walkable: ~60 items needing eyes, everything already covered marked as such, and the deliberate differences collected so they are not reported as defects |
 
 ### 2.1 The parity baseline is **not** this repository
 
@@ -716,13 +724,23 @@ Three decisions that were settled while implementing it, recorded so they are no
 - ~~Unit tests for connection-string translation, `:Name`→`@Name` rewriting, anonymisation, the
   colour ladders, and matrix assembly.~~ **Already covered** by `ConnectionStringTranslatorTests`,
   `SqlTextRewriterTests`, `MatrixAnonymiserTests`, `RgbTests` and `PersonMatrixTests`.
-- **Manual parity pass against a real database, using `Docs/Port/05-ui-spec.md` as the checklist.**
-  *Still open, and still a human job.* Two things now make it much cheaper: the shipped build is
-  installed and working at `C:\work\qs-delphi`, and its controls can be read programmatically
-  (§8.9 a), so "what does the reference actually show" is a query rather than a squint.
+- **Manual parity pass against a real database.** *Still open, and still a human job* — but it now
+  has a written form: **`Docs/Port/08-parity-checklist.md`**, which walks `05-ui-spec.md` in
+  workflow order and separates what a person has to look at (~60 items) from what a test or a
+  measurement already settles. It also collects the deliberate differences in one place, so the
+  walker does not spend the pass rediscovering decisions, and marks where four other acceptance
+  criteria close along the way. Three things make it cheap: the shipped build is installed and
+  working at `C:\work\qs-delphi`, its controls can be read programmatically (§8.9 a), so "what does
+  the reference actually show" is a query rather than a squint, and the port launches from
+  `C:\work\qs-run\run.ps1` with the configuration already staged.
 - **Fix the two palette values now known to be wrong**, and measure the third (§8.9 a).
 
 ### Phase 6 — Cleanup  *(one agent; only after sign-off)*
+
+**Signed off in principle on 2026-08-27, and deliberately not started.** The product owner's words
+were "perfectly fine to do so … but don't launch the phase just yet", so the gate is now timing
+rather than permission: it waits on the parity pass (§10.8), because the walk needs
+`C:\work\qs-delphi` and the reference worktree still standing. Nothing below has been done.
 
 Remove the reference worktree:
 `git -C C:\work\FastTrak worktree remove C:\work\FastTrak-tarmscreening`.
@@ -1605,3 +1623,9 @@ down:
    first; everything else already matches byte for byte.
 7. The three identification modes behave exactly as specified in §6.
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.
+
+   **Written out as `Docs/Port/08-parity-checklist.md`**, so the pass is a walk rather than a
+   re-read of 1 163 lines of specification. Roughly 60 items need eyes; everything already pinned
+   by a test or measured off the running binary is listed as covered and skippable, with the source
+   of the assurance named, and every deliberate difference is collected so it is not reported as a
+   defect. Criteria 2, 3, 5, 6 and 7 close along the way and are marked where they do.
