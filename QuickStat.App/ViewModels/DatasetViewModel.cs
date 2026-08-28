@@ -81,7 +81,6 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private PersonIdentification _identificationMode;
 
-    private bool _hasData;
     private bool _disposed;
 
     /// <summary>Creates the Dataset tab's view-model.</summary>
@@ -187,34 +186,6 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
     /// <remarks>Delphi <c>cbWideColumnsChecked</c>: <c>DataColWidth := 120</c> or <c>COL_WIDTH = 64</c>.</remarks>
     public double DataColumnWidth =>
         WideColumns ? MatrixGrid.WideDataColumnWidth : MatrixGrid.NarrowDataColumnWidth;
-
-    /// <summary>
-    /// Whether a collect run has ever produced data. Gates <c>Open this dataset in Excel</c>.
-    /// </summary>
-    /// <remarks>
-    /// <b>Latching, on purpose.</b> §D.1: <c>actExportData.Enabled := fGrid.Data.HasData</c> is set
-    /// inside <c>actCollectDataExecute</c> and never reset to false, so in the Delphi the menu item
-    /// stays enabled after a new population is loaded and the columns are gone. Reproducing the
-    /// latch keeps the menu behaving as users expect; the execute path guards the empty case rather
-    /// than the enable rule, which is why <see cref="NothingToExportMessage"/> exists.
-    /// </remarks>
-    public bool HasData
-    {
-        get => _hasData;
-
-        private set
-        {
-            if (_hasData == value)
-            {
-                return;
-            }
-
-            _hasData = value;
-
-            OnPropertyChanged();
-            OpenInExcelCommand.NotifyCanExecuteChanged();
-        }
-    }
 
     /// <summary>Refreshes the caption from the workspace. Delphi <c>UpdateGridInfo</c>.</summary>
     /// <remarks>
@@ -383,7 +354,7 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
     /// (§7.3), and the key file - which the Delphi wrote next to every anonymised export and never
     /// deleted - is off by default and tracked when it is on (§7.2).
     /// </remarks>
-    [RelayCommand(CanExecute = nameof(CanOpenInExcel))]
+    [RelayCommand(CanExecute = nameof(CanExport))]
     private async Task OpenInExcelAsync(CancellationToken cancellationToken)
     {
         if (!EnsureExportable())
@@ -426,18 +397,15 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
         }
     }
 
-    private bool CanOpenInExcel() => HasData;
-
     /// <summary>
-    /// <c>Save this dataset to CSV file</c>. Always enabled, exactly as the Delphi action is.
+    /// <c>Save this dataset to CSV file</c>. Live once there is a finished dataset to write.
     /// </summary>
     /// <remarks>
     /// Delphi <c>actSaveDataset</c> has <c>Enabled</c> unset in the <c>.dfm</c> and nothing ever
-    /// changes it, so the menu item is live even before anything has been collected. §D.1 records
-    /// that as-implemented behaviour and the port keeps it; the empty case is caught at execute
-    /// time, where the user gets a sentence instead of a file full of <c>(not ready)</c>.
+    /// changes it, so the menu item is live before anything has been collected. See
+    /// <see cref="CanExport"/> for why the port does not keep that.
     /// </remarks>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExport))]
     private async Task SaveDatasetToCsvAsync(CancellationToken cancellationToken)
     {
         if (!EnsureExportable())
@@ -492,18 +460,46 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
         Dialect = CsvDialect.Legacy,
     };
 
+    /// <summary>Whether there is a finished dataset to write. Gates both export commands.</summary>
+    /// <returns><see langword="true"/> when a collect run has locked columns into the matrix.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>A divergence, on the product owner's report.</b> Neither Delphi action tells the truth
+    /// about this. <c>actSaveDataset</c> has <c>Enabled</c> unset in the <c>.dfm</c> and nothing ever
+    /// changes it, so <c>Save this dataset to CSV file</c> is live on a freshly started QuickStat;
+    /// <c>actExportData.Enabled := fGrid.Data.HasData</c> is assigned inside
+    /// <c>actCollectDataExecute</c> and <b>never reset</b>, so <c>Open this dataset in Excel</c>
+    /// stays live after a new population has emptied the grid (§D.1). The port reproduced both, and
+    /// the first of them is what the owner reported: a menu offering an export with nothing to
+    /// export.
+    /// </para>
+    /// <para>
+    /// One predicate for both, rather than fixing the reported half. They sit next to each other on
+    /// one menu and fail for exactly the same reason, so greying one and not the other would read as
+    /// a bug in whichever one still lit up.
+    /// </para>
+    /// <para>
+    /// <see cref="PersonMatrix.IsLocked"/> is part of it and not only
+    /// <see cref="PersonMatrix.HasData"/>: the Delphi writes the literal <c>(not ready)</c> into
+    /// every cell of an unlocked matrix. See
+    /// <see cref="EnsureExportable"/> for why the execute-time guard survives the enable rule.
+    /// </para>
+    /// </remarks>
+    private bool CanExport() => _workspace.Matrix is { HasData: true, IsLocked: true };
+
     /// <summary>Refuses to export a matrix that would produce a meaningless file.</summary>
     /// <returns><see langword="true"/> when the export may proceed.</returns>
     /// <remarks>
-    /// <b>An improvement, flagged.</b> The Delphi exports whatever is there: an unlocked matrix
-    /// writes the literal <c>(not ready)</c> into every cell and an empty population writes a
-    /// phantom <c>"nil"</c> row. Since <c>actSaveDataset</c> is always enabled and
-    /// <c>actExportData</c> latches on, both are reachable. Saying so is better than producing the
-    /// file.
+    /// The same question as <see cref="CanExport"/>, asked again at execute time. It is not
+    /// redundant: <see cref="PersonMatrix"/> raises nothing, so a command's enabled state is only as
+    /// fresh as the last <c>NotifyCanExecuteChanged</c>, and a command can be executed
+    /// programmatically without <c>CanExecute</c> being consulted at all. A sentence is better than
+    /// a file full of <c>(not ready)</c> or a phantom <c>"nil"</c> row, which is what the Delphi
+    /// writes here.
     /// </remarks>
     private bool EnsureExportable()
     {
-        if (_workspace.Matrix is { HasData: true, IsLocked: true })
+        if (CanExport())
         {
             return true;
         }
@@ -513,6 +509,17 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
         _ = _notifier.InformAsync(NothingToExportMessage);
 
         return false;
+    }
+
+    /// <summary>Re-asks <see cref="CanExport"/> for both export commands.</summary>
+    /// <remarks>
+    /// Called wherever the matrix can have gained or lost its columns or its lock: the end of a
+    /// collect run, and a population load - which clears both.
+    /// </remarks>
+    private void RefreshExportCommands()
+    {
+        OpenInExcelCommand.NotifyCanExecuteChanged();
+        SaveDatasetToCsvCommand.NotifyCanExecuteChanged();
     }
 
     private async Task ReportExportFailureAsync(Exception exception, string headline)
@@ -568,18 +575,16 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
 
         SaveDataPackageCommand.NotifyCanExecuteChanged();
 
+        // The load emptied the matrix and dropped its lock, so whatever was exportable no longer is.
+        RefreshExportCommands();
+
         GridRefreshRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnDataChanged(object? sender, EventArgs e)
     {
-        // Latching: see HasData.  Never assigned false here.
-        if (_workspace.HasData)
-        {
-            HasData = true;
-        }
-
         RefreshCaption();
+        RefreshExportCommands();
 
         GridRefreshRequested?.Invoke(this, EventArgs.Empty);
     }

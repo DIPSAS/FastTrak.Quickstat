@@ -429,11 +429,21 @@ No action in the entire form has a `Hint` or a `ShortCut`. Icons come from `lstA
 | Action | Caption (`.dfm`) | Hint | Shortcut | Image idx | Initial `Enabled` | Enable rule (as implemented) | Surfaced on |
 |---|---|---|---|---|---|---|---|
 | `actCollectData` | `Collect data` | — | — | 4 (gold magic wand + sparkles) | `False` | `ValidateCollectorSelection`: `true` iff **at least one item is checked** in `cbDataCollector`. Recomputed on every check-box click and after login. | `btnCollectData` (Collections tab, full-width, 43 px tall) |
-| `actExportData` | `Open this dataset in Excel` | — | — | 3 (green Excel “X”) | `False` | Set inside `actCollectDataExecute`: `actExportData.Enabled := fGrid.Data.HasData`. **Never reset to false** after that. | `mnuGridPopup` |
+| `actExportData` | `Open this dataset in Excel` | — | — | 3 (green Excel “X”) | `False` | Set inside `actCollectDataExecute`: `actExportData.Enabled := fGrid.Data.HasData`. **Never reset to false** after that. **The port diverges** — see the note below the table. | `mnuGridPopup`, and the `Export` button (§D.2) |
 | `actSaveDataPackage` | `Package this dataset for reuse` | — | — | 1 (tan parcel) | `False` | Same predicate as `actCollectData` (both are set together in `ValidateCollectorSelection`). | `mnuGridPopup` (caption **overridden** to `Package dataset specification for reuse`) |
-| `actSaveDataset` | `Save dataset to CSV file` | — | — | 6 (floppy/save) | `True` | Never changed — always enabled. | `mnuGridPopup` (caption **overridden** to `Save this dataset to CSV file`) |
+| `actSaveDataset` | `Save dataset to CSV file` | — | — | 6 (floppy/save) | `True` | Never changed — always enabled. **The port diverges** — see the note below the table. | `mnuGridPopup` (caption **overridden** to `Save this dataset to CSV file`), and the `Export` button (§D.2) |
 | `actSavePatientSelection` | `Save patient selection` | — | — | 5 | `False` | **Never changed.** | ⚠️ **Not attached to any menu item, button or toolbar.** Dead UI — see §I.2 |
 | `actDeletePackage` | `Delete this package` | — | — | 7 | `True` | Never changed; validated at execute time (warns `You need to select a package for this operation.` when nothing is selected). | `tbrPackages/ToolButton1` **and** `mnuPackagePopup` |
+
+> **DIVERGENCE — the two export actions tell the truth about themselves.** Reported by the
+> product owner during the parity pass: `Save this dataset to CSV file` is live on a freshly
+> started QuickStat, with nothing to save. Neither Delphi rule is honest — `actSaveDataset` is
+> never assigned at all, and `actExportData` latches on and stays on over a matrix a new
+> population has since emptied. The port gates **both** on one predicate,
+> `DatasetViewModel.CanExport`: the matrix has columns *and* is locked. One predicate rather
+> than a fix to the reported half, because the two sit next to each other on one menu and fail
+> for exactly the same reason. The execute-time guard stays — `PersonMatrix` raises no change
+> notification, so an enabled state is only as fresh as the last `NotifyCanExecuteChanged`.
 
 **`RelayCommand` mapping**
 

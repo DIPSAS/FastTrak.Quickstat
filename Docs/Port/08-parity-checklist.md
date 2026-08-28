@@ -250,6 +250,13 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   `Export timestamp for every data element` adds a `.DATE` column after each value column. §B.2.
 - [ ] **5.3** `Open this dataset in Excel` opens Excel on a temp file, and the temp file is gone
   after the app exits. §D.1, §G.6.
+- [ ] **5.4** On a freshly started QuickStat **all three** menu items are greyed. They light up
+  together at the end of a collect run, and go dark again the moment a new population empties the
+  grid. §D.1.
+- ⚠ **A deliberate divergence, on your own report.** The Delphi greys neither export: `actSaveDataset`
+  is never assigned, and `actExportData` latches on and never off. Both are gated on one predicate
+  here — `DatasetViewModel.CanExport` — rather than only the half that was reported, because they
+  sit next to each other on one menu and fail for the same reason.
 - ⚠ **Two structural differences from the Delphi's CSV are known, deliberate and attributed** — the
   port de-duplicates two repeated column names, and the ten `FORM.*` columns are permuted because
   the Delphi's order is `TObjectDictionary` hash order. **Read PORT-PLAN.md §8.14 before reporting

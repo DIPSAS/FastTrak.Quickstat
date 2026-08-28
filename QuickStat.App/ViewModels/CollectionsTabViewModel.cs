@@ -317,9 +317,9 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     ///     (§G.3). This is the one call site that passes a source: PORT-PLAN.md §8.10 (c).
     ///   </description></item>
     ///   <item><description>
-    ///     <c>actExportData.Enabled := fGrid.Data.HasData</c> is
-    ///     <c>DatasetViewModel.HasData</c>, refreshed by
-    ///     <see cref="IShellWorkspace.NotifyDataChanged"/>.
+    ///     <c>actExportData.Enabled := fGrid.Data.HasData</c> is <c>DatasetViewModel.CanExport</c>,
+    ///     re-asked by <see cref="IShellWorkspace.NotifyDataChanged"/>. The Delphi never assigns it
+    ///     false again; the port does - see that method for the divergence.
     ///   </description></item>
     ///   <item><description>
     ///     <c>UpdateGridInfo</c> is the same notification, which is why it is raised in the

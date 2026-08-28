@@ -78,42 +78,58 @@ public class DatasetViewModelTests
     }
 
     [Fact]
-    public void OpenInExcelIsDisabledUntilAColuectRunProducesData()
+    public void NeitherExportIsOfferedUntilACollectRunProducesData()
     {
+        // A divergence from both Delphi actions, on the owner's report: actSaveDataset is always
+        // enabled and actExportData latches on, so the Delphi offers exports it cannot perform.
+        // DatasetViewModel.CanExport records the decision.
         using DatasetHarness harness = new();
 
         Assert.False(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
+        Assert.False(harness.ViewModel.SaveDatasetToCsvCommand.CanExecute(null));
 
         harness.LoadAndCollect();
 
         Assert.True(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
+        Assert.True(harness.ViewModel.SaveDatasetToCsvCommand.CanExecute(null));
     }
 
     [Fact]
-    public void OpenInExcelIsNeverDisabledAgain()
+    public void BothExportsGoDarkAgainWhenANewPopulationEmptiesTheGrid()
     {
-        // §D.1: actExportData.Enabled is set inside actCollectDataExecute and never reset to false.
-        // Loading a new population empties the matrix, and in the Delphi the menu item stays live.
+        // §D.1: actExportData.Enabled is set inside actCollectDataExecute and never reset to false,
+        // so in the Delphi the item stays live over a matrix that no longer has columns.  The port
+        // asks the matrix instead of remembering an answer.
         using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
-        Assert.True(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
 
         harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(99)]);
         harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation(2, "Andre"));
         harness.Workspace.NotifyDataChanged();
 
         Assert.False(harness.Workspace.HasData);
-        Assert.True(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
+        Assert.False(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
+        Assert.False(harness.ViewModel.SaveDatasetToCsvCommand.CanExecute(null));
     }
 
     [Fact]
-    public void SaveDatasetToCsvIsAlwaysEnabled()
+    public void AMatrixWithColumnsButNoLockIsNotExportableEither()
     {
-        // actSaveDataset has Enabled unset in the .dfm and nothing ever changes it.
+        // HasData alone would light both items up in the middle of a collect run, over a matrix
+        // whose every cell still reads "(not ready)".
         using DatasetHarness harness = new();
 
-        Assert.True(harness.ViewModel.SaveDatasetToCsvCommand.CanExecute(null));
+        harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(1)]);
+        harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation());
+        ShellWorkspaceTests.AddColumn(harness.Matrix, "AGE", 1, 64);
+        harness.Workspace.NotifyDataChanged();
+
+        Assert.True(harness.Workspace.HasData);
+        Assert.False(harness.Matrix.IsLocked);
+
+        Assert.False(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
+        Assert.False(harness.ViewModel.SaveDatasetToCsvCommand.CanExecute(null));
     }
 
     [Fact]
@@ -214,9 +230,10 @@ public class DatasetViewModelTests
     [Fact]
     public async Task ExportingWithNothingCollectedExplainsRatherThanWritingAFile()
     {
-        // An improvement, flagged: the Delphi writes the literal "(not ready)" into every cell of an
-        // unlocked matrix, and a phantom "nil" row for an empty population.  Both are reachable,
-        // because Save-to-CSV is always enabled.
+        // The execute-time guard, reached by executing the command past its own CanExecute - which
+        // is exactly the case it survives for: PersonMatrix raises nothing, so an enabled state is
+        // only as fresh as the last NotifyCanExecuteChanged.  The Delphi would write the literal
+        // "(not ready)" into every cell and a phantom "nil" row.
         using DatasetHarness harness = new();
 
         await harness.ViewModel.SaveDatasetToCsvCommand.ExecuteAsync(null);
@@ -231,6 +248,11 @@ public class DatasetViewModelTests
     {
         using DatasetHarness harness = new();
 
+        // The dialog is given an answer on purpose.  Without one the fake returns null, the command
+        // returns early, and "no file was written" holds whether or not the guard fired at all - so
+        // the case would pass against exactly the defect it exists to catch.
+        harness.FileDialogs.Answer = "C:\\Temp\\out.csv";
+
         harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(1)]);
         harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation());
         ShellWorkspaceTests.AddColumn(harness.Matrix, "AGE", 1, 64);
@@ -242,6 +264,8 @@ public class DatasetViewModelTests
         await harness.ViewModel.SaveDatasetToCsvCommand.ExecuteAsync(null);
 
         Assert.Empty(harness.Exporter.Paths);
+        Assert.Equal(0, harness.FileDialogs.ShowCount);
+        Assert.Contains(harness.Presenter.Notifications, n => n.Message == DatasetViewModel.NothingToExportMessage);
     }
 
     [Fact]
