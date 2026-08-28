@@ -82,7 +82,9 @@ Roughly **60 items need eyes**. Four other acceptance criteria close along the w
 - [ ] **2.9** Single click fills the SQL preview below the inner splitter, monospaced and
   read-only; the inner splitter drags. §B.1.1 items 6–7.
 - [ ] **2.10** Double click loads: the right pane switches to `Dataset`, the grid fills, and the
-  `Collections` tab **appears and is activated**. §B.0, §B.1.1.
+  `Collections` tab **appears and is activated**. §B.0, §B.1.1. *(This is where the pass found its
+  first defect — the double click reached nothing at all, PORT-PLAN.md §8.11 (5). Fixed and pinned,
+  but worth confirming with your own hands rather than on the strength of a test.)*
 - ⚠ **A freshly loaded list is expanded in the port and collapsed in the Delphi**, under the same
   unticked `Simplified` box. The VCL grid initialises `FSimpleView := true`
   (`Emetra.VclComp.ListView.pas:283`) while `cbSimpleView` starts unticked, so the two disagree
@@ -210,7 +212,9 @@ delete what you create.
   vs §B.1.1 — PORT-PLAN.md §8.8 (i) says the difference is real and deliberate.
 - [ ] **6.6** **Double click replays the package in full:** selects and loads its population,
   unchecks everything, re-checks each stored collector by name, runs the collect, and sets the
-  dataset caption to the package title. §B.3.
+  dataset caption to the package title. §B.3. *(Until PORT-PLAN.md §8.11 (5) this was reachable by
+  **nothing** — the same dead `MouseBinding` as the population list, and here with no `Enter`
+  beside it, because the Delphi has none either. Check the gesture itself, not just the outcome.)*
 - [ ] **6.7** …and the left pane ends on the **Collections** tab, not the Packages tab. That is
   parity, restored after `07` §3.1 said otherwise (wave-2 defect 4).
 - [ ] **6.8** A package naming an unknown population, and one naming an unknown collector, produce

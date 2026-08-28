@@ -40,6 +40,9 @@ public class PopulationViewMarkupTests
     /// <summary>The <c>x:</c> namespace, which is where <c>x:Name</c> and <c>x:Key</c> live.</summary>
     private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
+    /// <summary>The <c>input:</c> namespace, which is where the attached double-click lives.</summary>
+    private static readonly XNamespace Input = "clr-namespace:QuickStat.Input";
+
     private static XDocument View(string fileName) =>
         XDocument.Load(Path.Combine(RepositoryFiles.Root, "QuickStat.App", "Views", fileName));
 
@@ -201,10 +204,16 @@ public class PopulationViewMarkupTests
         Assert.Equal("Enter", Attribute(key, "Key"));
         Assert.Equal("{Binding PreparePopulationCommand}", Attribute(key, "Command"));
 
-        XElement mouse = Assert.Single(Named(picker, "MouseBinding"));
+        // The double click is an attached behaviour and NOT a second InputBinding, which is the
+        // whole of Phase 5's fifth defect: this case used to assert a MouseBinding with the right
+        // gesture and the right command, and passed for as long as double-clicking a population did
+        // nothing whatsoever. ListBoxItem marks the selecting mouse-down handled, so the event never
+        // reaches the ListBox whose collection holds the binding. Ui/Input/DoubleClickTests.cs
+        // raises the real events; this case only forbids the spelling coming back.
+        XElement list = Assert.Single(Named(picker, "ListBox"));
 
-        Assert.Equal("LeftDoubleClick", Attribute(mouse, "MouseAction"));
-        Assert.Equal("{Binding PreparePopulationCommand}", Attribute(mouse, "Command"));
+        Assert.Equal("{Binding PreparePopulationCommand}", Attribute(list, Input + "DoubleClick.Command"));
+        Assert.Empty(Named(picker, "MouseBinding"));
     }
 
     [Fact]

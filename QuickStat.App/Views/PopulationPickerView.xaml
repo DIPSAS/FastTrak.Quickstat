@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:QuickStat.Converters"
+             xmlns:input="clr-namespace:QuickStat.Input"
              xmlns:vm="clr-namespace:QuickStat.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:PopulationPickerViewModel}">
@@ -142,26 +143,31 @@
                 it has painted (Emetra.VclComp.ListView.pas:322, 639-640), so without this the titles
                 would not line up once the ids differ in length.
             -->
+            <!--
+                Enter behaves like a double click (Emetra.VclComp.ListView.pas:762-766), and the
+                double click itself is the whole point of the list (§B.1.1).  Both are guarded by
+                the command's CanExecute, which is what the Delphi's TryGetHighlightedPopulation
+                guard amounts to.
+
+                The two gestures are spelled differently on purpose.  A MouseBinding here would
+                never fire - ListBoxItem handles the mouse-down it selects itself with, so the
+                event stops below the ListBox that owns the binding.  input:DoubleClick hangs off
+                Control.MouseDoubleClick, which the item raises and lets bubble.  See its remarks.
+            -->
             <ListBox x:Name="PopulationList"
                      AlternationCount="2"
                      BorderBrush="{StaticResource QsBorderBrush}"
                      BorderThickness="1"
                      Grid.IsSharedSizeScope="True"
                      HorizontalContentAlignment="Stretch"
+                     input:DoubleClick.Command="{Binding PreparePopulationCommand}"
                      ItemContainerStyle="{StaticResource QsPopulationItem}"
                      ItemsSource="{Binding Populations}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      SelectedItem="{Binding SelectedPopulation, Mode=TwoWay}">
 
-                <!--
-                    Enter behaves like a double click (Emetra.VclComp.ListView.pas:762-766), and the
-                    double click itself is the whole point of the list (§B.1.1).  Both are guarded by
-                    the command's CanExecute, which is what the Delphi's
-                    TryGetHighlightedPopulation guard amounts to.
-                -->
                 <ListBox.InputBindings>
                     <KeyBinding Key="Enter" Command="{Binding PreparePopulationCommand}" />
-                    <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding PreparePopulationCommand}" />
                 </ListBox.InputBindings>
 
                 <ListBox.ItemTemplate>

@@ -7,7 +7,7 @@ Last updated: 2026-08-27
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 490 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 498 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -24,6 +24,16 @@ Last updated: 2026-08-27
 > truncated where Delphi rounds; and a packages list painting its unfocused selection with the grid's
 > blend result. All six are fixed, each with a regression test, and the last three were
 > negative-controlled by reverting the production change and watching eight tests fail.
+>
+> **A seventh came out of the manual pass on its first screen, and it is the interesting one:
+> double-clicking a population did nothing at all** — §8.11 (5). `<MouseBinding
+> MouseAction="LeftDoubleClick">` inside `ListBox.InputBindings` never fires on a row, because
+> `ListBoxItem` handles the mouse-down the binding needs. The package replay, which has no keyboard
+> equivalent by design, was unreachable by **any** input. It is the only defect so far that a test
+> had actively locked in: the case covering it asserted the markup, found the binding it expected,
+> and passed. **A test that asserts what was typed cannot notice that what was typed does not
+> work** — which is the argument for the whole live-verification exercise in one line. Fixed, and
+> the negative control is now permanent rather than performed once. **2 498 tests.**
 >
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
@@ -1151,6 +1161,48 @@ tidiness: without it, `dbo.CloseSession` runs a second time for a session alread
 Measured, not argued: sessions **814** and **815** were run down the application's own shutdown path
 before the fix and still have `ClosedAt` NULL; session **816**, the same path after it, has
 `ClosedAt` set and `DirtyClose = 0`.
+
+**(5) The first defect found by the manual pass, and the only one a test had actively locked in.**
+Double-clicking a population did nothing. Not slowly, not wrongly — nothing: no query, no log line,
+no error. The port had issued no statement to the server for the whole minute after the click, which
+is how it was caught rather than argued (`sys.dm_exec_sessions.last_request_end_time` against a
+`PopulationPickerViewModel` that logs every load at `Information`).
+
+Both lists said the obvious thing:
+
+```xml
+<ListBox.InputBindings>
+  <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding PreparePopulationCommand}" />
+</ListBox.InputBindings>
+```
+
+**An `InputBinding` is matched while the input event bubbles through the element whose collection
+holds it, and `ListBoxItem` marks the mouse-down it selects itself with as handled.** The event stops
+one level below the `ListBox`, so the gesture never arrives. It is silent rather than broken —
+no binding error, nothing in a log — and a double-click on the list's blank area *does* work, which
+is the perfect camouflage: it looks right whenever the list is short.
+
+The population list survived it because `Enter` is bound separately and works. **The packages list
+did not**: its replay had no keyboard equivalent, by design — `lbPackagedGrids` is a plain `TListBox`
+with `OnDblClick` and no `TObjectListView.DoKeyPress` — so the package replay was **unreachable by
+any input at all**. That is §8.10 (h)'s untouched area, and it would have failed on contact.
+
+Fixed with `QuickStat.App/Input/DoubleClick.cs`, an attached `Command` that hangs off
+`Control.MouseDoubleClick`. The routing that makes it work is *not* the one that reads naturally, and
+was got wrong once on the way: `MouseDoubleClick` is registered `RoutingStrategy.Direct` and does not
+bubble. What happens instead is that `Control` class-handles the bubbling mouse-down **with
+`handledEventsToo`**, so the list still sees it after the item has handled it, and raises its own
+direct `MouseDoubleClick` on itself. `Ui/Input/DoubleClickTests.cs` drives that whole path with a
+real `Mouse.MouseDownEvent` at `ClickCount` 2 rather than raising the double-click event directly —
+a synthetic shortcut is what hid this in the first place.
+
+**The lesson is about the test, not the markup.** `PopulationViewMarkupTests.EnterAndDoubleClickBothPreparePopulation`
+covered this line and passed throughout: it read the `.xaml`, found a `MouseBinding` with the right
+gesture bound to the right command, and asserted exactly that. *A test that asserts what was typed
+cannot notice that what was typed does not work.* The negative control is now permanent rather than
+performed once — `TheSpellingItReplacesNeverFires` builds the old markup, drives the same double
+click, and asserts the command is never reached — and a repo-wide case forbids `MouseBinding`
+reappearing in any view.
 
 **Left open by Phase 5**
 

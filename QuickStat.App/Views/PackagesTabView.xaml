@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:input="clr-namespace:QuickStat.Input"
              xmlns:q="clr-namespace:QuickStat.Controls"
              xmlns:theme="clr-namespace:QuickStat.Theme"
              xmlns:vm="clr-namespace:QuickStat.ViewModels"
@@ -34,10 +35,20 @@
             </Button>
         </StackPanel>
 
+        <!--
+            Double click replays the package (§B.3), and it is the ONLY way in - the Delphi's
+            lbPackagedGrids is a plain TListBox with OnDblClick and no Enter equivalent, so there is
+            deliberately no KeyBinding beside it.  That made the spelling load-bearing: a
+            MouseBinding here never fires, because ListBoxItem handles the mouse-down it selects
+            itself with and the event stops below the ListBox that owns the binding.  The replay was
+            unreachable by any input at all until this became input:DoubleClick, which hangs off
+            Control.MouseDoubleClick - raised by the item, and bubbling.
+        -->
         <ListBox Margin="3,0,3,3"
                  BorderBrush="{StaticResource QsBorderBrush}"
                  BorderThickness="1"
                  HorizontalContentAlignment="Stretch"
+                 input:DoubleClick.Command="{Binding OpenPackageCommand}"
                  ItemContainerStyle="{StaticResource QsPackageItem}"
                  ItemsSource="{Binding PackagesView}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -111,9 +122,6 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
 
-            <ListBox.InputBindings>
-                <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenPackageCommand}" />
-            </ListBox.InputBindings>
         </ListBox>
     </DockPanel>
 </UserControl>
