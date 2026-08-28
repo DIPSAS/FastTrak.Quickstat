@@ -7,7 +7,7 @@ Last updated: 2026-08-27
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 498 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 506 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -33,7 +33,17 @@ Last updated: 2026-08-27
 > had actively locked in: the case covering it asserted the markup, found the binding it expected,
 > and passed. **A test that asserts what was typed cannot notice that what was typed does not
 > work** — which is the argument for the whole live-verification exercise in one line. Fixed, and
-> the negative control is now permanent rather than performed once. **2 498 tests.**
+> the negative control is now permanent rather than performed once.
+>
+> **An eighth, two screens later, is the same lesson one level up: the dataset grid could not be
+> scrolled with the mouse and had no scrollbars at all** — §8.11 (6). `MatrixGrid` implements
+> `IScrollInfo` in full and its own class documentation says to host it in a `ScrollViewer` with
+> `CanContentScroll="True"`; `DatasetTabView.xaml` did not, and those methods are interface members
+> that nothing but a `ScrollViewer` ever calls. The arrow keys worked, which is what hid it. The
+> suite covered every one of the unreachable methods — including a case named
+> `TheWheelMovesThreeRows` — by calling them itself. **A test that calls an API itself cannot notice
+> that nothing else does.** Fixed, and the new cases drive real wheel events through the real view.
+> **2 506 tests.**
 >
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
@@ -1203,6 +1213,42 @@ cannot notice that what was typed does not work.* The negative control is now pe
 performed once — `TheSpellingItReplacesNeverFires` builds the old markup, drives the same double
 click, and asserts the command is never reached — and a repo-wide case forbids `MouseBinding`
 reappearing in any view.
+
+**(6) The dataset grid could not be scrolled with the mouse, and had no scrollbars.** Reported from
+the manual pass two screens after (5): the wheel moves the patient list in the shipped build and did
+nothing in the port.
+
+`MatrixGrid` implements `IScrollInfo` in full — `LineUp`/`LineDown`, `PageUp`/`PageDown`,
+`MouseWheelUp`/`MouseWheelDown`, `SetVerticalOffset`, `MakeVisible`, `ExtentHeight`, `ViewportHeight`
+— and its own class documentation states the host requirement in as many words: *"Put it inside a
+`ScrollViewer` with `CanContentScroll="True"`; the control implements `IScrollInfo` and drives both
+bars itself."* `DatasetTabView.xaml` put it in a bare `Grid` inside a `Border`. **Those methods are
+interface members, not input handlers: nothing calls them except a `ScrollViewer`.** The whole
+implementation was unreachable, `ScrollOwner` was permanently `null`, and every
+`ScrollOwner?.InvalidateScrollInfo()` in the control was a null-check that never fired.
+
+So the wheel did nothing — and, the larger half of it, **there were no scrollbars on either axis**.
+A dataset taller or wider than the pane could be reached only with the arrow keys, which the grid
+handles itself in `OnKeyDown`. That is why it looked fine: `Focusable` is overridden to `true`, the
+caret moves, and the view scrolls to follow it. The two halves of the control were written by
+different steps — 3.1 wrote the view, 3.5 wrote the control — and the contract between them was a
+comment.
+
+Fixed by hosting the grid as documented. The hint `Canvas` deliberately stays a *sibling* of the
+`ScrollViewer`: `TryGetCellBounds` answers in the grid's own coordinates and the grid is arranged at
+the `ScrollViewer`'s origin, so the two spaces still coincide, but inside it the hint would scroll
+away from the cell it describes. `WheelStep()` now reads the live `RowHeight` rather than
+`MatrixGridLayout.DefaultRowHeight`; same number in the shipped tab, which sets neither.
+
+**Same lesson as (5), one level up.** `Ui/Controls/MatrixGridScrollInfoTests.cs` covered every one of
+those methods and passed throughout — including a case named `TheWheelMovesThreeRows`, which calls
+`grid.MouseWheelDown()` on a bare control. *A test that calls an API itself cannot notice that
+nothing else does.* `Ui/Dataset/DatasetGridScrollHostTests.cs` drives real `MouseWheelEvent`s through
+the real view instead, asserts both computed scrollbar visibilities against an overflowing and a
+fitting dataset, pins the hint's origin against the grid's, and keeps `ABareGridIgnoresTheWheel` as
+the standing statement of what was wrong. It also records something measured rather than assumed:
+`ScrollViewer.OnMouseWheel` reads only the *sign* of `Delta` and makes exactly one `MouseWheelDown`
+call, so one event carrying twice the delta scrolls three rows, not six.
 
 **Left open by Phase 5**
 

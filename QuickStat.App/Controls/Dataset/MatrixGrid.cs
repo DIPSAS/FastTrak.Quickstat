@@ -47,6 +47,14 @@ namespace QuickStat.Controls.Dataset;
 /// <c>CanContentScroll="True"</c>; the control implements <see cref="IScrollInfo"/> and drives both
 /// bars itself. Do not give it a <c>Height</c> - it fills what it is given and scrolls the rest.
 /// </para>
+/// <para>
+/// That paragraph was here, and unmet, for the whole of Phase 5: <c>DatasetTabView.xaml</c> hosted
+/// the grid in a bare <c>Grid</c>, so the wheel did nothing, there were no scrollbars, and
+/// <see cref="ScrollOwner"/> was permanently <see langword="null"/>. Everything below
+/// <see cref="LineUp"/> is an interface member that only a <c>ScrollViewer</c> ever calls.
+/// <c>Ui/Dataset/DatasetGridScrollHostTests.cs</c> now enforces the requirement instead of stating
+/// it; PORT-PLAN.md §8.11 (6).
+/// </para>
 /// </remarks>
 public class MatrixGrid : FrameworkElement, IScrollInfo
 {
@@ -1310,7 +1318,13 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
     private static string? NullIfEmpty(string? text) => string.IsNullOrEmpty(text) ? null : text;
 
-    private static double WheelStep() => 3 * MatrixGridLayout.DefaultRowHeight;
+    /// <summary>How far one wheel notch moves: three rows, the Windows default.</summary>
+    /// <remarks>
+    /// The live row height rather than <see cref="MatrixGridLayout.DefaultRowHeight"/>, so a grid
+    /// given a different <see cref="RowHeight"/> still lands on a row boundary. They are the same
+    /// number in the shipped Dataset tab, which sets neither.
+    /// </remarks>
+    private double WheelStep() => 3 * _layout.RowHeight;
 
     private void SyncFixedColumns() =>
         _layout.VisibleFixedOrdinals = FixedColumns.VisibleOrdinals(IdentificationColumns.For(Identification));

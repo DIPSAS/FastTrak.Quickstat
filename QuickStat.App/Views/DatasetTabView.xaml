@@ -94,20 +94,45 @@
                 BorderBrush="{StaticResource QsBorderStrongBrush}"
                 BorderThickness="1">
             <Grid ClipToBounds="True">
-                <grid:MatrixGrid x:Name="Grid"
+                <!--
+                    The grid implements IScrollInfo and drives both bars itself, but only a
+                    ScrollViewer ever calls it: LineDown, PageDown and MouseWheelDown are members of
+                    that interface, not handlers.  Without this host the wheel did nothing and there
+                    were no scrollbars at all, so a dataset taller than the pane could only be
+                    reached with the arrow keys - see PORT-PLAN.md §8.11 (6).  CanContentScroll is
+                    the load-bearing attribute: with it False the ScrollViewer would ignore
+                    IScrollInfo and try to scroll the element as one tall bitmap instead, and the
+                    grid has no height to scroll - it paints its own viewport.
+
+                    Focusable=False keeps the caret on the grid, whose OnKeyDown already handles
+                    every navigation key and marks it handled, so the ScrollViewer never competes
+                    for one.  Auto on both bars is the Delphi's ssBoth: TCustomGrid shows a bar only
+                    while there is something behind it.
+
+                    The hint Canvas stays a sibling of the ScrollViewer rather than moving inside
+                    it.  TryGetCellBounds answers in the grid's own coordinates, and the grid is
+                    arranged at the ScrollViewer's origin, so the two spaces still coincide - but
+                    inside, the hint would scroll away from the cell it describes.
+                -->
+                <ScrollViewer CanContentScroll="True"
+                              Focusable="False"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto">
+                    <grid:MatrixGrid x:Name="Grid"
                                  Matrix="{Binding Matrix, Mode=OneWay}"
-                                 Identification="{Binding IdentificationMode, Mode=OneWay}"
-                                 DataColumnWidth="{Binding DataColumnWidth, Mode=OneWay}"
-                                 ContextMenu="{StaticResource GridContextMenu}"
-                                 GridLineBrush="{StaticResource QsGridLineBrush}"
-                                 FixedCellBackground="{StaticResource QsPageBrush}"
-                                 FixedCellForeground="{StaticResource QsTealDarkBrush}"
-                                 CurrentCellBackground="{StaticResource QsCurrentCellBrush}"
-                                 CurrentRowBackground="{StaticResource QsCurrentRowBrush}"
-                                 MissingObjectBackground="{StaticResource QsCellNoDataBrush}"
-                                 FontFamily="{StaticResource QsFontFamily}"
-                                 FontSize="{StaticResource QsFontSize}"
-                                 Foreground="{StaticResource QsTextBrush}" />
+                                     Identification="{Binding IdentificationMode, Mode=OneWay}"
+                                     DataColumnWidth="{Binding DataColumnWidth, Mode=OneWay}"
+                                     ContextMenu="{StaticResource GridContextMenu}"
+                                     GridLineBrush="{StaticResource QsGridLineBrush}"
+                                     FixedCellBackground="{StaticResource QsPageBrush}"
+                                     FixedCellForeground="{StaticResource QsTealDarkBrush}"
+                                     CurrentCellBackground="{StaticResource QsCurrentCellBrush}"
+                                     CurrentRowBackground="{StaticResource QsCurrentRowBrush}"
+                                     MissingObjectBackground="{StaticResource QsCellNoDataBrush}"
+                                     FontFamily="{StaticResource QsFontFamily}"
+                                     FontSize="{StaticResource QsFontSize}"
+                                     Foreground="{StaticResource QsTextBrush}" />
+                </ScrollViewer>
 
                 <Canvas IsHitTestVisible="False">
                     <Border x:Name="HintPanel"

@@ -34,6 +34,13 @@ collect all 213 elements in about a minute.
 Roughly **60 items need eyes**. Four other acceptance criteria close along the way, marked
 **[AC-n]** where they do.
 
+**A ✅ is worth what the test behind it is worth, and the first two defects this pass found were both
+under one.** 2.10 was covered by a test that read the markup and confirmed the gesture was spelled
+correctly — it was, and it did nothing. 4.12 was covered by a test that called the scrolling API
+itself, which proves the arithmetic and not that anything reaches it. Both now have a case that
+drives real input through the real view. If a ✅ names a test whose subject is the *code* rather than
+the *behaviour*, treat it as a `[ ]`.
+
 ---
 
 ## 1. Launch and connect — **[AC-2]**
@@ -163,6 +170,11 @@ Roughly **60 items need eyes**. Four other acceptance criteria close along the w
   value. It moves **only on click** — not on hover, not on arrow keys. `Show data hint` is checked
   by default and hides it. §G.2.
 - [ ] **4.11** Column resizing by drag works; clicking a fixed cell selects the row. §C.3.
+- [ ] **4.12** **Scrolling with the mouse**: the wheel moves the patient list three rows a notch, and
+  both scrollbars appear when the dataset is taller or wider than the pane and go away when it is
+  not. This is where the pass found its second defect — the grid had no scrollbars at all and the
+  wheel did nothing, PORT-PLAN.md §8.11 (6). Fixed and pinned, but confirm it with your own hand:
+  the arrow keys always worked, and that is exactly what hid it.
 - ⚠ **No `Time series` tab.** The Delphi's is empty, permanently disabled and referenced by nothing;
   the port drops the `TabControl` entirely. §C.2 — and this is the one removal a user can see, so
   it belongs in the release notes.
@@ -173,8 +185,13 @@ Roughly **60 items need eyes**. Four other acceptance criteria close along the w
   `MatrixGridRenderTests.cs`, `MatrixGridPaletteTests.cs`, `Ui/DatasetGridThemeTests.cs`.
 - ✅ `#C8D9E9` and the half-to-even blend are **measured off the running binary**, not transcribed —
   933 px on one click, and no `#FFFBD4` anywhere. PORT-PLAN.md §8.9 (a), §8.14.
-- ✅ Layout, keyboard navigation, scrolling, virtualisation and the automation peer —
+- ✅ Layout, keyboard navigation, virtualisation and the automation peer —
   `Ui/Controls/MatrixGrid*Tests.cs`.
+- ✅ Scrolling, in two halves that used to be one. What the grid *computes* —
+  `Ui/Controls/MatrixGridScrollInfoTests.cs`, which called `IScrollInfo` itself and so said nothing
+  about whether anything else did. What the tab actually *does* with a mouse —
+  `Ui/Dataset/DatasetGridScrollHostTests.cs`, added after 4.12 turned up a defect the first file had
+  covered for weeks.
 - ✅ Caption format string and its argument order — `Ui/Dataset/DatasetViewModelTests.cs`.
 
 ## 5. Export — **[AC-6]** and **[AC-7]**
