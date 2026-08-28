@@ -16,9 +16,11 @@ Two windows, side by side:
 - **The port.** `C:\work\qs-run\run.ps1` builds it, stages the configuration and launches it. That
   folder's `README.md` has the four traps and where the log lands.
 
-Both against `EFT00028_TEST_020` on `localhost`, and no other database. Suggested cohort: NDV
-ProcId **282** *"Diagnoseår mangler"* — 31 patients, small enough to collect all 213 elements in
-about a minute.
+Both against `EFT00028_TEST_020` on `localhost`, and no other database. **Pick
+`Testdatabase (NDV)`** — the picker is sorted by display name and preselects nothing, so the
+entry that sorts to the top is not necessarily the one you want, and everything measured during the
+port is NDV. Suggested cohort: ProcId **282** *"Diagnoseår mangler"* — 31 patients, small enough to
+collect all 213 elements in about a minute.
 
 ## Legend
 
@@ -66,7 +68,8 @@ Roughly **60 items need eyes**. Four other acceptance criteria close along the w
   it is not a client-side filter. §B.1.1 item 3. *(Watch `dbo.PopulationLog` or the port's log if
   you want proof rather than impression.)*
 - [ ] **2.4** `Simplified` is client-side only: checked, only the selected row expands to show its
-  `HelpText`; unchecked, every row is expanded. §B.1.1 item 4.
+  `HelpText`; unchecked, every row is expanded. §B.1.1 item 4. **Compare it after a click, not on
+  first load** — see the ⚠ below.
 - [ ] **2.5** The filter matches on every keystroke, case-insensitively, over the whole
   `ProcId ⇥ Title ⇥ HelpText ⇥ ProcGroup` string, and is **not** trimmed — type a leading space and
   the result set should collapse. §B.1.1.
@@ -80,6 +83,12 @@ Roughly **60 items need eyes**. Four other acceptance criteria close along the w
   read-only; the inner splitter drags. §B.1.1 items 6–7.
 - [ ] **2.10** Double click loads: the right pane switches to `Dataset`, the grid fills, and the
   `Collections` tab **appears and is activated**. §B.0, §B.1.1.
+- ⚠ **A freshly loaded list is expanded in the port and collapsed in the Delphi**, under the same
+  unticked `Simplified` box. The VCL grid initialises `FSimpleView := true`
+  (`Emetra.VclComp.ListView.pas:283`) while `cbSimpleView` starts unticked, so the two disagree
+  until the first click or keystroke re-synchronises them. The port follows the check box, which is
+  what §B.1.1 describes. It is the first difference you will see on the first screen, and it is not
+  a defect — `PopulationPickerViewModel.ApplyExpansion` says so at the code.
 - ⚠ **Empty filter result shows an empty-state message** where the VCL hides the whole list.
   Deliberate improvement. §B.1.1.
 - ⚠ **Populations are not sorted client-side** — stored-procedure order, ascending `ProcId`. If the
