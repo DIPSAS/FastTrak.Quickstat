@@ -7,7 +7,7 @@ Last updated: 2026-08-28
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 528 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 534 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -71,6 +71,16 @@ Last updated: 2026-08-28
 > which is how the raw `<ConnectionString>` got one step from a screen reader; the deployed file
 > names a UDL and leaked nothing, but the format allows credentials, so this is treated as privacy
 > rather than polish. **2 528 tests**, nine of them new, negative-controlled in both directions.
+>
+> **A twelfth came from the parity pass, and the spec had it right all along** — §8.11 (9). Ticking
+> `Show data hint` did nothing until the user clicked another cell. In the Delphi the check box's
+> handler *is* `UpdateDataHintPanel`, which hides the panel and then rebuilds it from `fGrid.Col` /
+> `fGrid.Row` — the *current* cell — and the port had only the hiding half, under a comment asserting
+> the opposite. §G.2's first bullet says "triggered by `fGrid.OnClick` **and** by toggling
+> `cbShowDataHint`"; that is the third defect here where the spec was read past rather than wrong.
+> The rebuild has to cross the view-model/control seam, since only the grid knows where the caret is,
+> so it goes the way `GridRefreshRequested` already goes. **2 534 tests**, four of them new,
+> negative-controlled on each side of that seam separately.
 >
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
@@ -1397,6 +1407,40 @@ container cases while the `ToString` cases stay green, and reverting the four `T
 fails the fallback cases. Not reproduced against the running binary, and it does not need to be —
 attaching UI Automation is how it was found in the first place, and doing it again is what caused
 (7b).
+
+**(9) `Show data hint` only took effect on the next cell.** Reported from the parity pass: ticking the
+box with a cell already selected showed nothing, and the hint appeared only once the user clicked
+somewhere else. Unticking it worked.
+
+The port had half of `UpdateDataHintPanel`. In the Delphi the check box's handler **is** that
+procedure — `cbShowDataHint.OnClick := UpdateDataHintPanel` (`MainQuickStat.pas:310`) — whose first
+statement hides the panel and whose remainder rebuilds it from `fGrid.Col` and `fGrid.Row`, the
+*current* cell. `DatasetViewModel.OnShowDataHintChanged` cleared `Hint` when the box went off and did
+nothing when it came on, under a comment asserting that the Delphi behaved the same way. It does not,
+and `05-ui-spec.md` §G.2 already said so in its first bullet: *"Triggered by `fGrid.OnClick` **and**
+by toggling `cbShowDataHint`"*. This is the third defect in this section where the spec was right and
+the implementation read past it.
+
+The rebuild needs the caret, and the view-model cannot see it: the two indices and the cell rectangle
+are `MatrixGrid`'s, and fetching them is what `DatasetTabView` already does on `CellActivated`.
+Toggling the box raises no such event, because nothing moved — so the view-model raises
+`HintRefreshRequested` and the view runs the same path against `Grid.CurrentRowIndex` /
+`Grid.CurrentColumnIndex`, exactly as `GridRefreshRequested` already works. `Hint` is still cleared
+first, so a view-model with no view attached ends up with the hint off, which is the safe half.
+
+**Why no existing test caught it, and where the new ones live.** Every hint case drove
+`DatasetViewModel.UpdateHint` directly, and the defect is not in what that computes — it is that
+nobody called it. The four new cases split across the seam deliberately:
+`Ui/Dataset/DatasetViewModelTests.cs` pins that the view-model asks, in both directions and after
+clearing; `Ui/Dataset/DatasetTabHintTests.cs` realises the whole tab, clicks a real cell through
+`PressAt`, and toggles the **check box** rather than the property behind it. Negative-controlled
+twice: dropping the `Invoke` fails four cases, and keeping it while dropping the view's subscription
+fails exactly the two that go through the view. 2 534 tests.
+
+One deliberate difference is documented rather than removed: with nothing ever clicked, both indices
+are `NoIndex` and ticking the box shows nothing, where the Delphi would have hinted the first data
+cell — a `TCustomGrid` always has a current cell and `MatrixGrid` grows a caret on the first click or
+arrow key. That belongs to the caret, not to the hint.
 
 **Left open by Phase 5**
 

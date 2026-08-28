@@ -903,7 +903,11 @@ if cbShowDataHint.Checked then
   end;
 ```
 
-* Triggered by `fGrid.OnClick` **and** by toggling `cbShowDataHint`.
+* Triggered by `fGrid.OnClick` **and** by toggling `cbShowDataHint`. **The second half was read past
+  and the port shipped without it** (PORT-PLAN.md §8.11 (9)): the check box's handler *is* this whole
+  procedure, so ticking the box shows the hint for the cell that is already selected. It is not
+  "hide on the way down, wait for the next click on the way up" — the rebuild reads `fGrid.Col` and
+  `fGrid.Row`, which have not moved.
 * **`OnClick` here means every caret movement, not a mouse click.** ~~It is **not** repositioned on
   hover or on keyboard navigation — only on click.~~ **That was wrong, and the port shipped it**
   (PORT-PLAN.md §8.11 (7)). A VCL `Click` is raised by `TCustomGrid.FocusCell`

@@ -13,10 +13,16 @@ namespace QuickStat.Views;
 /// </para>
 /// <para>
 /// The code-behind does exactly one thing, and it is the thing that cannot be done in XAML: turn a
-/// click on the grid into a positioned hint. <see cref="MatrixGrid.TryGetCellBounds"/> is a control
-/// API and the view-model must not call it, so the view asks and passes the answer on. Everything
-/// else - whether the hint may appear, what it says, and where relative to the cell - is
+/// cell and its rectangle into a positioned hint. <see cref="MatrixGrid.TryGetCellBounds"/> is a
+/// control API and the view-model must not call it, so the view asks and passes the answer on.
+/// Everything else - whether the hint may appear, what it says, and where relative to the cell - is
 /// <see cref="DatasetViewModel"/>'s, and is unit-tested there.
+/// </para>
+/// <para>
+/// Two things ask for it, and the second is easy to forget: the grid raising
+/// <see cref="MatrixGrid.CellActivated"/> when the caret moves, and the view-model raising
+/// <see cref="DatasetViewModel.HintRefreshRequested"/> when <c>Show data hint</c> is toggled while
+/// the caret stays put.
 /// </para>
 /// </remarks>
 public partial class DatasetTabView : UserControl
@@ -49,6 +55,7 @@ public partial class DatasetTabView : UserControl
         if (_viewModel is not null)
         {
             _viewModel.GridRefreshRequested += OnGridRefreshRequested;
+            _viewModel.HintRefreshRequested += OnHintRefreshRequested;
         }
     }
 
@@ -60,6 +67,7 @@ public partial class DatasetTabView : UserControl
         }
 
         _viewModel.GridRefreshRequested -= OnGridRefreshRequested;
+        _viewModel.HintRefreshRequested -= OnHintRefreshRequested;
         _viewModel = null;
     }
 
@@ -73,7 +81,30 @@ public partial class DatasetTabView : UserControl
     /// </remarks>
     private void OnGridRefreshRequested(object? sender, EventArgs e) => Grid.Refresh();
 
-    private void OnCellActivated(object? sender, MatrixGridCellEventArgs e)
+    private void OnCellActivated(object? sender, MatrixGridCellEventArgs e) =>
+        UpdateHint(e.RowIndex, e.ColumnIndex);
+
+    /// <summary>
+    /// Rebuilds the hint for the cell the caret is already on, because <c>Show data hint</c> moved.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The event carries no indices, and it cannot: nothing moved, so no
+    /// <see cref="MatrixGrid.CellActivated"/> is coming and the caret is wherever the last click or
+    /// key left it. That is the Delphi reading <c>fGrid.Col</c> and <c>fGrid.Row</c> inside
+    /// <c>UpdateDataHintPanel</c>, and the same two values are dependency properties here.
+    /// </para>
+    /// <para>
+    /// With nothing ever clicked both are <see cref="MatrixGrid.NoIndex"/> and no hint appears. The
+    /// Delphi would have shown one, because a <c>TCustomGrid</c> always has a current cell; this
+    /// grid deliberately starts without a caret and grows one on the first click or arrow key. That
+    /// difference is the caret's, not the hint's, and it is left alone.
+    /// </para>
+    /// </remarks>
+    private void OnHintRefreshRequested(object? sender, EventArgs e) =>
+        UpdateHint(Grid.CurrentRowIndex, Grid.CurrentColumnIndex);
+
+    private void UpdateHint(int rowIndex, int columnIndex)
     {
         if (_viewModel is null)
         {
@@ -82,8 +113,8 @@ public partial class DatasetTabView : UserControl
 
         // A cell that is scrolled out of view returns false, and the view-model hides the hint
         // rather than parking it outside the window.
-        Rect? bounds = Grid.TryGetCellBounds(e.RowIndex, e.ColumnIndex, out Rect cell) ? cell : null;
+        Rect? bounds = Grid.TryGetCellBounds(rowIndex, columnIndex, out Rect cell) ? cell : null;
 
-        _viewModel.UpdateHint(e.RowIndex, e.ColumnIndex, bounds);
+        _viewModel.UpdateHint(rowIndex, columnIndex, bounds);
     }
 }

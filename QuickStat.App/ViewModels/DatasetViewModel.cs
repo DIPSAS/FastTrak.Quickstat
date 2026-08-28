@@ -144,6 +144,28 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
     public event EventHandler? GridRefreshRequested;
 
     /// <summary>
+    /// Raised when <see cref="ShowDataHint"/> is toggled: the hint has to be rebuilt for whichever
+    /// cell the caret is already on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Delphi: <c>cbShowDataHint.OnClick</c> <em>is</em> <c>UpdateDataHintPanel</c>
+    /// (<c>MainQuickStat.pas:310</c>), and that procedure reads <c>fGrid.Col</c> and <c>fGrid.Row</c>
+    /// - the <b>current</b> cell, not a clicked one. Ticking the box therefore shows the hint for the
+    /// cell that is already selected. <c>05-ui-spec.md</c> §G.2 says so in its first bullet;
+    /// the port hid the hint on the way down and then waited for the next click on the way up.
+    /// </para>
+    /// <para>
+    /// The view-model cannot read the caret itself. The two indices and the cell rectangle belong to
+    /// <see cref="MatrixGrid"/>, and asking for them is what the view already does when the grid
+    /// raises <see cref="MatrixGrid.CellActivated"/>; here no such event is coming, because nothing
+    /// moved. So this asks the view to run that same path again - the seam
+    /// <see cref="GridRefreshRequested"/> uses, for the same reason.
+    /// </para>
+    /// </remarks>
+    public event EventHandler? HintRefreshRequested;
+
+    /// <summary>
     /// Raised by <c>SaveDataPackageCommand</c>. <b>Step 3.4 subscribes and does the work.</b>
     /// </summary>
     /// <remarks>
@@ -512,13 +534,19 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
 
     partial void OnShowDataHintChanged(bool value)
     {
-        // Delphi: cbShowDataHint.OnClick is UpdateDataHintPanel, whose first statement hides the
-        // panel.  Turning the box back on does not restore the previous hint - the user has to
-        // click a cell again.
-        if (!value)
-        {
-            Hint = null;
-        }
+        _ = value;
+
+        // Both directions run the whole of UpdateDataHintPanel, because in the Delphi the check box
+        // handler IS UpdateDataHintPanel: statement one hides the panel, and the rest rebuilds it
+        // from fGrid.Col / fGrid.Row.  So turning the box off hides what is on screen, and turning
+        // it back on shows the hint for the cell the caret is already sitting on rather than
+        // waiting for the user to click somewhere else.
+        Hint = null;
+
+        // Hidden first, then asked for.  A view-model with no view attached - a unit test, or the
+        // window between construction and DataContext - therefore ends up with the hint off, which
+        // is the safe half of the answer.
+        HintRefreshRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnIdentificationModeChanged(object? sender, PersonIdentification mode)

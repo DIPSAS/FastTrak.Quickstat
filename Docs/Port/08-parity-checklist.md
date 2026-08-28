@@ -187,8 +187,10 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   left edge, line 1 `PersonId = <n>` (or the patient's name when fully identified), line 2 the
   value. It **follows the caret however the caret moves** — click, arrow keys, Page Up/Down,
   Home/End and the wheel — but not on hover. This checklist and §G.2 both said the opposite until
-  the pass proved otherwise; see PORT-PLAN.md §8.11 (7). `Show data hint` is checked by default and
-  hides it. §G.2.
+  the pass proved otherwise; see PORT-PLAN.md §8.11 (7). `Show data hint` is checked by default;
+  **untick it with a cell selected and the panel goes, tick it again and the panel comes straight
+  back on that same cell** — no second click. The port waited for one until the pass found it,
+  §8.11 (9). §G.2.
 - [ ] **4.11** Column resizing by drag works; clicking a fixed cell selects the row. §C.3.
 - [ ] **4.12** **The mouse over the grid**, which is two different things. The **wheel moves the
   current row, one patient a notch** — it does not scroll; that is `TCustomGrid.DoMouseWheelDown`

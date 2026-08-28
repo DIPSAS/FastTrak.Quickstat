@@ -1,11 +1,8 @@
 using System.Globalization;
 using System.Windows;
-using Microsoft.Extensions.Logging.Abstractions;
 using QuickStat.Diagnostics;
 using QuickStat.Domain.Anonymisation;
-using QuickStat.Domain.Matrix;
 using QuickStat.Export;
-using QuickStat.Services;
 using QuickStat.Tests.Ui.Services;
 using QuickStat.ViewModels;
 using Xunit;
@@ -23,72 +20,6 @@ namespace QuickStat.Tests.Ui.Dataset;
 /// </remarks>
 public class DatasetViewModelTests
 {
-    /// <summary>Everything one case needs, wired the way the container wires it.</summary>
-    private sealed class Harness : IDisposable
-    {
-        internal Harness()
-        {
-            Matrix = ShellWorkspaceTests.NewMatrix();
-            Workspace = new ShellWorkspace(Matrix);
-            Identification = new IdentificationPolicy();
-            Exporter = new FakeDatasetExporter();
-            TempFiles = new FakeTempFileTracker();
-            FileDialogs = new FakeFileDialogService();
-            Launcher = new FakeProcessLauncher();
-            Presenter = new HeadlessNotificationPresenter();
-            Progress = new ShellProgress(new InlineUiDispatcher());
-
-            ViewModel = new DatasetViewModel(
-                Workspace,
-                Identification,
-                Exporter,
-                TempFiles,
-                FileDialogs,
-                Launcher,
-                new UserNotifier(Presenter, NullLogger<UserNotifier>.Instance),
-                Progress,
-                NullLogger<DatasetViewModel>.Instance);
-        }
-
-        internal PersonMatrix Matrix { get; }
-
-        internal ShellWorkspace Workspace { get; }
-
-        internal IdentificationPolicy Identification { get; }
-
-        internal FakeDatasetExporter Exporter { get; }
-
-        internal FakeTempFileTracker TempFiles { get; }
-
-        internal FakeFileDialogService FileDialogs { get; }
-
-        internal FakeProcessLauncher Launcher { get; }
-
-        internal HeadlessNotificationPresenter Presenter { get; }
-
-        internal ShellProgress Progress { get; }
-
-        internal DatasetViewModel ViewModel { get; }
-
-        /// <summary>Loads one patient and one collected column, and locks - i.e. a finished run.</summary>
-        internal void LoadAndCollect(int personId = 52, string varName = "B-Hemo", double value = 10)
-        {
-            Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(personId)]);
-            Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation());
-
-            ShellWorkspaceTests.AddColumn(Matrix, varName, personId, value);
-
-            Matrix.Lock();
-            Workspace.NotifyDataChanged();
-        }
-
-        public void Dispose()
-        {
-            ViewModel.Dispose();
-            TempFiles.Dispose();
-        }
-    }
-
     /// <summary>Forces a culture for the duration of a case, and puts it back afterwards.</summary>
     private sealed class CultureScope : IDisposable
     {
@@ -102,7 +33,7 @@ public class DatasetViewModelTests
     [Fact]
     public void TheCaptionStartsAsYourDataset()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         Assert.Equal("Your dataset", harness.ViewModel.CaptionText);
     }
@@ -113,7 +44,7 @@ public class DatasetViewModelTests
         // rsGridInfo, verbatim.  Note the order: %d x %d is DataRows x FieldCount, so screenshot 3's
         // "17 x 20" is 17 patients over 20 fields, not the other way round.
         using CultureScope culture = new("en-US");
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
 
@@ -126,7 +57,7 @@ public class DatasetViewModelTests
     public void SetCaptionOverridesIt()
     {
         // The package replay ends with hdrPopulationName.Caption := packagedSelection.Title.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         harness.ViewModel.SetCaption("Diabetes basissett 2024");
@@ -137,7 +68,7 @@ public class DatasetViewModelTests
     [Fact]
     public void WideColumnsSwitchesBetweenSixtyFourAndOneHundredAndTwenty()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         Assert.Equal(64, harness.ViewModel.DataColumnWidth);
 
@@ -149,7 +80,7 @@ public class DatasetViewModelTests
     [Fact]
     public void OpenInExcelIsDisabledUntilAColuectRunProducesData()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         Assert.False(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
 
@@ -163,7 +94,7 @@ public class DatasetViewModelTests
     {
         // §D.1: actExportData.Enabled is set inside actCollectDataExecute and never reset to false.
         // Loading a new population empties the matrix, and in the Delphi the menu item stays live.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         Assert.True(harness.ViewModel.OpenInExcelCommand.CanExecute(null));
@@ -180,7 +111,7 @@ public class DatasetViewModelTests
     public void SaveDatasetToCsvIsAlwaysEnabled()
     {
         // actSaveDataset has Enabled unset in the .dfm and nothing ever changes it.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         Assert.True(harness.ViewModel.SaveDatasetToCsvCommand.CanExecute(null));
     }
@@ -190,7 +121,7 @@ public class DatasetViewModelTests
     {
         // ValidateCollectorSelection enables it with actCollectData, and the Delphi additionally
         // asserts Guard.CheckNotNull(fGridPopulation) at execute time - which would have crashed.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         Assert.False(harness.ViewModel.SaveDataPackageCommand.CanExecute(null));
 
@@ -206,7 +137,7 @@ public class DatasetViewModelTests
     [Fact]
     public void UntickingEverythingDisablesSaveDataPackageAgain()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         harness.Workspace.SetCheckedCollectorNames(["QS_AGE"]);
@@ -220,7 +151,7 @@ public class DatasetViewModelTests
     [Fact]
     public void SaveDataPackageRaisesTheSeamStepThreeFourSubscribesTo()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
         int requests = 0;
 
         harness.ViewModel.SaveDataPackageRequested += (_, _) => requests++;
@@ -236,7 +167,7 @@ public class DatasetViewModelTests
     [Fact]
     public async Task OpenInExcelWritesATrackedTemporaryCsvAndHandsItToTheShell()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
 
@@ -254,7 +185,7 @@ public class DatasetViewModelTests
     {
         // PORT-PLAN.md §7.2: the Delphi wrote the re-identification key next to every anonymised
         // export and never deleted it, so plaintext keys accumulate in %TEMP%.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.Exporter.KeyFilePath = "C:\\Temp\\dataset.mapping.txt";
         harness.LoadAndCollect();
@@ -267,7 +198,7 @@ public class DatasetViewModelTests
     [Fact]
     public async Task AFailedExportDeletesThePartialFileAndTellsTheUser()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.Exporter.Throws = new InvalidOperationException("disk full");
         harness.LoadAndCollect();
@@ -286,7 +217,7 @@ public class DatasetViewModelTests
         // An improvement, flagged: the Delphi writes the literal "(not ready)" into every cell of an
         // unlocked matrix, and a phantom "nil" row for an empty population.  Both are reachable,
         // because Save-to-CSV is always enabled.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         await harness.ViewModel.SaveDatasetToCsvCommand.ExecuteAsync(null);
 
@@ -298,7 +229,7 @@ public class DatasetViewModelTests
     [Fact]
     public async Task ExportingAnUnlockedMatrixIsRefusedToo()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(1)]);
         harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation());
@@ -316,7 +247,7 @@ public class DatasetViewModelTests
     [Fact]
     public async Task SaveDatasetToCsvUsesTheDelphiDialogSettings()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.FileDialogs.Answer = "C:\\Temp\\out.csv";
         harness.LoadAndCollect();
@@ -334,7 +265,7 @@ public class DatasetViewModelTests
     [Fact]
     public async Task CancellingTheSaveDialogWritesNothing()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.FileDialogs.Answer = null;
         harness.LoadAndCollect();
@@ -349,7 +280,7 @@ public class DatasetViewModelTests
     {
         // PORT-PLAN.md §7.2: display anonymity and export anonymity are one value, not two paths
         // that happen to agree.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.Identification.Mode = PersonIdentification.RandomPersonId;
         harness.Workspace.ExportTimestamps = true;
@@ -368,7 +299,7 @@ public class DatasetViewModelTests
     [Fact]
     public void ChangingTheIdentificationModeReachesTheGrid()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
         int refreshes = 0;
 
         harness.ViewModel.GridRefreshRequested += (_, _) => refreshes++;
@@ -383,7 +314,7 @@ public class DatasetViewModelTests
     public void TheHintShowsThePersonIdWhenAnonymous()
     {
         using CultureScope culture = new("en-US");
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect(personId: 52, varName: "B-Hemo", value: 10);
 
@@ -398,7 +329,7 @@ public class DatasetViewModelTests
     public void TheHintShowsTheNameWhenFullyIdentified()
     {
         using CultureScope culture = new("en-US");
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         harness.Identification.Mode = PersonIdentification.Full;
@@ -415,7 +346,7 @@ public class DatasetViewModelTests
         // fGrid.Anonymous is "not rbFullIdentification.Checked", and thisPatient.PersonId is the real
         // one; pseudonyms are produced at export time, not on screen.
         using CultureScope culture = new("en-US");
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect(personId: 52);
         harness.Identification.Mode = PersonIdentification.RandomPersonId;
@@ -431,7 +362,7 @@ public class DatasetViewModelTests
     {
         // Delphi: OffsetRect(panRect, 3, 3) then Top := panRect.Top + DefaultRowHeight + 1.  The
         // cell's bottom already includes the row height, so that is four units below it.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
 
@@ -444,7 +375,7 @@ public class DatasetViewModelTests
     [Fact]
     public void TheHintIsHiddenWhenTheCellHasNoDataPoint()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.Matrix.PreparePopulation(
             [ShellWorkspaceTests.NewPatient(8), ShellWorkspaceTests.NewPatient(13)]);
@@ -462,7 +393,7 @@ public class DatasetViewModelTests
     [Fact]
     public void TheHintIsHiddenWhenShowDataHintIsOff()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         harness.ViewModel.ShowDataHint = false;
@@ -476,7 +407,7 @@ public class DatasetViewModelTests
     public void TurningTheHintCheckBoxOffHidesWhatIsAlreadyThere()
     {
         // cbShowDataHint.OnClick is UpdateDataHintPanel, whose very first statement hides the panel.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         harness.ViewModel.UpdateHint(0, 0, new Rect(0, 0, 64, 17));
@@ -488,11 +419,53 @@ public class DatasetViewModelTests
     }
 
     [Fact]
+    public void TogglingTheCheckBoxAsksForTheHintToBeRebuiltEitherWay()
+    {
+        // The other half of the same Delphi procedure: after hiding the panel it reads fGrid.Col and
+        // fGrid.Row and builds the hint for the CURRENT cell.  The view-model cannot see the caret,
+        // so all it can do is ask - and it has to ask on the way up as well as on the way down,
+        // because "hidden" is also an answer that has to be recomputed rather than assumed.
+        using DatasetHarness harness = new();
+
+        harness.LoadAndCollect();
+
+        int asked = 0;
+
+        harness.ViewModel.HintRefreshRequested += (_, _) => asked++;
+
+        harness.ViewModel.ShowDataHint = false;
+        Assert.Equal(1, asked);
+
+        harness.ViewModel.ShowDataHint = true;
+        Assert.Equal(2, asked);
+    }
+
+    [Fact]
+    public void TheHintIsHiddenBeforeTheViewIsAskedForANewOne()
+    {
+        // Ordering, not decoration.  A view that never answers - a headless view-model, or the
+        // window between construction and DataContext - has to be left with the hint off; if the
+        // clearing came after the event the two would fight over the same property.
+        using DatasetHarness harness = new();
+
+        harness.LoadAndCollect();
+        harness.ViewModel.UpdateHint(0, 0, new Rect(0, 0, 64, 17));
+
+        DataHint? whenAsked = harness.ViewModel.Hint;
+
+        harness.ViewModel.HintRefreshRequested += (_, _) => whenAsked = harness.ViewModel.Hint;
+
+        harness.ViewModel.ShowDataHint = false;
+
+        Assert.Null(whenAsked);
+    }
+
+    [Fact]
     public void TheHintIsHiddenWhenTheCellIsScrolledOutOfView()
     {
         // MatrixGrid.TryGetCellBounds returns false rather than an off-screen rectangle, so the
         // caller hides the hint instead of parking it outside the window.
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
 
@@ -504,7 +477,7 @@ public class DatasetViewModelTests
     [Fact]
     public void TheHintIsHiddenForTheHeaderRowAndTheFixedColumns()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
 
@@ -521,7 +494,7 @@ public class DatasetViewModelTests
         // DataPoint.Describe follows the Delphi's %g and locale short date; the person id goes
         // through %d, which applies no digit grouping in any locale.
         using CultureScope culture = new("nb-NO");
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect(personId: 1234, varName: "BMI", value: 24.5);
 
@@ -535,7 +508,7 @@ public class DatasetViewModelTests
     [Fact]
     public void LoadingAPopulationClearsAStaleHint()
     {
-        using Harness harness = new();
+        using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
         harness.ViewModel.UpdateHint(0, 0, new Rect(0, 0, 64, 17));
@@ -552,7 +525,7 @@ public class DatasetViewModelTests
     {
         // The workspace and the policy are singletons that outlive the window; without this the
         // whole view-model graph stays reachable.
-        Harness harness = new();
+        DatasetHarness harness = new();
 
         harness.ViewModel.Dispose();
 
