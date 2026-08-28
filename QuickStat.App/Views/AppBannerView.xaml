@@ -26,8 +26,14 @@
             </Grid.ColumnDefinitions>
 
             <!--
-                The .ico embedded by the .csproj as an assembly resource.  A multi-resolution icon:
-                DecodePixelWidth picks the 32 px frame rather than scaling the largest one down.
+                NOT the application icon, which is the other picture.  imgAppIcon carried its own
+                image inside MainQuickStat.dfm - an area chart, where QuickStat_Icon.ico is a line
+                chart - and the port used the shell icon here until the difference was spotted
+                against a screenshot of the shipped build.  Extracted to QuickStat_Banner_Icon.ico
+                and embedded by the .csproj as an assembly resource.
+
+                A multi-resolution icon: DecodePixelWidth picks the 32 px frame rather than scaling
+                the largest one down.
             -->
             <Image Grid.Column="0"
                    Width="32"
@@ -37,7 +43,7 @@
                    RenderOptions.BitmapScalingMode="HighQuality"
                    AutomationProperties.Name="QuickStat">
                 <Image.Source>
-                    <BitmapImage UriSource="pack://application:,,,/QuickStat;component/Assets/QuickStat_Icon.ico"
+                    <BitmapImage UriSource="pack://application:,,,/QuickStat;component/Assets/QuickStat_Banner_Icon.ico"
                                  DecodePixelWidth="32" />
                 </Image.Source>
             </Image>

@@ -44,13 +44,22 @@
 
   <ItemGroup>
     <!--
-      The same .ico again, this time embedded so XAML can address it.  ApplicationIcon above only
-      stamps the executable's shell icon; the banner in the shell window (05-ui-spec.md §A.2,
-      imgAppIcon) needs it as an assembly resource, reachable as
-      pack://application:,,,/QuickStat;component/Assets/QuickStat_Icon.ico.  Linked rather than
-      copied so the repository keeps one icon file (PORT-PLAN.md §6, Phase 6 keeps QuickStat_Icon.ico).
+      TWO icons, and they are different pictures.  ApplicationIcon above only stamps the executable's
+      shell icon, so the window (MainWindow.xaml) and the banner (05-ui-spec.md §A.2, imgAppIcon) each
+      need one as an assembly resource, reachable as
+      pack://application:,,,/QuickStat;component/Assets/<name>.  Linked rather than copied so the
+      repository keeps one copy of each file (PORT-PLAN.md §6, Phase 6 keeps both).
+
+        QuickStat_Icon.ico          line chart on a grid.  The shell icon, the title bar, the taskbar.
+        QuickStat_Banner_Icon.ico   area chart on a grid.  The 32 x 32 wordmark icon, and ONLY that.
+
+      The second one was carried inside MainQuickStat.dfm as imgAppIcon.Picture.Data rather than as a
+      file, which is why the port shipped the first one in both places until somebody noticed the
+      banner had changed picture.  It is extracted byte for byte; the .dfm keeps its copy, because
+      the Delphi build still reads it.
     -->
     <Resource Include="..\QuickStat_Icon.ico" Link="Assets\QuickStat_Icon.ico" />
+    <Resource Include="..\QuickStat_Banner_Icon.ico" Link="Assets\QuickStat_Banner_Icon.ico" />
   </ItemGroup>
 
   <ItemGroup>

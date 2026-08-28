@@ -55,7 +55,7 @@ literals are given where the constant matters.
 | Client size (design) | 1290 × 785 | `Width="1320" Height="840"` (frame included) |
 | Minimum size | *(none set)* | `MinWidth="900" MinHeight="600"` — **new, flag as an addition** |
 | Startup position | `poDefault` + restored from ini | `WindowStartupLocation="Manual"`, restore from settings (§G.1) |
-| Icon | `QuickStat_Icon.ico` (grid + green line chart + blue area) | reuse the `.ico` |
+| Icon | `QuickStat_Icon.ico` — a **line** chart on a grid | reuse the `.ico` for the window and the taskbar. **It is not the banner's icon**; see `imgAppIcon` in §A.3 |
 | Window state | restored/saved (`Normal`/`Maximized`/`Minimized`) | restore/save |
 | Background | `#EEEEEE` (`clFormFace`) | `QsFormFaceBrush` |
 | Base font | Calibri 10 pt (set at runtime by `TArenaColors.StyleForm`) | Segoe UI 12 px |
@@ -87,7 +87,7 @@ Window  (FastTrak QuickStat)
 | Element | Delphi | Notes / WPF |
 |---|---|---|
 | `panWhiteTop` height | 55 (incl. 1 px bottom bevel) | `Height="55"`, `BorderThickness="0,0,0,1"` |
-| `imgAppIcon` | 32×32, `Margins.Left = 15`, top/bottom 3 | `Margin="15,3,0,3"` |
+| `imgAppIcon` | 32×32, `Margins.Left = 15`, top/bottom 3. **Its own picture, an *area* chart, stored inline as `Picture.Data` and not as a file** | `Margin="15,3,0,3"`. Extracted to `QuickStat_Banner_Icon.ico`; the port used `QuickStat_Icon.ico` here until a screenshot showed the difference. `Ui/AppBannerIconTests.cs` re-extracts it from the `.dfm` every run |
 | `lblAppName` | Tahoma 20 px Bold, vertically centred, `Margin 3` | Segoe UI 20 px SemiBold |
 | `RzVersionInfoStatus1` | Left 154, Width 130, Height 53, Tahoma 13 px | inline run pair |
 | `panProgress` | right-aligned, Width 295, Height 53 | `Width="295"` |

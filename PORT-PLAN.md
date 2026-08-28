@@ -7,7 +7,7 @@ Last updated: 2026-08-28
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 534 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 537 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -535,7 +535,9 @@ Owns: `QuickStat.slnx`, `global.json`, `Directory.Build.props`, `Directory.Packa
   `quickstat-<user>@<machine>-yyyyMMdd.log`, ten kept, level overridable with
   `QUICKSTAT_LOG_LEVEL`, falling back to `%LOCALAPPDATA%\DIPS\QuickStat\logs` when `LOGS` cannot be
   created.)*
-- Application icon from the existing `QuickStat_Icon.ico`.
+- Application icon from the existing `QuickStat_Icon.ico`. The banner's 32 × 32 icon is a *different*
+  picture, carried inline in `MainQuickStat.dfm` as `imgAppIcon.Picture.Data`; extracted to
+  `QuickStat_Banner_Icon.ico` — see `Docs/Port/05-ui-spec.md` §A.3.
 - `.gitignore` additions: `.vs/`, `*.user`, `*.suo`. Note `*.ini` is already ignored — deliberate,
   settings files must not be committed.
 - Exit criterion: `dotnet build QuickStat.slnx` and `dotnet test` both succeed, and
@@ -805,7 +807,15 @@ Remove the reference worktree:
 Delete the Delphi tree: `*.pas`, `*.dfm`, `*.dpr`, `*.dproj`, `*.groupproj`, `*.dsv`, `FastTrak/`,
 `Spring/`, `Test/`, `build.bat`, `build.ps1`, `copy-missing-files.ps1`, `fix-namespaces.ps1`, `QuickStat.chp`,
 `QuickStat.manifest`, `DbFormExport*`, `FormExport.SqlGenerator.pas`. Rewrite `readme.md` for the
-.NET build. Keep `Docs/`, `QuickStat.config.xml`, `FastTrak.UDL`, `QuickStat_Icon.ico`.
+.NET build. Keep `Docs/`, `QuickStat.config.xml`, `FastTrak.UDL`, `QuickStat_Icon.ico`,
+`QuickStat_Banner_Icon.ico`.
+
+**One test dies with the `.dfm` and has to be replaced, not deleted.**
+`Ui/AppBannerIconTests.TheBannerIconIsTheOneTheDelphiFormCarries` re-extracts
+`imgAppIcon.Picture.Data` from `MainQuickStat.dfm` and compares it byte for byte with
+`QuickStat_Banner_Icon.ico`; that is the only thing tying the banner's picture to the build being
+ported. When the form goes, replace the comparison with the recorded SHA-256 of the extracted file
+rather than dropping the case.
 
 ---
 

@@ -65,9 +65,10 @@ Namespaces follow folders (`IDE0130` is enforced as an error), so
   report it.
 - **`.csproj`, `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, `.gitignore`,
   `global.json`, `QuickStat.slnx`, `app.manifest`** — report and work around; do not edit. Step 3.1
-  needed none of them: `.xaml` under any folder is globbed as a `Page` automatically, and the
-  application icon is already a resource at
-  `pack://application:,,,/QuickStat;component/Assets/QuickStat_Icon.ico`.
+  needed none of them: `.xaml` under any folder is globbed as a `Page` automatically, and both icons
+  are already resources at `pack://application:,,,/QuickStat;component/Assets/QuickStat_Icon.ico`
+  (the window and the taskbar) and `.../Assets/QuickStat_Banner_Icon.ico` (the 32 × 32 wordmark icon,
+  and only that — they are different pictures).
 - **`PORT-PLAN.md`, `Docs/Port/01`–`06`** — read-only. This file, `07`, is 3.1's; a wave-2 step that
   needs to record something adds it to its own report.
 

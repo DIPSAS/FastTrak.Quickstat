@@ -75,7 +75,10 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 - [ ] **1.4** The `Collections` tab is **hidden** before a population is loaded. Tab strip should
   read `Population  Packages`. §B.0.
 - [ ] **1.5** Banner: icon, wordmark `QuickStat`, `version 26.0.0.0` with `version` in blue
-  `#0078D7` and the number in black. §A.2, §F.2.
+  `#0078D7` and the number in black. §A.2, §F.2. **The banner's icon is an *area* chart and the
+  title bar's is a *line* chart — two different pictures.** The port showed the title bar's in both
+  places until the pass caught it: `imgAppIcon` keeps its image inside `MainQuickStat.dfm` rather
+  than in a file, so there was nothing in the repository to port. §A.3.
 - [ ] **1.6** Window title is `FastTrak QuickStat`, taskbar/product title `DIPS QuickStat`. §A.1.
 - ⚠ **`MinWidth="900" MinHeight="600"`** — an addition; the Delphi sets no minimum. §A.1.
 - ⚠ **The window is 1320 × 840** where the Delphi design size is 1290 × 785. §A.1.
