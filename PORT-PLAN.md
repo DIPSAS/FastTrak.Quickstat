@@ -2,12 +2,12 @@
 
 Status: **in implementation — Phases 0–5 largely complete. Resume in Phase 5 (see below).**
 Branch: `feature/dotnet`
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 519 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 528 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -57,7 +57,20 @@ Last updated: 2026-08-27
 > awaits for minutes. Painting re-syncs every frame and so never noticed; the automation peer, which
 > WPF drives on every layout pass once anything is listening, did. I met it by attaching UI
 > Automation to the user's running instance to measure (6) — real, and a hard kill for any
-> screen-reader user. **2 519 tests**, and the four new ones fail without the guard.
+> screen-reader user. The four new cases fail without the guard.
+>
+> **An eleventh was found while measuring the ninth and tenth, and is the same shape as the eighth**
+> — §8.11 (8). Every one of the four item lists announced its rows to a screen reader as an object's
+> `ToString()`: the database combo read out the whole connection string, the 213 data elements read
+> out `QuickStat.ViewModels.DataElementViewModel`. `DisplayMemberPath` and an `ItemTemplate` both fix
+> what is *drawn* and neither touches the name. It was reported and left for the user to call, and
+> fixed on their word. **The estimate in the report — one `AutomationProperties.Name` binding per
+> list — named the right binding and was half the fix**: the binding covers rows that have
+> containers, and what was leaking is the fallback the peer uses when they do not, so `ToString()` is
+> overridden on all four item types as well. A record's generated `ToString` prints every property,
+> which is how the raw `<ConnectionString>` got one step from a screen reader; the deployed file
+> names a UDL and leaked nothing, but the format allows credentials, so this is treated as privacy
+> rather than polish. **2 528 tests**, nine of them new, negative-controlled in both directions.
 >
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
@@ -1346,14 +1359,44 @@ hard kill rather than a degradation — but nobody had met it because nothing ha
 grid's peer in a live process. The suite exercises the peer directly, which cannot reproduce the
 timing.
 
-**Not fixed, reported: two automation names expose an object's `ToString()`.** Each connection in the
-database combo is announced as `QuickStatConnection { Name = Testdatabase (NDV), StudyName = NDV,
-ConnectionString = FILE NAME=.\FastTrak.UDL, … }` — a screen reader reads out the whole connection
-string — and every row of the data-element list as `QuickStat.ViewModels.DataElementViewModel`.
-`DisplayMemberPath` fixes what is *drawn*, not the `ListBoxItem`'s UIA `Name`. One
-`AutomationProperties.Name` binding on each `ItemContainerStyle`. Not patient data, so not R6, and
-not in the scope of anything reported — but it is one line each and a screen reader is the one user
-who would notice.
+**(8) Every list announced an object's `ToString()` to a screen reader.** Found while measuring (6)
+and (7), reported rather than fixed at the time, and fixed on the user's word immediately after.
+Measured on the running binary: each connection in the database combo was announced as
+`QuickStatConnection { Name = Testdatabase (NDV), StudyName = NDV, ConnectionString = FILE
+NAME=.\FastTrak.UDL, … }`, and every row of the data-element list as
+`QuickStat.ViewModels.DataElementViewModel`, 213 times.
+
+**The mechanism, and why the one-line estimate was wrong.** `ItemAutomationPeer.GetNameCore` asks the
+row's *container* for a name and, finding none, returns `Item.ToString()`. That fallback is invisible
+while items are strings — a string's `ToString` is the string, which is why the defect has never been
+seen in any of the WPF a list is normally built from — and wrong the moment they are objects, which
+is every list here. `DisplayMemberPath` and an `ItemTemplate` both decide what is *drawn* and neither
+touches the name. So the note above, "one `AutomationProperties.Name` binding on each
+`ItemContainerStyle`", named the right binding and stopped one step short: **the binding fixes the
+rows that have containers, and the thing that was actually leaking is the fallback.** Both halves are
+now in: `AutomationProperties.Name` on the container, stated where the row is defined, and
+`ToString()` overridden on all four item types as the backstop.
+
+**And it was four lists, not two.** The same defect sat on the population catalogue and the packages
+list; only the two I happened to enumerate were reported. Populations and packages announce the id
+before the title, because both lists draw it first and neither guarantees the title is unique.
+
+**The connection string is the part that matters.** A record's generated `ToString` prints every
+property, so `QuickStatConnection` put the raw `<ConnectionString>` one fallback away from a screen
+reader and from every UIA client's cache. The deployed file names a UDL and leaked nothing, which is
+why the note above said "not R6" — but the format permits a connection string carrying credentials
+and nothing rejects one, so the class is a privacy one and the fix is written that way:
+`QuickStatConnection.ToString()` now returns `Name` and nothing else, the same rule
+`ResolvedConnectionString` has always followed.
+
+Nine cases in `Ui/AutomationNameTests.cs`, and the framework's behaviour in them is measured rather
+than assumed — a virtualised list puts **no** peer in the tree for a row it has not realised, and a
+combo whose drop-down has never been opened exposes no item peers at all, both of which change what
+the two halves are each worth. Negative-controlled twice: reverting the markup fails the four
+container cases while the `ToString` cases stay green, and reverting the four `ToString` overrides
+fails the fallback cases. Not reproduced against the running binary, and it does not need to be —
+attaching UI Automation is how it was found in the first place, and doing it again is what caused
+(7b).
 
 **Left open by Phase 5**
 

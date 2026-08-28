@@ -221,7 +221,12 @@ public class ViewInstantiationTests
         Assert.NotNull(view.PopulationList);
 
         Assert.Same(Application.Current.Resources["QsFlatTextBox"], view.FilterBox.Style);
-        Assert.Same(Application.Current.Resources["QsPopulationItem"], view.PopulationList.ItemContainerStyle);
+
+        // BasedOn rather than Same: the container style is the view's own since the row gained an
+        // accessible name, which is content and so does not belong in a theme key three lists share.
+        Assert.Same(
+            Application.Current.Resources["QsPopulationItem"],
+            view.PopulationList.ItemContainerStyle.BasedOn);
 
         // The three run styles are the view's own, not the application's - they are declared in
         // UserControl.Resources and they in turn resolve QsCodeBrush and friends from the theme,
@@ -250,7 +255,7 @@ public class ViewInstantiationTests
         DockPanel root = (DockPanel)view.Content;
         ListBox packages = Assert.Single(root.Children.OfType<ListBox>());
 
-        Assert.Same(Application.Current.Resources["QsPackageItem"], packages.ItemContainerStyle);
+        Assert.Same(Application.Current.Resources["QsPackageItem"], packages.ItemContainerStyle.BasedOn);
         Assert.Same(Application.Current.Resources["QsFlatTextBox"], Assert.Single(root.Children.OfType<TextBox>()).Style);
     });
 

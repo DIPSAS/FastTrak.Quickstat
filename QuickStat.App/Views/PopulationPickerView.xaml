@@ -161,10 +161,22 @@
                      Grid.IsSharedSizeScope="True"
                      HorizontalContentAlignment="Stretch"
                      input:DoubleClick.Command="{Binding PreparePopulationCommand}"
-                     ItemContainerStyle="{StaticResource QsPopulationItem}"
                      ItemsSource="{Binding Populations}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      SelectedItem="{Binding SelectedPopulation, Mode=TwoWay}">
+
+                <!--
+                    QsPopulationItem plus the one thing the theme cannot supply: the row's accessible
+                    name.  The chrome is shared, the name is this row's content, and a theme style
+                    that named a view-model property would only be right for one of the three lists
+                    that use these keys.  BasedOn, so the alternation, the divider and both selection
+                    pairs are still the theme's.
+                -->
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsPopulationItem}">
+                        <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
 
                 <ListBox.InputBindings>
                     <KeyBinding Key="Enter" Command="{Binding PreparePopulationCommand}" />

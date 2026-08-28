@@ -52,6 +52,13 @@ authority; where it is cheaper to read `Vcl.Grids.pas` than to argue, that is wh
 checklist faithfully would have confirmed the defect rather than found it. Both are corrected — but
 if an item describes behaviour that seems unhelpful, that is worth a moment's suspicion of the item.
 
+**Nothing below asks you to listen, and there is one class of difference you therefore cannot see.**
+The Delphi's lists are real Win32 controls, so Windows names their rows for a screen reader without
+anyone writing a line; the port's are WPF item containers, which name themselves from the item's
+`ToString()` and so announced things like `QuickStat.ViewModels.DataElementViewModel` — 213 times —
+while looking perfectly correct. Fixed and pinned by `Ui/AutomationNameTests.cs`; recorded here so
+that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §8.11 (8).
+
 ---
 
 ## 1. Launch and connect — **[AC-2]**

@@ -80,6 +80,16 @@
                 -->
                 <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsCheckListItem}">
                     <Setter Property="Padding" Value="0" />
+
+                    <!--
+                        Without this the row announces "QuickStat.ViewModels.DataElementViewModel",
+                        213 times over - measured on the running build.  The tick inside the row does
+                        carry its title, because a CheckBox is a ContentControl and the title is its
+                        Content; the row that wraps it is what a screen reader lands on first, and it
+                        had no name of its own.  DataElementViewModel.ToString is the backstop for
+                        the paths that reach an item without a container to read this from.
+                    -->
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
                 </Style>
             </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>

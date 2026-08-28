@@ -104,6 +104,19 @@ public sealed partial class DataElementViewModel : ObservableObject
     /// <summary>The Norwegian title, verbatim including any <c>^ </c> sort prefix.</summary>
     public string Title { get; }
 
+    /// <summary>The title, so a row is never announced as a type name.</summary>
+    /// <returns><see cref="Title"/>.</returns>
+    /// <remarks>
+    /// <c>ItemAutomationPeer</c> takes a row's name from its container and falls back to the item's
+    /// <c>ToString</c> when the container has none - which is how all 213 elements came to announce
+    /// <c>QuickStat.ViewModels.DataElementViewModel</c>. <c>CollectionsTabView.xaml</c> now binds
+    /// <c>AutomationProperties.Name</c>; this is the backstop for the paths that reach an item
+    /// without a container. Deliberately the same string, including any <c>^ </c> sort prefix: an
+    /// accessible name that disagrees with the visible label breaks voice control, which matches one
+    /// against the other. PORT-PLAN.md §8.11 (8).
+    /// </remarks>
+    public override string ToString() => Title;
+
     partial void OnIsCheckedChanged(bool value)
     {
         _ = value;

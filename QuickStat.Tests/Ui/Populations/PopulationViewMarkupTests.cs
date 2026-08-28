@@ -188,10 +188,21 @@ public class PopulationViewMarkupTests
         XElement list = Assert.Single(Named(Picker(), "ListBox"));
 
         Assert.Equal("2", Attribute(list, "AlternationCount"));
-        Assert.Equal("{StaticResource QsPopulationItem}", Attribute(list, "ItemContainerStyle"));
         Assert.Equal("{Binding Populations}", Attribute(list, "ItemsSource"));
         Assert.Equal("{Binding SelectedPopulation, Mode=TwoWay}", Attribute(list, "SelectedItem"));
         Assert.Equal("Stretch", Attribute(list, "HorizontalContentAlignment"));
+
+        // No longer an attribute: the row's accessible name made the container style an element,
+        // BasedOn the theme key rather than being it. What XML can still say, and a Style object
+        // cannot, is that the chrome is inherited rather than re-declared here.
+        XElement container = Assert.Single(list.Elements(Wpf + "ListBox.ItemContainerStyle"));
+        XElement style = Assert.Single(container.Elements(Wpf + "Style"));
+
+        Assert.Null(Attribute(list, "ItemContainerStyle"));
+        Assert.Equal("{StaticResource QsPopulationItem}", Attribute(style, "BasedOn"));
+        Assert.Equal(
+            "{Binding AutomationName}",
+            Attribute(Assert.Single(style.Elements(Wpf + "Setter")), "Value"));
     }
 
     [Fact]

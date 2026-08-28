@@ -1002,6 +1002,14 @@ screenshot 2/3 you can see the residual selection on `^ Kjønn`.
   path is unreachable in QuickStat (`AShowAll` is always `false`), so do not reproduce it.
 * Right-clicking the grid does not change the current cell in the VCL version; WPF `DataGrid`
   will select the cell on right-click. That is a behaviour change but an improvement — flag it.
+* **Every list here is a real Win32 control, and gets its accessible names free.** `cbProject`,
+  `cbDataCollector`, `lbPackagedGrids` and the population grid are named for a screen reader by
+  Windows itself. Nothing in WPF does that for an item whose type is not a string: a row's peer asks
+  its container for a name, and with none set falls back to `Item.ToString()`, so a list of
+  view-models announces the type name and a list of records announces every field they hold. Neither
+  `DisplayMemberPath` nor an `ItemTemplate` touches it. Bind `AutomationProperties.Name` on the
+  `ItemContainerStyle` **and** override `ToString()`, which is what the fallback reads. PORT-PLAN.md
+  §8.11 (8), `Ui/AutomationNameTests.cs`.
 * `ReportMemoryLeaksOnShutdown := true` in the `.dpr` is a debug aid; no UI equivalent.
 
 ---

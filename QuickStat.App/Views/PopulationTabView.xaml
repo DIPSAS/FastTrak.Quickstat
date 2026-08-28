@@ -28,7 +28,24 @@
                   DisplayMemberPath="Name"
                   IsEditable="False"
                   ItemsSource="{Binding Projects}"
-                  SelectedItem="{Binding SelectedProject, Mode=TwoWay}" />
+                  SelectedItem="{Binding SelectedProject, Mode=TwoWay}">
+            <!--
+                DisplayMemberPath decides what is DRAWN.  It does not name the row for a screen
+                reader: an item peer takes its name from the container, and with nothing there it
+                falls back to the item's own ToString - which for a record is every property it has,
+                ConnectionString included.  Measured on the running build, this combo announced
+                "QuickStatConnection { Name = ..., ConnectionString = FILE NAME=.\FastTrak.UDL, ... }"
+                per entry.  A UDL path is harmless; a <ConnectionString> element with credentials in
+                it, which the format allows, would have been read out loud and copied into every UIA
+                client's cache.  R6.  QuickStatConnection.ToString is the other half - see there for
+                why one binding is not enough.
+            -->
+            <ComboBox.ItemContainerStyle>
+                <Style TargetType="{x:Type ComboBoxItem}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                </Style>
+            </ComboBox.ItemContainerStyle>
+        </ComboBox>
 
         <q:SectionHeader DockPanel.Dock="Top" Margin="3" Header="Select population" />
 

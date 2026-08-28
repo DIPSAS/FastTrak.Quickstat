@@ -52,4 +52,29 @@ public sealed record QuickStatConnection
     /// <c>Docs/Port/01-data-access.md</c> §3.5). <see langword="null"/> when the element is absent.
     /// </remarks>
     public string? SqlOptions { get; init; }
+
+    /// <summary>The display name, and nothing else.</summary>
+    /// <returns><see cref="Name"/>.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>A record's generated <c>ToString</c> prints every property</b>, so the default here read
+    /// out <see cref="ConnectionString"/> verbatim to anything that stringified a connection. The
+    /// same rule as <see cref="ResolvedConnectionString.ToString"/>: no caller has to decide what is
+    /// safe to print, because nothing unsafe is printable.
+    /// </para>
+    /// <para>
+    /// It is not hypothetical politeness. The project combo on the <c>Population</c> tab announced
+    /// the whole record to UI Automation, once per entry, for the whole of Phase 5 - a screen reader
+    /// reads it aloud and every UIA client caches it. The deployed file names a UDL, which is
+    /// harmless, but the format permits a <c>&lt;ConnectionString&gt;</c> carrying a password and
+    /// nothing rejects one. PORT-PLAN.md §8.11 (8), R6.
+    /// </para>
+    /// <para>
+    /// The markup binds <c>AutomationProperties.Name</c> as well, and both are needed: a row's peer
+    /// asks its container for a name and falls back to <c>ToString</c> when the container has none.
+    /// That was every row before the binding existed, and it is still the answer wherever a client
+    /// reaches an item without realising it.
+    /// </para>
+    /// </remarks>
+    public override string ToString() => Name;
 }

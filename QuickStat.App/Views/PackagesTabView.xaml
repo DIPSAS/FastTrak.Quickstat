@@ -49,10 +49,21 @@
                  BorderThickness="1"
                  HorizontalContentAlignment="Stretch"
                  input:DoubleClick.Command="{Binding OpenPackageCommand}"
-                 ItemContainerStyle="{StaticResource QsPackageItem}"
                  ItemsSource="{Binding PackagesView}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  SelectedItem="{Binding SelectedPackage, Mode=TwoWay}">
+
+            <!--
+                QsPackageItem plus the row's accessible name; see PopulationPickerView.xaml for why
+                the name is not in the theme with the rest of the chrome.  Two packages may share a
+                title, so the name leads with the row id, exactly as the row itself does.
+            -->
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsPackageItem}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+                </Style>
+            </ListBox.ItemContainerStyle>
+
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Command="{Binding PlacementTarget.DataContext.DeletePackageCommand,

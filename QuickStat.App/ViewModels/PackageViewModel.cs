@@ -45,4 +45,22 @@ public sealed class PackageViewModel(PackagedSelection selection)
     public string SearchText => string.Create(
         CultureInfo.InvariantCulture,
         $"{RowId}\t{Title}\t{Comment}\t{PopulationLabel}");
+
+    /// <summary>What a screen reader announces for the row: the row id, then the title.</summary>
+    /// <remarks>
+    /// <see cref="Title"/> is free text a user typed into the save dialog, and two packages may
+    /// carry the same one; <see cref="RowId"/> is the primary key and the row draws it first, so the
+    /// name follows the row. <see cref="Comment"/> is left out - it wraps to several lines, and a
+    /// name is not a paragraph.
+    /// </remarks>
+    public string AutomationName => string.Create(CultureInfo.InvariantCulture, $"{RowId} {Title}");
+
+    /// <summary>The row's accessible name, for the peers that have no container to ask.</summary>
+    /// <returns><see cref="AutomationName"/>.</returns>
+    /// <remarks>
+    /// Same reason as <see cref="PopulationViewModel.ToString"/>: an item peer falls back to the
+    /// item's own <c>ToString</c> when its container carries no name, and the default would announce
+    /// the type name. PORT-PLAN.md §8.11 (8).
+    /// </remarks>
+    public override string ToString() => AutomationName;
 }
