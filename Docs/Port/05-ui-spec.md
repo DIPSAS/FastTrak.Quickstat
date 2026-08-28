@@ -484,7 +484,14 @@ the collection) — the Delphi code re-evaluates on every `OnClickCheck`.
   selection (§G.4); lock the grid; update the caption bar; `Done` → progress 100 % and status
   `Task completed`.
 * `actExportData` — write the grid to a **temporary** CSV (`%TEMP%\<guid>.csv`, registered for
-  deletion on exit) and hand it to Excel.
+  deletion on exit) and hand it to Excel. **To Excel, not to the shell**: `TExcelAdapter`
+  (`FastTrak/Emetra.Adapters.Office.pas`) reads `HKLM\Software\Classes\Excel.Application\CLSID`,
+  then that CLSID's `LocalServer32`, and starts the executable it names. `ShellExecute` on a
+  `.csv` opens whatever is registered for the extension, which is not the same thing —
+  PORT-PLAN.md §8.15. The port does the same lookup in `ExcelLocator`, but **cannot** reuse the
+  Delphi's parsing: it splits the command line on a space and takes token 0, which only works
+  because a 32-bit process reads the `WOW6432Node` view, where the path is quoted. The 64-bit
+  view holds the same path unquoted, spaces and all.
 * `actSaveDataset` — `TFileSaveDialog`: default file name `QuickStat.csv`, default extension
   `*.csv`, one file type `Comma separated values` / `*.csv`, OK button labelled `Save`,
   overwrite prompt on, strict file types on.

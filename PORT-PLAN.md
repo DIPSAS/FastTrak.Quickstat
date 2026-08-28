@@ -89,6 +89,24 @@ Last updated: 2026-08-28
 > *same* menu rather than a copy, and a test compares the two item by item. Both are marked in the
 > parity checklist so they are not read as drift. **2 546 tests.**
 >
+> **A thirteenth and a fourteenth, both from the same pass, and both are the port being faithful to
+> something that was never right** — §8.11 (10) and (11). `Save this dataset to CSV file` is black on
+> a freshly started QuickStat, because `actSaveDataset` has `Enabled` unset in the `.dfm` and nothing
+> ever assigns it; its neighbour latches on and never off. Both now hang on one predicate — columns
+> *and* a lock — rather than a patch on the reported half, since they sit next to each other on one
+> menu and fail for the same reason. And `Open this dataset in Excel` went through `ShellExecute`,
+> which honours the `.csv` association and so opened whatever the machine had; the Delphi resolves
+> Excel's COM registration and starts *that*, and now so does the port. Its parsing could not be
+> transcribed: the Delphi splits the command line on a space, which only works in the registry view a
+> 32-bit process reads. **2 565 tests.** The negative control for the first also caught a case that
+> had been passing against the very defect it existed to catch.
+>
+> **The pass also moved the population tip and gave the rows a tool tip** — §7.3. `lblHintPopulation`
+> sat at the foot of the tab, below the frame, the source pane and `Show source`, and read
+> `Tip: Double click to prepare population`. It now sits directly above the list and reads
+> `Double-click on a population to select it`; every row carries `Double-click to select this
+> population`, on the row and not on the list, so the blank space under the last one stays silent.
+>
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
 > them writes to the database, where everything so far has been read-only. And the `05-ui-spec.md`
@@ -923,10 +941,10 @@ that is the colouring users actually see, and it is ported as-is.
   returning "yes" when below the dialog threshold.
 - Real `.xlsx` export via ClosedXML alongside CSV, avoiding the CSV locale round-trip.
 - Per-monitor DPI awareness.
-- **Two controls the Delphi has not got, both asked for by the product owner during the parity pass
-  (2026-08-28) and both flagged in `Docs/Port/08-parity-checklist.md` so the pass does not read them
-  as drift.**
-  - **`Show source`** under the population tip, opening the `CREATE PROCEDURE` pane. This one
+- **Four changes to the Population and Dataset tabs the Delphi has not got, all asked for by the
+  product owner during the parity pass (2026-08-28) and all flagged in
+  `Docs/Port/08-parity-checklist.md` so the pass does not read them as drift.**
+  - **`Show source`** at the foot of the population tab, opening the `CREATE PROCEDURE` pane. This one
     *replaces* something: in the Delphi the pane is not a setting at all, it is visible exactly when
     `FUNC_POPULATION_SOURCE` is granted, and the frame registers that right as `asDenied`. The port
     has no access control, took the registered default, and so could never show the pane — while the
@@ -939,6 +957,18 @@ that is the colouring users actually see, and it is ported as-is.
     one `DatasetActionsMenu` resource with `x:Shared="False"`, an instance for the grid and one for
     the button, and a test that compares the two item by item rather than against a transcript. The
     right-click is unchanged.
+  - **The population tip moves up to the list and is reworded.** `lblHintPopulation` is
+    `Align = alBottom` on the tab, which in the port put it below the frame, below the source pane
+    and below `Show source` — three controls away from the list it instructs. It now sits directly
+    above the list, inside the frame, and reads `Double-click on a population to select it` rather
+    than `Tip: Double click to prepare population`; "prepare population" was `PreparePopulation`, an
+    internal verb no part of the screen uses. `PopulationTipTests` measures the two rectangles
+    against each other, because a case asserting the text alone would pass with the label back at
+    the foot.
+  - **Every population row carries a tool tip**, `Double-click to select this population`. Set on the
+    container and not on the `ListBox`: `ToolTipService` walks *up* from whatever is under the
+    pointer, so a tip on the list would also answer for the empty space below the last row, where
+    there is no population to double-click.
 
 ---
 
@@ -1474,6 +1504,57 @@ One deliberate difference is documented rather than removed: with nothing ever c
 are `NoIndex` and ticking the box shows nothing, where the Delphi would have hinted the first data
 cell — a `TCustomGrid` always has a current cell and `MatrixGrid` grows a caret on the first click or
 arrow key. That belongs to the caret, not to the hint.
+
+**(10) Both export menu items lied about whether they could run.** Reported from the parity pass:
+`Save this dataset to CSV file` was black on a freshly started QuickStat, with nothing to save. It was
+faithful — `actSaveDataset` has `Enabled` unset in the `.dfm` and nothing ever assigns it — and the
+faithfulness is the defect. Its neighbour is no better: `actExportData.Enabled := fGrid.Data.HasData`
+is assigned inside `actCollectDataExecute` and **never reset**, so `Open this dataset in Excel` stays
+lit over a matrix that a new population has since emptied (§D.1 records both as-implemented).
+
+Both now hang on one predicate, `DatasetViewModel.CanExport`: the matrix has columns **and** is
+locked. One predicate rather than a patch on the reported half, because the two sit next to each
+other on one menu and fail for the same reason — greying one and not the other would read as a bug in
+whichever still lit up. The execute-time guard stays: `PersonMatrix` raises no change notification, so
+an enabled state is only as fresh as the last `NotifyCanExecuteChanged`, and a command can be executed
+without `CanExecute` being consulted at all.
+
+**The negative control found a second, quieter thing.** `ExportingAnUnlockedMatrixIsRefusedToo`
+asserted only that no file was written — and `FakeFileDialogService.Answer` defaults to `null`, so the
+command returned early at the dialog whether or not the guard had fired. The case passed against
+exactly the defect it existed to catch. It now supplies an answer and asserts the dialog was never
+shown.
+
+**(11) `Open this dataset in Excel` opened whatever owned `.csv`.** Reported from the parity pass,
+with the observation that the Delphi gets it right. It does, and by doing more work than the port did:
+`TExcelAdapter.LoadWithFile` (`FastTrak/Emetra.Adapters.Office.pas`) reads
+`HKLM\Software\Classes\Excel.Application\CLSID`, then that CLSID's `LocalServer32`, and starts the
+executable it names. `IProcessLauncher.OpenWithShell` is `ShellExecute`, which honours the file
+association — Notepad, an editor, anything — so a menu item naming Excel opened something else.
+
+`ExcelLocator` does the same lookup, and **cannot** be a transcription of the Delphi's. `TExcelAdapter`
+splits the `LocalServer32` command line on a space and takes token 0. That survives there only because
+a 32-bit process reads the `WOW6432Node` view, where Office wrote the path *quoted*. Both views were
+read off the development machine, same CLSID:
+
+```
+64-bit view:  C:\Program Files\Microsoft Office\Root\Office16\EXCEL.EXE /automation
+32-bit view: "C:\Program Files\Microsoft Office\Root\Office16\EXCEL.EXE" /automation
+```
+
+A space-split of the first answers `C:\Program`. The port takes the quoted span when there is one and
+otherwise the first token ending in `.exe` at a word boundary; it checks both registry views, falls
+back to `App Paths\excel.exe`, and requires the file to exist, because an uninstalled Office leaves
+its registration behind. No Excel found is not an error — it falls back to the shell and logs why,
+which is the answer on a machine that has no Excel and the log line that would have shortened this
+report.
+
+Starting Excel is not something the suite may do, so the fifteen new cases pin the parsing as data —
+including one that spells out the Delphi's own rule and shows it getting the 64-bit view wrong — plus
+one machine-tolerant case: whatever `Find()` answers here, it is either `null` or a real `EXCEL.EXE`.
+The end-to-end path was measured once by hand instead, with a throwaway probe on a synthetic
+two-column CSV: `EXCEL.EXE` started from the resolved path and the window came up titled
+`quickstat-excel-probe.csv - Excel`. Probe deleted, Excel closed, file removed. 2 565 tests.
 
 **Left open by Phase 5**
 

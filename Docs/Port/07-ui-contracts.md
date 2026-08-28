@@ -267,6 +267,11 @@ Small seams, each with one job and each so a view-model can be unit-tested.
 - **`IFileDialogService.ShowSaveFileDialog(SaveFileRequest)`** → path or `null` for cancel.
   `SaveFileRequest.DatasetCsv` is the Delphi's dialog verbatim.
 - **`IProcessLauncher.OpenWithShell(path)`** — `ShellExecute` and return; no `Sleep(50)` pump.
+- **`IProcessLauncher.OpenInExcel(path)`** — resolve `EXCEL.EXE` from its COM registration
+  (`ExcelLocator`) and start *that*, with the file as its argument, falling back to
+  `OpenWithShell` when Excel is not installed. Added in Phase 5: `Open this dataset in Excel`
+  went through `OpenWithShell` and therefore opened whatever owned `.csv`. The Delphi's
+  `TExcelAdapter` has always resolved the registration; §D.1.
 - **`IApplicationInfo`** — `Title`, `ProductName`, `Version`.
 - **`IMonitorLayout`** — work areas for the off-screen guard rail.
 

@@ -181,8 +181,12 @@ public class DatasetViewModelTests
     }
 
     [Fact]
-    public async Task OpenInExcelWritesATrackedTemporaryCsvAndHandsItToTheShell()
+    public async Task OpenInExcelWritesATrackedTemporaryCsvAndAsksForExcelByName()
     {
+        // Not the shell.  A .csv handed to ShellExecute opens in whatever is registered for the
+        // extension, which on a real desk is as often an editor as it is Excel - the Phase 5 field
+        // report.  The Delphi resolves Excel's COM registration and starts that executable; so does
+        // the port, through ExcelLocator.
         using DatasetHarness harness = new();
 
         harness.LoadAndCollect();
@@ -193,7 +197,8 @@ public class DatasetViewModelTests
 
         Assert.EndsWith(".csv", written, StringComparison.Ordinal);
         Assert.Contains(written, harness.TempFiles.TrackedPaths);
-        Assert.Equal([written], harness.Launcher.Opened);
+        Assert.Equal([written], harness.Launcher.OpenedInExcel);
+        Assert.Empty(harness.Launcher.Opened);
     }
 
     [Fact]
@@ -223,6 +228,7 @@ public class DatasetViewModelTests
 
         Assert.Single(harness.TempFiles.Deleted);
         Assert.Empty(harness.Launcher.Opened);
+        Assert.Empty(harness.Launcher.OpenedInExcel);
         Assert.True(harness.Progress.IsError);
         Assert.Contains(harness.Presenter.Notifications, n => n.Severity == NotificationSeverity.Error);
     }

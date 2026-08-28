@@ -248,8 +248,10 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   where a first-time user will look.)*
 - [ ] **5.2** All three identification modes produce what their captions promise, and
   `Export timestamp for every data element` adds a `.DATE` column after each value column. §B.2.
-- [ ] **5.3** `Open this dataset in Excel` opens Excel on a temp file, and the temp file is gone
-  after the app exits. §D.1, §G.6.
+- [ ] **5.3** `Open this dataset in Excel` opens **Excel** on a temp file — not whatever owns
+  `.csv` on the machine — and the temp file is gone after the app exits. §D.1, §G.6. *(A defect the
+  pass found: the port used `ShellExecute`. It now resolves Excel's COM registration the way
+  `TExcelAdapter` does. Worth checking on a machine whose default `.csv` handler is not Excel.)*
 - [ ] **5.4** On a freshly started QuickStat **all three** menu items are greyed. They light up
   together at the end of a collect run, and go dark again the moment a new population empties the
   grid. §D.1.

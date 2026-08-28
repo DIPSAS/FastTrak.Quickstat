@@ -381,7 +381,10 @@ public sealed partial class DatasetViewModel : ObservableObject, IDisposable
                 _tempFiles.Track(keyFile);
             }
 
-            _launcher.OpenWithShell(result.FilePath);
+            // OpenInExcel and not OpenWithShell: the caption names Excel, and .csv is an extension
+            // users routinely hand to an editor.  Reported from the field in Phase 5 - see
+            // ExcelLocator.
+            _launcher.OpenInExcel(result.FilePath);
 
             _progress.Done();
         }
