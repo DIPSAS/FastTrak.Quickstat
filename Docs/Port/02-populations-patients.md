@@ -331,7 +331,8 @@ deliberately (see Risks).
   ```
 
   (`EPR.VclFrame.Populations.pas:207-226`.) The hint label under the pane reads
-  *"Tip: Double click to prepare population"* (`MainQuickStat.dfm:1026-1033`).
+  *"Tip: Double click to prepare population"* (`MainQuickStat.dfm:1026-1033`). *(In the port it has
+  moved above the list and been reworded — `05-ui-spec.md` §B.1 item 5.)*
 
 ### 2.5 `IsHighlighted` and `TrySelect`
 

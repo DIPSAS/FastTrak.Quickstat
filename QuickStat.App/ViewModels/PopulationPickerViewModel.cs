@@ -46,8 +46,33 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <summary>Caption of the right-hand check box, which sits to the <em>left</em> of its box.</summary>
     public const string SimplifiedCaption = "Simplified";
 
+    /// <summary>Hint immediately above the list, saying what a row is for.</summary>
+    /// <remarks>
+    /// <para>
+    /// Delphi <c>lblHintPopulation</c>, <c>Align = alBottom</c> on the tab and reading
+    /// <c>Tip: Double click to prepare population</c> (<c>05-ui-spec.md</c> §B.1 item 5). <b>Moved
+    /// and reworded on the product owner's request</b>: at the foot of the tab it was two controls
+    /// and a whole frame away from the list it describes, and "prepare population" is the Delphi's
+    /// internal verb - <c>PreparePopulation</c> - rather than anything the screen says.
+    /// </para>
+    /// <para>
+    /// It lives on this view-model rather than on <see cref="PopulationTabViewModel"/> because it is
+    /// now drawn inside the frame, next to the list. <see cref="RowToolTip"/> says the same thing
+    /// where the pointer already is.
+    /// </para>
+    /// </remarks>
+    public const string TipText = "Double-click on a population to select it";
+
+    /// <summary>Tool tip on every row of the list.</summary>
+    /// <remarks>
+    /// The same instruction as <see cref="TipText"/>, phrased for one row: a user who is already
+    /// hovering the population they want should not have to look elsewhere to learn what to do with
+    /// it. An addition; the Delphi rows have no hint of their own.
+    /// </remarks>
+    public const string RowToolTip = "Double-click to select this population";
+
     /// <summary>
-    /// Caption of the check box under the tip, which opens the <c>CREATE PROCEDURE</c> pane.
+    /// Caption of the check box at the foot of the tab, which opens the <c>CREATE PROCEDURE</c> pane.
     /// </summary>
     /// <remarks>
     /// Lives here rather than on <see cref="PopulationTabViewModel"/>, where the box is drawn,

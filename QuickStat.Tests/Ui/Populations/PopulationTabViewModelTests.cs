@@ -49,7 +49,6 @@ public class PopulationTabViewModelTests
     {
         Assert.Equal("Select database", PopulationTabViewModel.DatabaseHeader);
         Assert.Equal("Select population", PopulationTabViewModel.PopulationHeader);
-        Assert.Equal("Tip: Double click to prepare population", PopulationTabViewModel.TipText);
     }
 
     [Fact]

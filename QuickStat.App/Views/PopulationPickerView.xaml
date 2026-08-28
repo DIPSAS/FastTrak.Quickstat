@@ -67,6 +67,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="120" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -136,7 +137,17 @@
             </CheckBox>
         </Grid>
 
-        <Grid Grid.Row="3">
+        <!--
+            lblHintPopulation, moved.  In the Delphi it is a bottom-aligned label on the tab, two
+            controls and a whole frame below the list it talks about; here it sits on the list's own
+            top edge, and PopulationPickerViewModel.TipText records the rewording.
+        -->
+        <TextBlock Grid.Row="3"
+                   Margin="0,0,0,3"
+                   Foreground="{StaticResource QsMutedTextBrush}"
+                   Text="Double-click on a population to select it" />
+
+        <Grid Grid.Row="4">
             <!--
                 IsSharedSizeScope is what makes the id column one width for the whole list rather
                 than one per row: the VCL grid has real columns and widens column 0 to the widest id
@@ -166,15 +177,21 @@
                      SelectedItem="{Binding SelectedPopulation, Mode=TwoWay}">
 
                 <!--
-                    QsPopulationItem plus the one thing the theme cannot supply: the row's accessible
-                    name.  The chrome is shared, the name is this row's content, and a theme style
-                    that named a view-model property would only be right for one of the three lists
-                    that use these keys.  BasedOn, so the alternation, the divider and both selection
-                    pairs are still the theme's.
+                    QsPopulationItem plus the two things the theme cannot supply: the row's
+                    accessible name, and the tool tip.  The chrome is shared, the name is this row's
+                    content, and a theme style that named a view-model property would only be right
+                    for one of the three lists that use these keys.  BasedOn, so the alternation, the
+                    divider and both selection pairs are still the theme's.
+
+                    The tool tip goes on the container rather than on the ListBox because it says
+                    "this population": ToolTipService walks UP the tree from whatever is under the
+                    pointer, so a tip on the list itself would also appear over the empty space below
+                    the last row, where there is no population to double-click.
                 -->
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsPopulationItem}">
                         <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+                        <Setter Property="ToolTip" Value="Double-click to select this population" />
                     </Style>
                 </ListBox.ItemContainerStyle>
 
@@ -259,7 +276,7 @@
             A drag turns the preview's row into an absolute height, which is what makes it resizable
             at all.
         -->
-        <GridSplitter Grid.Row="4"
+        <GridSplitter Grid.Row="5"
                       Height="9"
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Center"
@@ -273,7 +290,7 @@
             Delphi the pane is gated by FUNC_POPULATION_SOURCE; here it is the user's own
             'Show source' box on the tab around this frame - see ShowSourceCode for why.
         -->
-        <TextBox Grid.Row="5"
+        <TextBox Grid.Row="6"
                  MinHeight="104"
                  AcceptsReturn="True"
                  Background="{StaticResource QsSurfaceBrush}"

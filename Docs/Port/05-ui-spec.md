@@ -144,8 +144,8 @@ Top-to-bottom (all stretched to the tab width, 279 px at design size):
 | 2 | `cbProject` | `ComboBox`, `csDropDownList`, `DropDownCount = 24` | *(items from `QuickStat.config.xml` → `<Connection><Name>`, e.g. `Testdatabase (NDV)`)* | `Sorted := true` at `FormShow`; `OnChange = SelectConnection` → disconnect, set info to `New project selected`, then `Connecting to %s ...`, connect, `Done` |
 | 3 | `panHdrPopulation` + `hdrPopulation` | teal section header | `Select population` | static |
 | 4 | `panPopulation` | container (fills remaining height) | — | hosts the population frame (`alClient`) |
-| 5 | `lblHintPopulation` | label, bottom | `Tip: Double click to prepare population` | static |
-| 6 | *(none)* | **ADDITION** — check box under 5 | `Show source` | Opens the `CREATE PROCEDURE` pane at the foot of the frame (§B.1.1 item 7). The Delphi has no switch: that pane is visible exactly when `FUNC_POPULATION_SOURCE` is granted, a right the frame registers as `asDenied`, and the port has no access control to ask. Added on the product owner's request, off at start-up. See `PopulationPickerViewModel.ShowSourceCode` |
+| 5 | `lblHintPopulation` | label, bottom | ~~`Tip: Double click to prepare population`~~ | **MOVED AND REWORDED** on the product owner's request. Now `Double-click on a population to select it`, drawn immediately above the list inside the frame (§B.1.1 item 4a) rather than at the foot of the tab, where it sat below the frame, the source pane and item 6 — a long way from what it instructs. "Prepare population" was `PreparePopulation`, an internal verb no part of the screen uses. See `PopulationPickerViewModel.TipText` |
+| 6 | *(none)* | **ADDITION** — check box at the foot | `Show source` | Opens the `CREATE PROCEDURE` pane at the foot of the frame (§B.1.1 item 7). The Delphi has no switch: that pane is visible exactly when `FUNC_POPULATION_SOURCE` is granted, a right the frame registers as `asDenied`, and the port has no access control to ask. Added on the product owner's request, off at start-up. See `PopulationPickerViewModel.ShowSourceCode` |
 
 **No item is preselected in `cbProject`** — the user must pick one, which triggers the connection.
 
@@ -169,7 +169,8 @@ Layout, top to bottom:
 | 2 | `edtPopFilter` | `TextBox`, Height 21 | placeholder `Type filter text here` | **live filter on every keystroke**; case-insensitive substring over the whole item text (see below) |
 | 3 | `cbShowCommon` | `CheckBox`, left-aligned in a 28 px strip | `Frequently used only` | **disabled until a study/database is connected**; re-queries the server (different stored procedure), it is not a client-side filter |
 | 4 | `cbSimpleView` | `CheckBox`, **right-aligned, caption to the LEFT of the box** (`Alignment = taLeftJustify`) | `Simplified` | client-side only: when checked, only the selected row expands to show its `HelpText`; when unchecked every row is expanded |
-| 5 | `ListView` (`TObjectListView`) | 3-column virtual list, fills 77 % of the remaining height | — | see below |
+| 4a | *(none here in the Delphi)* | label | `Double-click on a population to select it` | **`lblHintPopulation`, moved here from §B.1 item 5.** `PopulationPickerViewModel.TipText` |
+| 5 | `ListView` (`TObjectListView`) | 3-column virtual list, fills 77 % of the remaining height | — | see below. **ADDITION:** every row carries the tool tip `Double-click to select this population` (`PopulationPickerViewModel.RowToolTip`), set on the container and not on the list, so the empty space under the last row stays silent |
 | 6 | *(splitter)* | horizontal splitter, 9 px | — | resizes list vs. SQL preview |
 | 7 | `memSourceCode` | read-only multi-line text, no word wrap, **Consolas 8 pt** | the population's `ProcSourceCode` | filled on **single** click; only visible if the user holds the `FUNC_POPULATION_SOURCE` right. **In the port, shown by `Show source` instead** — §B.1 item 6, §I.9. Still filled whether or not it is shown, which is what lets the switch reveal the selected row at once |
 
@@ -833,16 +834,17 @@ Population tab, left panel only:
 │  Filter / search text                   │
 │ [ Type filter text here               ] │
 │  ☐ Frequently used only    Simplified ☐ │  ← right one has caption on the LEFT
+│  Double-click on a population to select │  ← the moved lblHintPopulation (§B.1 item 5)
 │ ┌─────────────────────────────────────┐ │
 │ │ 257  HbA1c > 53 (7%)  Type 1 u/pumpe│ │  id #888888 · title bold #333 · group #894605
-│ │ 258  Siste hos øyelege      Prosess │ │
-│ │ 270  HbA1c > 75 (9%)     Behandling │ │  ← selected: #178891 bg, all text white
+│ │ 258  Siste hos øyelege      Prosess │ │  ← every row: tool tip "Double-click to select
+│ │ 270  HbA1c > 75 (9%)     Behandling │ │      this population"; selected row #178891 bg
 │ │ ...                                 │ │
 │ ├──────────────── ══ ─────────────────┤ │  ← vertical splitter (77 %)
 │ │ CREATE PROCEDURE dbo.GetCaseList…   │ │  memSourceCode, Consolas, read-only
 │ │ BEGIN                               │ │
 │ └─────────────────────────────────────┘ │
-│ Tip: Double click to prepare population │
+│  ☐ Show source                          │  ← ADDITION, opens the pane above
 ```
 
 ---

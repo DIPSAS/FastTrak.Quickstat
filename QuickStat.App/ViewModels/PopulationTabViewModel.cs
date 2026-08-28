@@ -30,9 +30,6 @@ public sealed partial class PopulationTabViewModel : ObservableObject
     /// <summary>Teal header above the picker.</summary>
     public const string PopulationHeader = "Select population";
 
-    /// <summary>Hint at the bottom of the tab.</summary>
-    public const string TipText = "Tip: Double click to prepare population";
-
     /// <summary>
     /// How <c>cbProject</c> is ordered.
     /// </summary>

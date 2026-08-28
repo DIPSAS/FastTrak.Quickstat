@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -63,7 +64,7 @@ public class PopulationViewMarkupTests
     // ---------------------------------------------------------------------------------------
 
     [Fact]
-    public void TheTabCarriesTheThreeStaticStrings()
+    public void TheTabCarriesTheTwoSectionHeadersAndNoLongerTheTip()
     {
         XDocument tab = Tab();
 
@@ -77,9 +78,10 @@ public class PopulationViewMarkupTests
             [PopulationTabViewModel.DatabaseHeader, PopulationTabViewModel.PopulationHeader],
             headers);
 
-        Assert.Contains(
-            Named(tab, "TextBlock"),
-            element => Attribute(element, "Text") == PopulationTabViewModel.TipText);
+        // lblHintPopulation moved into the frame, next to the list it describes, and left nothing
+        // behind: a copy here would be a second line saying the same thing at the other end of the
+        // tab.  Ui/Populations/PopulationTipTests.cs measures where it went.
+        Assert.Empty(Named(tab, "TextBlock"));
     }
 
     [Fact]
@@ -99,26 +101,13 @@ public class PopulationViewMarkupTests
     }
 
     [Fact]
-    public void TheTipAndTheShowSourceBoxShareTheBottomStrip()
+    public void TheShowSourceBoxIsAllThatIsLeftOfTheBottomStrip()
     {
-        // Order matters and DockPanel would reverse it: two children docked Bottom put the SECOND
-        // one above the first, so the tip and the box are stacked instead - the markup then reads
-        // in the order they appear.  Ui/Populations/PopulationTabSourcePaneTests.cs is where the box
-        // is proved to reach the pane.
-        XElement strip = Assert.Single(
-            Tab().Descendants(),
-            element => element.Name.LocalName == "StackPanel");
+        // Ui/Populations/PopulationTabSourcePaneTests.cs is where the box is proved to reach the
+        // pane; this only fixes where it lives and what it binds.
+        XElement box = Assert.Single(Named(Tab(), "CheckBox"));
 
-        Assert.Equal("Bottom", Attribute(strip, "DockPanel.Dock"));
-
-        List<string?> stacked = [.. strip.Elements().Select(element => element.Name.LocalName)];
-
-        Assert.Equal(["TextBlock", "CheckBox"], stacked);
-
-        Assert.Equal(PopulationTabViewModel.TipText, Attribute(strip.Elements().First(), "Text"));
-
-        XElement box = strip.Elements().Last();
-
+        Assert.Equal("Bottom", Attribute(box, "DockPanel.Dock"));
         Assert.Equal(PopulationPickerViewModel.ShowSourceCaption, Attribute(box, "Content"));
 
         // Picker.ShowSourceCode, not ShowSourceCode: the box is on the tab, whose DataContext is the
@@ -228,9 +217,40 @@ public class PopulationViewMarkupTests
 
         Assert.Null(Attribute(list, "ItemContainerStyle"));
         Assert.Equal("{StaticResource QsPopulationItem}", Attribute(style, "BasedOn"));
+
+        List<XElement> setters = [.. style.Elements(Wpf + "Setter")];
+
         Assert.Equal(
-            "{Binding AutomationName}",
-            Attribute(Assert.Single(style.Elements(Wpf + "Setter")), "Value"));
+            ["AutomationProperties.Name", "ToolTip"],
+            setters.Select(setter => Attribute(setter, "Property")));
+
+        Assert.Equal("{Binding AutomationName}", Attribute(setters[0], "Value"));
+
+        // On the row, not on the list: see Ui/Populations/PopulationTipTests.cs.
+        Assert.Equal(PopulationPickerViewModel.RowToolTip, Attribute(setters[1], "Value"));
+        Assert.Null(Attribute(list, "ToolTip"));
+    }
+
+    [Fact]
+    public void TheTipIsTheRowImmediatelyAboveTheList()
+    {
+        // The row indices, which is what XML can see; PopulationTipTests measures the rectangles the
+        // two actually end up with.
+        XDocument picker = Picker();
+
+        XElement tip = Assert.Single(
+            Named(picker, "TextBlock"),
+            element => Attribute(element, "Text") == PopulationPickerViewModel.TipText);
+
+        int tipRow = int.Parse(Attribute(tip, "Grid.Row")!, CultureInfo.InvariantCulture);
+
+        XElement list = Assert.Single(Named(picker, "ListBox"));
+        XElement host = list.Parent!;
+
+        Assert.Equal("Grid", host.Name.LocalName);
+        Assert.Equal(
+            tipRow + 1,
+            int.Parse(Attribute(host, "Grid.Row")!, CultureInfo.InvariantCulture));
     }
 
     [Fact]
@@ -441,9 +461,9 @@ public class PopulationViewMarkupTests
         List<XElement> rows =
             [.. grid.Elements(Wpf + "Grid.RowDefinitions").Single().Elements(Wpf + "RowDefinition")];
 
-        Assert.Equal(6, rows.Count);
-        Assert.Equal("Auto", Attribute(rows[4], "Height"));
+        Assert.Equal(7, rows.Count);
         Assert.Equal("Auto", Attribute(rows[5], "Height"));
+        Assert.Equal("Auto", Attribute(rows[6], "Height"));
     }
 
     [Fact]

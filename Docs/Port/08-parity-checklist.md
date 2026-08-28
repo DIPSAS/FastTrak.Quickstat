@@ -88,8 +88,16 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 
 ## 2. Population tab — §B.1
 
-- [ ] **2.1** Four section headers and labels read exactly: `Select database`, `Select population`,
-  `Filter / search text`, `Tip: Double click to prepare population`. §B.1.
+- [ ] **2.1** Three section headers and labels read exactly: `Select database`, `Select population`,
+  `Filter / search text`. §B.1.
+- [ ] **2.1a** The hint is `Double-click on a population to select it`, and it sits **immediately
+  above the list**, not at the foot of the tab. Hovering any row shows the tool tip `Double-click to
+  select this population`; hovering the blank space under the last row shows nothing. §B.1 item 5,
+  §B.1.1 items 4a and 5.
+- ⚠ **Both are changes to `lblHintPopulation`, made on the owner's request.** The Delphi label is
+  bottom-aligned on the tab, below the frame and the source pane, and reads `Tip: Double click to
+  prepare population` — "prepare population" being `PreparePopulation`, an internal verb. The tool
+  tip is new.
 - [ ] **2.2** `Frequently used only` starts **disabled** and becomes enabled only once a study is
   connected. §G.6.
 - [ ] **2.3** Toggling `Frequently used only` **re-queries the server** — the list content changes,
@@ -107,7 +115,7 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 - [ ] **2.7** Selected + focused is teal `#178891` with **all three runs white**. Click away to
   another control: selected + unfocused should be `#50AEB6`, text still white. §B.1.1.
 - [ ] **2.8** `Enter` behaves like a double click. §B.1.1.
-- [ ] **2.9** Tick **`Show source`** under the tip: the SQL pane opens below the inner splitter,
+- [ ] **2.9** Tick **`Show source`** at the foot of the tab: the SQL pane opens below the inner splitter,
   monospaced and read-only, **already showing the selected population** rather than waiting for the
   next click; single click then follows the selection; the inner splitter drags; unticking closes
   it. §B.1 item 6, §B.1.1 items 6–7.
