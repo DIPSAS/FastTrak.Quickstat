@@ -19,11 +19,23 @@
 
     <UserControl.Resources>
         <!--
-            The grid's context menu, §D.2, verified character for character against screenshot 4.
-            Two of the four captions are deliberately different from the actions' own: the .dfm
-            overrides them on the menu items.
+            mnuGridPopup, §D.2, verified character for character against screenshot 4.  Two of the
+            four captions are deliberately different from the actions' own: the .dfm overrides them
+            on the menu items.
+
+            Used TWICE - by the grid, as its right-click menu, and by the 'Export' button in the
+            caption bar, which is an addition (see there).  x:Shared="False" is what makes that legal:
+            a ContextMenu is an element, one element has one parent, and without this the second
+            reference would steal it from the first.  Each StaticResource then gets its own instance,
+            and each takes its DataContext from its own PlacementTarget.
+
+            One definition rather than two, on purpose.  Three captions, three commands and three
+            glyphs written out in two places is three pairs that can drift, and the whole point of
+            the button is that it offers exactly what the right-click offers.
         -->
-        <ContextMenu x:Key="GridContextMenu" d:DataContext="{d:DesignInstance Type=vm:DatasetViewModel}">
+        <ContextMenu x:Key="DatasetActionsMenu"
+                     x:Shared="False"
+                     d:DataContext="{d:DesignInstance Type=vm:DatasetViewModel}">
             <MenuItem Header="Package dataset specification for reuse"
                       Command="{Binding SaveDataPackageCommand}">
                 <MenuItem.Icon>
@@ -61,17 +73,49 @@
         <q:SectionHeader DockPanel.Dock="Top"
                          Margin="3,3,3,0"
                          Header="{Binding CaptionText}">
-            <CheckBox Style="{StaticResource QsCaptionLeftCheckBox}"
-                      Foreground="{StaticResource QsOnAccentBrush}"
-                      IsChecked="{Binding WideColumns, Mode=TwoWay}">
+            <StackPanel Orientation="Horizontal">
                 <!--
-                    The style puts the caption to the left of the box and keeps the checkmark from
-                    being mirrored with it; LeftToRight here stops the caption itself being
-                    mirrored.  Still one CheckBox, so the caption is clickable and the automation
-                    name is derived from it.
+                    ADDITION, flagged: the Delphi has no such button.  Its three dataset actions live
+                    only on the grid's right-click menu (§D.2), which is a menu a user has to already
+                    know is there - and two of the three are the exports, which is what somebody who
+                    has just collected a dataset is looking for.  This offers the same menu from a
+                    place that can be seen.
+
+                    The SAME menu, not a copy: DatasetActionsMenu is one definition, and the button
+                    and the grid each get an instance of it.  Click opens it, because a ContextMenu
+                    otherwise waits for a right-click - DatasetTabView.xaml.cs, which also has to
+                    place it under the button rather than at the pointer.
+
+                    Left of 'Wide columns', which stays flush right where the Delphi anchors it.
                 -->
-                <TextBlock FlowDirection="LeftToRight" Text="Wide columns" />
-            </CheckBox>
+                <Button x:Name="ExportButton"
+                        Style="{StaticResource QsCaptionButton}"
+                        AutomationProperties.Name="Export"
+                        Click="OnExportClick"
+                        ContextMenu="{StaticResource DatasetActionsMenu}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock VerticalAlignment="Center" Text="Export" />
+
+                        <TextBlock Margin="5,0,0,0"
+                                   Style="{StaticResource QsIconGlyph}"
+                                   FontSize="10"
+                                   Text="{x:Static theme:SegoeIcons.ChevronDown}" />
+                    </StackPanel>
+                </Button>
+
+                <CheckBox Margin="14,0,0,0"
+                          Style="{StaticResource QsCaptionLeftCheckBox}"
+                          Foreground="{StaticResource QsOnAccentBrush}"
+                          IsChecked="{Binding WideColumns, Mode=TwoWay}">
+                    <!--
+                        The style puts the caption to the left of the box and keeps the checkmark
+                        from being mirrored with it; LeftToRight here stops the caption itself being
+                        mirrored.  Still one CheckBox, so the caption is clickable and the automation
+                        name is derived from it.
+                    -->
+                    <TextBlock FlowDirection="LeftToRight" Text="Wide columns" />
+                </CheckBox>
+            </StackPanel>
         </q:SectionHeader>
 
         <!--
@@ -122,7 +166,7 @@
                                  Matrix="{Binding Matrix, Mode=OneWay}"
                                      Identification="{Binding IdentificationMode, Mode=OneWay}"
                                      DataColumnWidth="{Binding DataColumnWidth, Mode=OneWay}"
-                                     ContextMenu="{StaticResource GridContextMenu}"
+                                     ContextMenu="{StaticResource DatasetActionsMenu}"
                                      GridLineBrush="{StaticResource QsGridLineBrush}"
                                      FixedCellBackground="{StaticResource QsPageBrush}"
                                      FixedCellForeground="{StaticResource QsTealDarkBrush}"

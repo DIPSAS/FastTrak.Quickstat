@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using QuickStat.Controls.Dataset;
 using QuickStat.ViewModels;
 
@@ -80,6 +81,35 @@ public partial class DatasetTabView : UserControl
     /// to. <see cref="MatrixGrid.Refresh"/> exists for exactly this.
     /// </remarks>
     private void OnGridRefreshRequested(object? sender, EventArgs e) => Grid.Refresh();
+
+    /// <summary>Drops the dataset actions down under the <c>Export</c> button.</summary>
+    /// <remarks>
+    /// <para>
+    /// The button carries the same menu the grid does - one <c>DatasetActionsMenu</c> definition,
+    /// <c>x:Shared="False"</c>, an instance each - and a <see cref="ContextMenu"/> opens on a
+    /// right-click and nothing else, so a left-click has to open it here. Two properties have to be
+    /// set with it: <see cref="ContextMenu.PlacementTarget"/>, because the menu is not in the visual
+    /// tree and would otherwise have nothing to measure against, and
+    /// <see cref="System.Windows.Controls.Primitives.PlacementMode.Bottom"/>, because the default is
+    /// the mouse pointer - which for a menu the user asked for by pressing a button is the one place
+    /// it should not be.
+    /// </para>
+    /// <para>
+    /// Nothing about which items are there, whether they are enabled or what they do is here: that
+    /// is the menu's markup and <see cref="DatasetViewModel"/>'s commands, exactly as on the grid.
+    /// </para>
+    /// </remarks>
+    private void OnExportClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement button || button.ContextMenu is not { } menu)
+        {
+            return;
+        }
+
+        menu.PlacementTarget = button;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
 
     private void OnCellActivated(object? sender, MatrixGridCellEventArgs e) =>
         UpdateHint(e.RowIndex, e.ColumnIndex);

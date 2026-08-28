@@ -145,6 +145,7 @@ Top-to-bottom (all stretched to the tab width, 279 px at design size):
 | 3 | `panHdrPopulation` + `hdrPopulation` | teal section header | `Select population` | static |
 | 4 | `panPopulation` | container (fills remaining height) | — | hosts the population frame (`alClient`) |
 | 5 | `lblHintPopulation` | label, bottom | `Tip: Double click to prepare population` | static |
+| 6 | *(none)* | **ADDITION** — check box under 5 | `Show source` | Opens the `CREATE PROCEDURE` pane at the foot of the frame (§B.1.1 item 7). The Delphi has no switch: that pane is visible exactly when `FUNC_POPULATION_SOURCE` is granted, a right the frame registers as `asDenied`, and the port has no access control to ask. Added on the product owner's request, off at start-up. See `PopulationPickerViewModel.ShowSourceCode` |
 
 **No item is preselected in `cbProject`** — the user must pick one, which triggers the connection.
 
@@ -170,7 +171,7 @@ Layout, top to bottom:
 | 4 | `cbSimpleView` | `CheckBox`, **right-aligned, caption to the LEFT of the box** (`Alignment = taLeftJustify`) | `Simplified` | client-side only: when checked, only the selected row expands to show its `HelpText`; when unchecked every row is expanded |
 | 5 | `ListView` (`TObjectListView`) | 3-column virtual list, fills 77 % of the remaining height | — | see below |
 | 6 | *(splitter)* | horizontal splitter, 9 px | — | resizes list vs. SQL preview |
-| 7 | `memSourceCode` | read-only multi-line text, no word wrap, **Consolas 8 pt** | the population's `ProcSourceCode` | filled on **single** click; only visible if the user holds the `FUNC_POPULATION_SOURCE` right |
+| 7 | `memSourceCode` | read-only multi-line text, no word wrap, **Consolas 8 pt** | the population's `ProcSourceCode` | filled on **single** click; only visible if the user holds the `FUNC_POPULATION_SOURCE` right. **In the port, shown by `Show source` instead** — §B.1 item 6, §I.9. Still filled whether or not it is shown, which is what lets the switch reveal the selected row at once |
 
 **Population list row layout** (reproduce with a `ListBox` + `DataTemplate`):
 
@@ -317,6 +318,7 @@ missing collector → warning `The selection contains an unknown data element…
 | 4a | *(grid)* | `TStudyOverviewGrid` (owner-drawn) | — | see C.3 |
 | 4b | `panHint` | floating tooltip panel, 240 px wide, `bsSingle` border, `BorderWidth = 2`, `Color = clInfoBk` (`#FFFFE1`), initially hidden | `lblDataHint` initial caption `Data hint is shown here` | see §G.2 |
 | 5 | `panSettings` → `cbShowDataHint` | check box docked at the very bottom, **`Checked = True`** | `Show data hint` | `OnClick = UpdateDataHintPanel` |
+| 6 | *(none)* | **ADDITION** — a `QsCaptionButton` in the teal bar, immediately left of 3 | `Export ⌄` | Drops down `mnuGridPopup` (§D.2) under the button. In the Delphi those three actions are reachable only by right-clicking the grid, which has to be guessed at; two of them are the exports, which is what somebody who has just collected a dataset is looking for. **The same menu, not a copy** — one `DatasetActionsMenu` resource with `x:Shared="False"`, so the grid and the button each get an instance. The grid's right-click is unchanged |
 
 Live caption format string:
 
@@ -761,6 +763,7 @@ result*, which no list in the Delphi ever paints — §B.3 has said `#E7F2FC` al
 | `QsFlatComboBox` | `ComboBox` | same chrome, `MaxDropDownHeight` ≈ 24 items |
 | `QsPrimaryButton` | `Button` | full width, `Height=40`, icon 20 px + label, `Background=QsSurfaceBrush`, 1 px `QsBorderBrush`; hover `#EAF6F7`, pressed `#DCF0F1`, disabled 40 % opacity — replaces the Win32 `E5F1FB`/`0078D7` hot state |
 | `QsToolButton` | `Button` | 30 × 30, icon only, transparent until hover |
+| `QsCaptionButton` | `Button` | A flat action button **on** a teal `SectionHeader` — the *Export* drop-down (§C.1). Transparent, `QsOnAccentBrush` text at `QsSmallFontSize`, hover `QsTealHoverBrush`, pressed `QsTealDarkBrush`, disabled 40 % opacity, `Height=18` = the 26 px bar less its `8,4` padding. `QsToolButton` cannot serve: it is taller than the bar and its `#EAF6F7` hover reads as a hole over `#178891`. Added after the parity pass, with the button |
 | `QsPopulationItem` | `ListBoxItem` | see B.1.1: alternation, teal selection, white selected text, 1 px bottom divider |
 | `QsPackageItem` | `ListBoxItem` | see B.3 |
 | `QsCheckListItem` | `ListBoxItem` | `CheckBox` + text, `Padding=4,2`, native selection colours |
@@ -1074,7 +1077,7 @@ PopulationPickerViewModel
 ├─ ICollectionView                            PopulationsView   (the filter)
 ├─ PopulationViewModel? SelectedPopulation   → updates SqlPreview
 ├─ string   SqlPreview
-├─ bool     IsSqlPreviewVisible              (FUNC_POPULATION_SOURCE access right)
+├─ bool     ShowSourceCode                   ('Show source'; was the FUNC_POPULATION_SOURCE gate, §I.9)
 └─ IRelayCommand PreparePopulationCommand    (double click / Enter)
 
 PopulationViewModel : { int ProcId; string Title; string Group; string HelpText; string SourceCode }
@@ -1168,10 +1171,13 @@ PeriodViewModel    { DateTime Start; DateTime End; string Subheader; bool CanAcc
 8. **The `\n` literals** in `MainQuickStat.pas` resource strings are not escape sequences in
    Delphi and are almost certainly rendered as literal backslash-n today. I have written them as
    line breaks in §D.4 on the assumption that that was the intent. Confirm.
-9. **Access control for the SQL preview.** `memSourceCode` is only visible when the user holds
-   `FUNC_POPULATION_SOURCE`; the default is `asDenied`. Screenshot 1 shows it visible, so at
-   least some users have it. The port needs the same gate — but the access-control plumbing is
-   outside this document's scope.
+9. ~~**Access control for the SQL preview.**~~ **Settled by the product owner, 2026-08-28.**
+   `memSourceCode` is only visible when the user holds `FUNC_POPULATION_SOURCE`; the default is
+   `asDenied`. Screenshot 1 shows it visible, so at least some users have it — and so does the
+   owner's own running build, which is the question the deny-by-default was standing in for. The
+   port has no access control and now has no gate either: the pane is a user setting, `Show source`
+   (§B.1 item 6), off at start-up. If access control ever arrives it hides the **check box**; the
+   pane follows.
 10. **Icons.** `lstActiveImages` / `lstDisabledImages` are 24 × 24 image lists embedded in the
     `.dfm` as binary blobs. The four I could identify from screenshot 4 and the Collections tab
     are: index 1 = tan parcel box, index 3 = green Excel “X”, index 4 = gold magic wand with

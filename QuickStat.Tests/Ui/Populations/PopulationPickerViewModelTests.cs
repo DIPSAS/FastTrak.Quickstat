@@ -56,7 +56,7 @@ public class PopulationPickerViewModelTests
         Assert.False(harness.Picker.CanFilterFrequentlyUsed);
         Assert.False(harness.Picker.FrequentlyUsedOnly);
         Assert.False(harness.Picker.Simplified);
-        Assert.False(harness.Picker.IsSqlPreviewVisible);
+        Assert.False(harness.Picker.ShowSourceCode);
         Assert.Equal("", harness.Picker.SqlPreview);
         Assert.Null(harness.Picker.SelectedPopulation);
         Assert.False(harness.Picker.PreparePopulationCommand.CanExecute(null));
@@ -483,9 +483,11 @@ public class PopulationPickerViewModelTests
 
         harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
 
-        // PopulationSelected fills memSourceCode regardless; only the pane is gated.
+        // PopulationSelected fills memSourceCode regardless of whether the pane is up, and that is
+        // load-bearing rather than incidental: it is what lets 'Show source' reveal the selected
+        // population's SQL at once instead of waiting for the next row to be clicked.
         Assert.Equal("SELECT 1", harness.Picker.SqlPreview);
-        Assert.False(harness.Picker.IsSqlPreviewVisible);
+        Assert.False(harness.Picker.ShowSourceCode);
     }
 
     [Fact]
@@ -515,23 +517,45 @@ public class PopulationPickerViewModelTests
     }
 
     [Fact]
-    public async Task GrantingTheSourceCodeRightShowsThePaneAndBlanksIt()
+    public async Task ShowSourceRevealsTheSelectedPopulationWithoutASecondClick()
     {
+        // The Delphi's pane is an access-control right rather than a setting, and the port has no
+        // access control, so this is the owner's switch instead - ShowSourceCode says why.  What it
+        // must not do is behave like the data hint did before §8.11 (9): ticking the box has to show
+        // the row that is already selected.
         using PopulationHarness harness = new();
 
         await harness.ConnectAsync(PopulationTestDoubles.NewPopulation(1, "Ein", sourceCode: "SELECT 1"));
 
         harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+        harness.Picker.ShowSourceCode = true;
 
-        harness.Picker.SetSourceCodeAccess(true);
+        Assert.Equal("SELECT 1", harness.Picker.SqlPreview);
 
-        // AfterAccessControlChanged clears the memo and then sets the pane's visibility.
-        Assert.True(harness.Picker.IsSqlPreviewVisible);
-        Assert.Equal("", harness.Picker.SqlPreview);
+        // And unticking it keeps the text, because the pane is hidden rather than emptied - the next
+        // tick is instant too.
+        harness.Picker.ShowSourceCode = false;
 
-        harness.Picker.SetSourceCodeAccess(false);
+        Assert.Equal("SELECT 1", harness.Picker.SqlPreview);
+    }
 
-        Assert.False(harness.Picker.IsSqlPreviewVisible);
+    [Fact]
+    public async Task ShowSourceFollowsTheSelectionWhileItIsOpen()
+    {
+        using PopulationHarness harness = new();
+
+        await harness.ConnectAsync(
+            PopulationTestDoubles.NewPopulation(1, "Ein", sourceCode: "SELECT 1"),
+            PopulationTestDoubles.NewPopulation(2, "To", sourceCode: "SELECT 2"));
+
+        harness.Picker.ShowSourceCode = true;
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[0];
+
+        Assert.Equal("SELECT 1", harness.Picker.SqlPreview);
+
+        harness.Picker.SelectedPopulation = harness.Picker.Populations[1];
+
+        Assert.Equal("SELECT 2", harness.Picker.SqlPreview);
     }
 
     // ---------------------------------------------------------------------------------------

@@ -100,6 +100,7 @@ public class ThemeResourceTests
             "QsFlatComboBox",
             "QsPrimaryButton",
             "QsToolButton",
+            "QsCaptionButton",
             "QsPopulationItem",
             "QsPackageItem",
             "QsCheckListItem",

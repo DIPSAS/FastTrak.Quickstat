@@ -99,6 +99,34 @@ public class PopulationViewMarkupTests
     }
 
     [Fact]
+    public void TheTipAndTheShowSourceBoxShareTheBottomStrip()
+    {
+        // Order matters and DockPanel would reverse it: two children docked Bottom put the SECOND
+        // one above the first, so the tip and the box are stacked instead - the markup then reads
+        // in the order they appear.  Ui/Populations/PopulationTabSourcePaneTests.cs is where the box
+        // is proved to reach the pane.
+        XElement strip = Assert.Single(
+            Tab().Descendants(),
+            element => element.Name.LocalName == "StackPanel");
+
+        Assert.Equal("Bottom", Attribute(strip, "DockPanel.Dock"));
+
+        List<string?> stacked = [.. strip.Elements().Select(element => element.Name.LocalName)];
+
+        Assert.Equal(["TextBlock", "CheckBox"], stacked);
+
+        Assert.Equal(PopulationTabViewModel.TipText, Attribute(strip.Elements().First(), "Text"));
+
+        XElement box = strip.Elements().Last();
+
+        Assert.Equal(PopulationPickerViewModel.ShowSourceCaption, Attribute(box, "Content"));
+
+        // Picker.ShowSourceCode, not ShowSourceCode: the box is on the tab, whose DataContext is the
+        // tab's view-model, while the pane it drives is inside the frame bound to Picker.
+        Assert.Equal("{Binding Picker.ShowSourceCode, Mode=TwoWay}", Attribute(box, "IsChecked"));
+    }
+
+    [Fact]
     public void TheTabHostsThePickerOnItsOwnViewModel()
     {
         XElement picker = Assert.Single(
@@ -389,7 +417,7 @@ public class PopulationViewMarkupTests
     {
         XDocument picker = Picker();
 
-        const string Gate = "{Binding IsSqlPreviewVisible, Converter={conv:BoolToVisibilityConverter}}";
+        const string Gate = "{Binding ShowSourceCode, Converter={conv:BoolToVisibilityConverter}}";
 
         XElement splitter = Assert.Single(Named(picker, "GridSplitter"));
 

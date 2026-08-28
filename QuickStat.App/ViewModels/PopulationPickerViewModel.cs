@@ -46,6 +46,16 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     /// <summary>Caption of the right-hand check box, which sits to the <em>left</em> of its box.</summary>
     public const string SimplifiedCaption = "Simplified";
 
+    /// <summary>
+    /// Caption of the check box under the tip, which opens the <c>CREATE PROCEDURE</c> pane.
+    /// </summary>
+    /// <remarks>
+    /// Lives here rather than on <see cref="PopulationTabViewModel"/>, where the box is drawn,
+    /// because the state it drives is <see cref="ShowSourceCode"/>. There is no Delphi caption to
+    /// match: the pane has no switch there. See <see cref="ShowSourceCode"/>.
+    /// </remarks>
+    public const string ShowSourceCaption = "Show source";
+
     /// <summary>Empty state before a database has been chosen. This is what a first run shows.</summary>
     /// <remarks>
     /// <b>Addition</b>, flagged. The VCL hides the whole list when it has nothing to show
@@ -95,8 +105,34 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
     [ObservableProperty]
     private string _sqlPreview = "";
 
+    /// <summary>
+    /// Whether the <c>CREATE PROCEDURE</c> pane under the list is shown. <c>Show source</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This replaces an access-control gate, on the product owner's decision, and that is worth
+    /// stating.</b> In the Delphi the pane is not a user setting at all: it is visible exactly when
+    /// <c>FUNC_POPULATION_SOURCE</c> is granted (<c>EPR.VclFrame.Populations.pas:170-177</c>), a
+    /// right the frame registers as <c>asDenied</c>. The port has no <c>IAccessControl</c> - §I.9
+    /// puts it out of scope - so it took that registered default and the pane could never appear.
+    /// The owner has since asked for the pane and shown it open in their own running build, which
+    /// settles the question the default was standing in for: in this deployment the right is
+    /// granted.
+    /// </para>
+    /// <para>
+    /// So the pane is now the user's own switch, off at start-up, and there is one flag rather than
+    /// a right that nothing can grant sitting on top of a toggle it would always veto. If access
+    /// control ever arrives it gates the <em>check box</em>, not the pane - hide the switch and this
+    /// stays false.
+    /// </para>
+    /// <para>
+    /// <see cref="SqlPreview"/> is filled whether or not this is set, which is the Delphi's own
+    /// behaviour and the reason ticking the box shows the selected population's source immediately
+    /// rather than after the next click.
+    /// </para>
+    /// </remarks>
     [ObservableProperty]
-    private bool _isSqlPreviewVisible;
+    private bool _showSourceCode;
 
     /// <summary>Creates the picker's view-model.</summary>
     /// <param name="catalogue">The population catalogue and the selection audit.</param>
@@ -180,32 +216,6 @@ public sealed partial class PopulationPickerViewModel : ObservableObject, IDispo
 
     /// <summary>Whether a catalogue load is in flight.</summary>
     internal bool IsLoadingCatalogue => _catalogueLoad is not null;
-
-    /// <summary>
-    /// Grants or revokes the <c>FUNC_POPULATION_SOURCE</c> right that gates the SQL preview.
-    /// </summary>
-    /// <param name="granted">Whether the user may see a population's <c>CREATE PROCEDURE</c> text.</param>
-    /// <remarks>
-    /// <para>
-    /// <b>Decision, recorded.</b> <c>05-ui-spec.md</c> §I.9 leaves the access-control plumbing out of
-    /// scope and there is no <c>IAccessControl</c> in the port, so the port takes the
-    /// <em>registered</em> default and nothing else:
-    /// <c>AManager.AddFunctionPoint(FUNC_POPULATION_SOURCE, asDenied)</c>
-    /// (<c>EPR.VclFrame.Populations.pas:170</c>). The pane is therefore hidden, exactly as it is for
-    /// a user who holds no rights today. Showing SQL to everyone because the gate has not been built
-    /// yet would be the one failure mode a deny-by-default right exists to prevent.
-    /// </para>
-    /// <para>
-    /// This method is the whole of the seam: whoever adds access control calls it, as
-    /// <c>AfterAccessControlChanged</c> (<c>:173-177</c>) does - which also clears the pane's text,
-    /// reproduced here.
-    /// </para>
-    /// </remarks>
-    public void SetSourceCodeAccess(bool granted)
-    {
-        SqlPreview = "";
-        IsSqlPreviewVisible = granted;
-    }
 
     /// <summary>
     /// Finds a population by <c>ProcId</c>, selects it, and loads its cohort into the grid.

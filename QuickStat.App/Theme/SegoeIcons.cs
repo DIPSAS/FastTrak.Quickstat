@@ -19,8 +19,9 @@ namespace QuickStat.Theme;
 /// re-encoded the file.
 /// </para>
 /// <para>
-/// Reversing the decision means replacing these six constants and adding the extracted images as
-/// resources; nothing else refers to the image list. Used from XAML as
+/// Reversing the decision means replacing these constants and adding the extracted images as
+/// resources; nothing else refers to the image list. <see cref="ChevronDown"/> has no image-list
+/// original and would stay a glyph either way. Used from XAML as
 /// <c>Text="{x:Static theme:SegoeIcons.Package}"</c> together with the <c>QsIconGlyph</c> style,
 /// which supplies the typeface.
 /// </para>
@@ -44,4 +45,11 @@ public static class SegoeIcons
 
     /// <summary>A generic document, for a place that needs a glyph and has no Delphi original.</summary>
     public const string Document = "\uE8A5";
+
+    /// <summary>
+    /// The "there is a menu under this" chevron on the <c>Export</c> button. No Delphi original: the
+    /// button itself is an addition, surfacing <c>mnuGridPopup</c> where it can be found without
+    /// guessing that the grid has a right-click menu.
+    /// </summary>
+    public const string ChevronDown = "\uE70D";
 }

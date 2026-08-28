@@ -49,10 +49,25 @@
 
         <q:SectionHeader DockPanel.Dock="Top" Margin="3" Header="Select population" />
 
-        <TextBlock DockPanel.Dock="Bottom"
-                   Margin="3"
-                   Foreground="{StaticResource QsMutedTextBrush}"
-                   Text="Tip: Double click to prepare population" />
+        <!--
+            lblHintPopulation, and under it the one control the Delphi does not have.
+
+            'Show source' opens the CREATE PROCEDURE pane at the bottom of the frame above.  In the
+            Delphi that pane is not a setting: it appears when FUNC_POPULATION_SOURCE is granted and
+            is invisible otherwise, and the port has no access control to ask - see
+            PopulationPickerViewModel.ShowSourceCode for the decision.  A StackPanel rather than two
+            docked children so the markup reads in the order the two appear on screen; docking them
+            separately would put the second one above the first.
+        -->
+        <StackPanel DockPanel.Dock="Bottom">
+            <TextBlock Margin="3"
+                       Foreground="{StaticResource QsMutedTextBrush}"
+                       Text="Tip: Double click to prepare population" />
+
+            <CheckBox Margin="3,0,3,3"
+                      Content="Show source"
+                      IsChecked="{Binding Picker.ShowSourceCode, Mode=TwoWay}" />
+        </StackPanel>
 
         <views:PopulationPickerView Margin="3,0,3,3" DataContext="{Binding Picker}" />
     </DockPanel>

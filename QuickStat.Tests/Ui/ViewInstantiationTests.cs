@@ -275,7 +275,7 @@ public class ViewInstantiationTests
 
         // The grid's context menu is a keyed resource in the view's own dictionary rather than an
         // inline child, so nothing else would notice if it stopped parsing.
-        Assert.IsType<ContextMenu>(view.Resources["GridContextMenu"]);
+        Assert.IsType<ContextMenu>(view.Resources["DatasetActionsMenu"]);
     });
 
     [Fact]

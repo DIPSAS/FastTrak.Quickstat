@@ -254,9 +254,10 @@
 
         <!--
             splitMain, SplitterWidth = 9, FixedPane = fpLowerRight: the list keeps the slack and the
-            preview keeps its height.  Both rows are Auto, so with the preview hidden - which is the
-            default, see SetSourceCodeAccess - the pair takes no space at all.  A drag turns the
-            preview's row into an absolute height, which is what makes it resizable at all.
+            preview keeps its height.  Both rows are Auto, so with the preview hidden - which is how
+            it starts, see PopulationPickerViewModel.ShowSourceCode - the pair takes no space at all.
+            A drag turns the preview's row into an absolute height, which is what makes it resizable
+            at all.
         -->
         <GridSplitter Grid.Row="4"
                       Height="9"
@@ -265,11 +266,12 @@
                       Background="{StaticResource QsPageBrush}"
                       ResizeBehavior="PreviousAndNext"
                       ResizeDirection="Rows"
-                      Visibility="{Binding IsSqlPreviewVisible, Converter={conv:BoolToVisibilityConverter}}" />
+                      Visibility="{Binding ShowSourceCode, Converter={conv:BoolToVisibilityConverter}}" />
 
         <!--
-            memSourceCode: read-only, no word wrap, Consolas 8 pt, only visible to a user who holds
-            FUNC_POPULATION_SOURCE (§B.1.1 item 7, §I.9).
+            memSourceCode: read-only, no word wrap, Consolas 8 pt (§B.1.1 item 7, §I.9).  In the
+            Delphi the pane is gated by FUNC_POPULATION_SOURCE; here it is the user's own
+            'Show source' box on the tab around this frame - see ShowSourceCode for why.
         -->
         <TextBox Grid.Row="5"
                  MinHeight="104"
@@ -284,6 +286,6 @@
                  Text="{Binding SqlPreview, Mode=OneWay}"
                  TextWrapping="NoWrap"
                  VerticalScrollBarVisibility="Auto"
-                 Visibility="{Binding IsSqlPreviewVisible, Converter={conv:BoolToVisibilityConverter}}" />
+                 Visibility="{Binding ShowSourceCode, Converter={conv:BoolToVisibilityConverter}}" />
     </Grid>
 </UserControl>

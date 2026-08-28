@@ -7,7 +7,7 @@ Last updated: 2026-08-28
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 537 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 546 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -81,6 +81,13 @@ Last updated: 2026-08-28
 > The rebuild has to cross the view-model/control seam, since only the grid knows where the caret is,
 > so it goes the way `GridRefreshRequested` already goes. **2 534 tests**, four of them new,
 > negative-controlled on each side of that seam separately.
+>
+> **The pass also asked for two things the Delphi does not have** — §7.3. `Show source` under the
+> population tip, which opens the `CREATE PROCEDURE` pane and replaces an access right the port had
+> no way to grant (§I.9 is struck through); and an `Export ⌄` button in the Dataset caption bar,
+> which drops down the grid's own right-click menu from somewhere it can be found. The second is the
+> *same* menu rather than a copy, and a test compares the two item by item. Both are marked in the
+> parity checklist so they are not read as drift. **2 546 tests.**
 >
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
@@ -916,6 +923,22 @@ that is the colouring users actually see, and it is ported as-is.
   returning "yes" when below the dialog threshold.
 - Real `.xlsx` export via ClosedXML alongside CSV, avoiding the CSV locale round-trip.
 - Per-monitor DPI awareness.
+- **Two controls the Delphi has not got, both asked for by the product owner during the parity pass
+  (2026-08-28) and both flagged in `Docs/Port/08-parity-checklist.md` so the pass does not read them
+  as drift.**
+  - **`Show source`** under the population tip, opening the `CREATE PROCEDURE` pane. This one
+    *replaces* something: in the Delphi the pane is not a setting at all, it is visible exactly when
+    `FUNC_POPULATION_SOURCE` is granted, and the frame registers that right as `asDenied`. The port
+    has no access control, took the registered default, and so could never show the pane — while the
+    owner's own build shows it open, which settles the question the default was standing in for. One
+    flag, off at start-up; access control, if it arrives, hides the check box. `05-ui-spec.md` §I.9
+    is struck through accordingly.
+  - **`Export ⌄`** in the Dataset tab's caption bar, dropping down `mnuGridPopup`. The Delphi's
+    three dataset actions — the package, the Excel export and the CSV export — are reachable only by
+    right-clicking the grid, which a user has to already know. **The same menu, not a second copy**:
+    one `DatasetActionsMenu` resource with `x:Shared="False"`, an instance for the grid and one for
+    the button, and a test that compares the two item by item rather than against a transcript. The
+    right-click is unchanged.
 
 ---
 

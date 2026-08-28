@@ -262,6 +262,48 @@
         </Setter>
     </Style>
 
+    <!--
+        A flat action button that sits ON a teal section header - 'Export' on the Dataset tab.
+
+        QsToolButton is the wrong shape for that: it is a 30 x 30 square, which is taller than the
+        26 px bar, and its hover is #EAF6F7, meant for a white background, which over #178891 reads
+        as a hole rather than as a highlight.  This one is transparent, white, one point smaller than
+        the heading like everything else in that slot, and 18 px tall - the bar's height less its
+        8,4 padding, so it cannot make the bar grow.
+    -->
+    <Style x:Key="QsCaptionButton" TargetType="{x:Type Button}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource QsOnAccentBrush}" />
+        <Setter Property="FontSize" Value="{StaticResource QsSmallFontSize}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsTealHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource QsTealDarkBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Icon glyph, Segoe MDL2 Assets.  §I.10, decided in favour of glyphs over .dfm image blobs. -->
     <Style x:Key="QsIconGlyph" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource QsIconFontFamily}" />

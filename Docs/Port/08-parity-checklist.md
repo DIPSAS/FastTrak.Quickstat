@@ -107,8 +107,14 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 - [ ] **2.7** Selected + focused is teal `#178891` with **all three runs white**. Click away to
   another control: selected + unfocused should be `#50AEB6`, text still white. §B.1.1.
 - [ ] **2.8** `Enter` behaves like a double click. §B.1.1.
-- [ ] **2.9** Single click fills the SQL preview below the inner splitter, monospaced and
-  read-only; the inner splitter drags. §B.1.1 items 6–7.
+- [ ] **2.9** Tick **`Show source`** under the tip: the SQL pane opens below the inner splitter,
+  monospaced and read-only, **already showing the selected population** rather than waiting for the
+  next click; single click then follows the selection; the inner splitter drags; unticking closes
+  it. §B.1 item 6, §B.1.1 items 6–7.
+- ⚠ **`Show source` is an addition, and it replaces an access right.** The Delphi has no switch: the
+  pane is visible exactly when `FUNC_POPULATION_SOURCE` is granted, which the frame registers as
+  denied, and the port has no access control to ask. Added on the owner's request, off at start-up.
+  §I.9.
 - [ ] **2.10** Double click loads: the right pane switches to `Dataset`, the grid fills, and the
   `Collections` tab **appears and is activated**. §B.0, §B.1.1. *(This is where the pass found its
   first defect — the double click reached nothing at all, PORT-PLAN.md §8.11 (5). Fixed and pinned,
@@ -168,8 +174,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 - [ ] **4.1** Caption bar reads `Your dataset` before a load and
   `Population: 282 "Diagnoseår mangler". Grid size: 31 x <n>` after — **rows × columns**, in that
   order. §C.1.
-- [ ] **4.2** `Wide columns` sits **inside** the teal bar, right-aligned, **caption to the left of
+- [ ] **4.2** `Wide columns` sits **inside** the teal bar, **flush right**, **caption to the left of
   the box**, one point smaller. Toggling it moves data columns between 64 and 120 px. §C.1.
+- [ ] **4.2a** **`Export ⌄`**, immediately left of `Wide columns`, drops down the same three items
+  the grid's right-click offers, in the same order, under the button. **An addition** — the Delphi
+  has no such button; those actions are reachable only by right-clicking the grid, which has to be
+  guessed. The right-click still works and is unchanged; check both. §C.1 item 6, §D.2.
 - [ ] **4.3** Frozen columns: `PID`, `Født`, `Fødselsnummer`, `Navn` — the three Norwegian headers
   verbatim. With anything but *Fully identified patients*, columns 1–3 are **hidden**, and the
   radio switches them live. §C.3. **[AC-7]**
@@ -225,7 +235,9 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 ## 5. Export — **[AC-6]** and **[AC-7]**
 
 - [ ] **5.1** `Save dataset to CSV file` from the grid's context menu: default name `QuickStat.csv`,
-  one file type *Comma separated values*, overwrite prompt on. §D.1.
+  one file type *Comma separated values*, overwrite prompt on. §D.1. *(Reachable from the new
+  `Export` button as well — 4.2a. Same menu, so proving one proves the other, but the button is
+  where a first-time user will look.)*
 - [ ] **5.2** All three identification modes produce what their captions promise, and
   `Export timestamp for every data element` adds a `.DATE` column after each value column. §B.2.
 - [ ] **5.3** `Open this dataset in Excel` opens Excel on a temp file, and the temp file is gone
