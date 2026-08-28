@@ -37,9 +37,20 @@ Roughly **60 items need eyes**. Four other acceptance criteria close along the w
 **A ✅ is worth what the test behind it is worth, and the first two defects this pass found were both
 under one.** 2.10 was covered by a test that read the markup and confirmed the gesture was spelled
 correctly — it was, and it did nothing. 4.12 was covered by a test that called the scrolling API
-itself, which proves the arithmetic and not that anything reaches it. Both now have a case that
-drives real input through the real view. If a ✅ names a test whose subject is the *code* rather than
-the *behaviour*, treat it as a `[ ]`.
+itself, which proves the arithmetic and not that anything reaches it; that test's *name* even
+asserted a behaviour the product never had. Both now have a case that drives real input through the
+real view. If a ✅ names a test whose subject is the *code* rather than the *behaviour*, treat it as
+a `[ ]`.
+
+**And when something still looks wrong after a fix, say so — 4.12 took two goes.** The first one
+made the scrollbars work, which was a real fault, and left the reported one untouched, because the
+wheel over a VCL grid moves the selection rather than the view. The reference build is the
+authority; where it is cheaper to read `Vcl.Grids.pas` than to argue, that is what §2.1 means.
+
+**A `[ ]` item can be wrong about what it is asking for.** 4.10 told you to check that the hint moves
+*only* on click. It was quoting `05-ui-spec.md` §G.2, which had misread the Delphi, so following the
+checklist faithfully would have confirmed the defect rather than found it. Both are corrected — but
+if an item describes behaviour that seems unhelpful, that is worth a moment's suspicion of the item.
 
 ---
 
@@ -165,16 +176,21 @@ the *behaviour*, treat it as a `[ ]`.
 - [ ] **4.8** Right-align: everything except `Født`, `Fødselsnummer` and `Navn`, which are
   left-aligned with ellipsis. Header row left-aligned. §C.3.
 - [ ] **4.9** Tooltips on header and data cells. §C.3.
-- [ ] **4.10** The data-hint panel: pale yellow, appears **below** the clicked cell aligned to its
+- [ ] **4.10** The data-hint panel: pale yellow, appears **below** the current cell aligned to its
   left edge, line 1 `PersonId = <n>` (or the patient's name when fully identified), line 2 the
-  value. It moves **only on click** — not on hover, not on arrow keys. `Show data hint` is checked
-  by default and hides it. §G.2.
+  value. It **follows the caret however the caret moves** — click, arrow keys, Page Up/Down,
+  Home/End and the wheel — but not on hover. This checklist and §G.2 both said the opposite until
+  the pass proved otherwise; see PORT-PLAN.md §8.11 (7). `Show data hint` is checked by default and
+  hides it. §G.2.
 - [ ] **4.11** Column resizing by drag works; clicking a fixed cell selects the row. §C.3.
-- [ ] **4.12** **Scrolling with the mouse**: the wheel moves the patient list three rows a notch, and
-  both scrollbars appear when the dataset is taller or wider than the pane and go away when it is
-  not. This is where the pass found its second defect — the grid had no scrollbars at all and the
-  wheel did nothing, PORT-PLAN.md §8.11 (6). Fixed and pinned, but confirm it with your own hand:
-  the arrow keys always worked, and that is exactly what hid it.
+- [ ] **4.12** **The mouse over the grid**, which is two different things. The **wheel moves the
+  current row, one patient a notch** — it does not scroll; that is `TCustomGrid.DoMouseWheelDown`
+  doing `Row := Row + 1`, and it is why the wheel visibly works in the reference even when every row
+  already fits. Separately, **both scrollbars** should appear when the dataset outgrows the pane and
+  go away when it does not. This is where the pass found its second defect, and the first fix for it
+  was half wrong — PORT-PLAN.md §8.11 (6). Both halves are now measured against the running binary
+  (`C:\work\qs-run\wheel-check.ps1`, `scrollbar-check.ps1`), so this one is closer to ✅ than to
+  `[ ]`; spin the wheel anyway.
 - ⚠ **No `Time series` tab.** The Delphi's is empty, permanently disabled and referenced by nothing;
   the port drops the `TabControl` entirely. §C.2 — and this is the one removal a user can see, so
   it belongs in the release notes.

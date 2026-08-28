@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Xml.Linq;
@@ -15,34 +16,36 @@ using Xunit;
 namespace QuickStat.Tests.Ui.Dataset;
 
 /// <summary>
-/// The Dataset tab's grid can be scrolled with the mouse, which needs a host and not just an
-/// interface.
+/// The Dataset tab gives its grid the host the control requires: two scrollbars and a
+/// <c>ScrollOwner</c>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>Written after the bug.</b> <see cref="MatrixGrid"/> implements <c>IScrollInfo</c> in full and
 /// its own class documentation says to put it inside a <c>ScrollViewer</c> with
 /// <c>CanContentScroll="True"</c> - and <c>DatasetTabView.xaml</c> did not. Nothing calls
-/// <c>MouseWheelDown</c>, <c>LineDown</c> or <c>PageDown</c> except a <c>ScrollViewer</c>: they are
-/// interface members, not input handlers. So the wheel did nothing over the dataset, there were no
-/// scrollbars on either axis, and every <c>ScrollOwner?.InvalidateScrollInfo()</c> in the control
-/// was a null-check that never fired. The arrow keys still worked, because those the grid handles
-/// itself, which is why an empty pane looked fine.
+/// <c>LineDown</c>, <c>PageDown</c> or <c>SetVerticalOffset</c> except a <c>ScrollViewer</c>: they
+/// are interface members, not input handlers. So there were no scrollbars on either axis, a dataset
+/// taller or wider than the pane could be reached only with the arrow keys, and every
+/// <c>ScrollOwner?.InvalidateScrollInfo()</c> in the control was a null-check that never fired.
 /// </para>
 /// <para>
 /// <c>Ui/Controls/MatrixGridScrollInfoTests.cs</c> covered every one of those methods and passed
-/// throughout - including a case called <c>TheWheelMovesThreeRows</c>. It calls
-/// <c>grid.MouseWheelDown()</c> on a bare control. A test that calls an API itself cannot notice
-/// that nothing else does; this file drives real input through the real view instead, and
-/// <see cref="ABareGridIgnoresTheWheel"/> is kept as the standing statement of what was wrong.
+/// throughout. It calls them itself. A test that calls an API cannot notice that nothing else does;
+/// this file asks the realised view instead.
+/// </para>
+/// <para>
+/// <b>The wheel is not here</b>, and that is the correction rather than an omission: the first fix
+/// assumed hosting the grid was also what made the wheel work, and it is not.
+/// <c>TCustomGrid.DoMouseWheelDown</c> moves the caret one row a notch and scrolls only to follow
+/// it, so <see cref="MatrixGrid.OnMouseWheel"/> handles the gesture and marks it handled before the
+/// host sees it - <c>Ui/Controls/MatrixGridWheelTests.cs</c>.
+/// <see cref="TheHostDoesNotScrollWhenTheWheelMovesTheCaret"/> is the seam between the two files.
 /// </para>
 /// </remarks>
 [Collection(WpfApplicationCollection.Name)]
 public class DatasetGridScrollHostTests
 {
-    /// <summary>One wheel notch, three rows of 17.</summary>
-    private const double Notch = 3 * 17;
-
     private readonly WpfApplicationFixture _wpf;
 
     /// <summary>Takes the assembly's one application; the view names theme keys.</summary>
@@ -55,52 +58,49 @@ public class DatasetGridScrollHostTests
     }
 
     [Fact]
-    public void ABareGridIgnoresTheWheel()
+    public void AGridWithNoHostHasNoScrollBarsAtAll()
     {
-        // The defect itself, kept rather than described: a fully working IScrollInfo, realised,
-        // with a dataset far taller than the window, and the wheel moves nothing.  If this ever
-        // starts failing, WPF has begun routing the wheel to IScrollInfo directly and the
-        // ScrollViewer in DatasetTabView.xaml is no longer what makes the tab scroll.
-        double offset = _wpf.Run(() =>
+        // The defect itself, kept rather than described: a fully working IScrollInfo, realised, with
+        // a dataset far bigger than the window, and not one scrollbar anywhere in the tree.  The
+        // control paints its own viewport and never grows, so nothing above it can infer that there
+        // is more - which is why this was invisible until somebody tried to reach row 40.
+        int bars = _wpf.Run(() =>
         {
-            MatrixGrid grid = new() { Matrix = Rows(200) };
-            double moved = 0;
+            MatrixGrid grid = new() { Matrix = Rows(200, columns: 60) };
+            int found = 0;
 
-            RealisedWindow.RunControl(grid, _ =>
-            {
-                WheelOver(grid, notches: -1);
-                moved = grid.VerticalOffset;
-            });
+            RealisedWindow.RunControl(grid, _ => found = Count<ScrollBar>(grid));
 
-            return moved;
+            return found;
         });
 
-        Assert.Equal(0, offset);
+        Assert.Equal(0, bars);
     }
 
     [Fact]
-    public void TheWheelScrollsTheDatasetGrid()
+    public void TheHostDoesNotScrollWhenTheWheelMovesTheCaret()
     {
-        (double down, double back) = _wpf.Run(() =>
+        // Both halves of the correction in one case.  The wheel moves the caret - one row, from
+        // nothing to row 0 on the first notch - and the ScrollViewer wrapped around the grid does
+        // NOT also scroll it three rows, because MatrixGrid.OnMouseWheel marks the event handled.
+        // Without that this would read 51, and the grid would jump a screenful for every notch.
+        (int row, double offset) = _wpf.Run(() =>
         {
             DatasetTabView view = Tab(Rows(200));
-            double afterDown = 0;
-            double afterUp = 0;
+            (int Row, double Offset) after = default;
 
             RealisedWindow.RunControl(view, _ =>
             {
-                WheelOver(view.Grid, notches: -2);
-                afterDown = view.Grid.VerticalOffset;
+                WheelOver(view.Grid, notches: -1);
 
-                WheelOver(view.Grid, notches: 2);
-                afterUp = view.Grid.VerticalOffset;
+                after = (view.Grid.CurrentRowIndex, view.Grid.VerticalOffset);
             });
 
-            return (afterDown, afterUp);
+            return after;
         });
 
-        Assert.Equal(2 * Notch, down);
-        Assert.Equal(0, back);
+        Assert.Equal(0, row);
+        Assert.Equal(0, offset);
     }
 
     [Fact]
@@ -260,34 +260,37 @@ public class DatasetGridScrollHostTests
 
     /// <summary>Raises real wheel events on the grid and lets them route.</summary>
     /// <param name="grid">Where the pointer is.</param>
-    /// <param name="notches">Negative scrolls down, as a wheel does.</param>
+    /// <param name="notches">Negative is downwards, as a wheel is.</param>
     /// <remarks>
-    /// <para>
     /// Not <c>ScrollInfo.MouseWheelDown()</c>, which is the shortcut the defect hid behind. The
-    /// event bubbles out of the grid to whatever is above it, and either something up there is a
-    /// <see cref="ScrollViewer"/> that turns it into an <c>IScrollInfo</c> call or nothing happens
-    /// at all - which is the whole of what these cases are asking.
-    /// </para>
-    /// <para>
-    /// One event per notch, because <see cref="ScrollViewer.OnMouseWheel"/> reads only the
-    /// <em>sign</em> of <see cref="MouseWheelEventArgs.Delta"/> and then makes exactly one
-    /// <c>MouseWheelUp</c>/<c>MouseWheelDown</c> call. A single event carrying twice the delta
-    /// scrolls three rows, not six - measured, not assumed.
-    /// </para>
+    /// event bubbles out of the grid to whatever is above it, so this measures the whole path -
+    /// including, in <see cref="TheHostDoesNotScrollWhenTheWheelMovesTheCaret"/>, that it stops
+    /// where it should.
     /// </remarks>
     private static void WheelOver(MatrixGrid grid, int notches)
     {
-        int delta = Math.Sign(notches) * Mouse.MouseWheelDeltaForOneLine;
-
-        for (int notch = 0; notch < Math.Abs(notches); notch++)
+        grid.RaiseEvent(new MouseWheelEventArgs(
+            Mouse.PrimaryDevice,
+            0,
+            notches * Mouse.MouseWheelDeltaForOneLine)
         {
-            grid.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta)
-            {
-                RoutedEvent = Mouse.MouseWheelEvent,
-                Source = grid,
-            });
-        }
+            RoutedEvent = Mouse.MouseWheelEvent,
+            Source = grid,
+        });
 
         grid.UpdateLayout();
+    }
+
+    private static int Count<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        int found = root is T ? 1 : 0;
+
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            found += Count<T>(VisualTreeHelper.GetChild(root, index));
+        }
+
+        return found;
     }
 }

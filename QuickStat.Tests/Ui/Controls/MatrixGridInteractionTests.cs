@@ -149,8 +149,15 @@ public class MatrixGridInteractionTests
     }
 
     [Fact]
-    public void ArrowKeysWalkTheGridWithoutRaisingCellActivated()
+    public void SettingTheCurrentCellInCodeDoesNotRaiseCellActivated()
     {
+        // This used to be called ArrowKeysWalkTheGridWithoutRaisingCellActivated, and it never
+        // pressed an arrow key: it calls the programmatic setter twice.  The name asserted a rule
+        // about the keyboard that the body never tested and that turned out to be wrong - see
+        // ArrowKeysMoveTheHintWithTheCaret below and PORT-PLAN.md §8.11 (7).
+        //
+        // What it does prove is still worth having.  SetCurrentCell is the quiet setter, so a
+        // view-model that repositions the caret does not make the hint jump.
         StaTestRunner.Run(() =>
         {
             MatrixGrid grid = MatrixGridHarness.CreateGrid(MatrixGridTestData.SmallMatrix());
@@ -162,11 +169,38 @@ public class MatrixGridInteractionTests
 
             Assert.Equal(2, grid.CurrentRowIndex);
             Assert.Equal(2, grid.CurrentColumnIndex);
-
-            // The floating hint moves on click and on nothing else (§G.2), so keyboard movement must
-            // not raise the event that repositions it.
             Assert.Equal(0, raised);
         });
+    }
+
+    [Fact]
+    public void ArrowKeysMoveTheHintWithTheCaret()
+    {
+        // TCustomGrid.KeyDown -> FocusCell -> Click -> UpdateDataHintPanel.  The hint follows the
+        // keyboard in the shipped build, and the port said it did not because §G.2 read
+        // `fGrid.OnClick` as a mouse click.
+        (int raised, int row, int column) = StaTestRunner.Run(() =>
+        {
+            MatrixGrid grid = MatrixGridHarness.CreateGrid(MatrixGridTestData.SmallMatrix());
+            int count = 0;
+            MatrixGridCellEventArgs? last = null;
+
+            grid.SetCurrentCell(0, 0);
+            grid.CellActivated += (_, e) =>
+            {
+                count++;
+                last = e;
+            };
+
+            grid.MoveCaret(Key.Down, control: false);
+            grid.MoveCaret(Key.Right, control: false);
+
+            return (count, last!.RowIndex, last.ColumnIndex);
+        });
+
+        Assert.Equal(2, raised);
+        Assert.Equal(1, row);
+        Assert.Equal(1, column);
     }
 
     [Fact]

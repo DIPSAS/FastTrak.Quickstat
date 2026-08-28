@@ -110,8 +110,16 @@ public class MatrixGridScrollInfoTests
     }
 
     [Fact]
-    public void TheWheelMovesThreeRows()
+    public void TheIScrollInfoWheelMembersMoveThreeRows()
     {
+        // NOT what the wheel does over the dataset - MatrixGrid.OnMouseWheel handles that itself and
+        // moves the caret one row, as TCustomGrid does.  These two members are here because
+        // IScrollInfo requires them, and this case says only that they are arithmetically right.
+        //
+        // It used to be called TheWheelMovesThreeRows, and under that name it was read as proof the
+        // wheel worked.  It was green throughout the whole of PORT-PLAN.md §8.11 (6), during which
+        // the wheel over the Dataset tab did nothing whatsoever.  Ui/Controls/MatrixGridWheelTests.cs
+        // and Ui/Dataset/DatasetGridScrollHostTests.cs are where the gesture is answered.
         StaTestRunner.Run(() =>
         {
             MatrixGrid grid = Grid(rows: 100, columns: 50);

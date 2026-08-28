@@ -7,7 +7,7 @@ Last updated: 2026-08-27
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 506 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 519 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -35,15 +35,29 @@ Last updated: 2026-08-27
 > work** — which is the argument for the whole live-verification exercise in one line. Fixed, and
 > the negative control is now permanent rather than performed once.
 >
-> **An eighth, two screens later, is the same lesson one level up: the dataset grid could not be
-> scrolled with the mouse and had no scrollbars at all** — §8.11 (6). `MatrixGrid` implements
-> `IScrollInfo` in full and its own class documentation says to host it in a `ScrollViewer` with
-> `CanContentScroll="True"`; `DatasetTabView.xaml` did not, and those methods are interface members
-> that nothing but a `ScrollViewer` ever calls. The arrow keys worked, which is what hid it. The
-> suite covered every one of the unreachable methods — including a case named
-> `TheWheelMovesThreeRows` — by calling them itself. **A test that calls an API itself cannot notice
-> that nothing else does.** Fixed, and the new cases drive real wheel events through the real view.
-> **2 506 tests.**
+> **An eighth, two screens later, is the same lesson one level up — and it took two goes** —
+> §8.11 (6). The dataset grid had no scrollbars at all: `MatrixGrid` implements `IScrollInfo` in full
+> and its own class documentation says to host it in a `ScrollViewer` with `CanContentScroll="True"`,
+> and `DatasetTabView.xaml` did not, so every one of those methods was unreachable. The suite covered
+> all of them — including a case then named `TheWheelMovesThreeRows` — **by calling them itself. A
+> test that calls an API cannot notice that nothing else does.** Hosting the grid fixed the bars and
+> was reported as still not fixing the wheel, which was correct: `TCustomGrid.DoMouseWheelDown` does
+> `Row := Row + 1`, so the wheel moves the **caret**, one row a notch, and scrolls only to follow it.
+> On the 31-patient cohort every row fits, so a correct scroll implementation and a dead one look
+> identical. Both halves are now measured against the running binary through UI Automation: four
+> notches move the caret 85 px, which is four rows to the pixel, and the vertical bar appears and
+> disappears with the window.
+>
+> **A ninth and a tenth came off the same screen minutes later** — §8.11 (7). The floating data hint
+> did not follow the caret, because `05-ui-spec.md` §G.2 asserted it should not and **§G.2 was
+> wrong**: a VCL `Click` is raised by `FocusCell`, so the hint follows the arrow keys and the wheel
+> in the shipped build. The spec is corrected in place. And an unhandled
+> `ArgumentOutOfRangeException` **terminated the process** on a collect run: the grid's cell
+> accessors indexed the matrix through cached counts, and a collect clears the columns and then
+> awaits for minutes. Painting re-syncs every frame and so never noticed; the automation peer, which
+> WPF drives on every layout pass once anything is listening, did. I met it by attaching UI
+> Automation to the user's running instance to measure (6) — real, and a hard kill for any
+> screen-reader user. **2 519 tests**, and the four new ones fail without the guard.
 >
 > **What is left in Phase 5, and both need a person.** No package has been read or written — that
 > one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
@@ -1234,21 +1248,112 @@ caret moves, and the view scrolls to follow it. The two halves of the control we
 different steps — 3.1 wrote the view, 3.5 wrote the control — and the contract between them was a
 comment.
 
-Fixed by hosting the grid as documented. The hint `Canvas` deliberately stays a *sibling* of the
-`ScrollViewer`: `TryGetCellBounds` answers in the grid's own coordinates and the grid is arranged at
-the `ScrollViewer`'s origin, so the two spaces still coincide, but inside it the hint would scroll
-away from the cell it describes. `WheelStep()` now reads the live `RowHeight` rather than
-`MatrixGridLayout.DefaultRowHeight`; same number in the shipped tab, which sets neither.
+The scrollbars were fixed by hosting the grid as documented. The hint `Canvas` deliberately stays a
+*sibling* of the `ScrollViewer`: `TryGetCellBounds` answers in the grid's own coordinates and the
+grid is arranged at the `ScrollViewer`'s origin, so the two spaces still coincide, but inside it the
+hint would scroll away from the cell it describes.
 
-**Same lesson as (5), one level up.** `Ui/Controls/MatrixGridScrollInfoTests.cs` covered every one of
-those methods and passed throughout — including a case named `TheWheelMovesThreeRows`, which calls
-`grid.MouseWheelDown()` on a bare control. *A test that calls an API itself cannot notice that
-nothing else does.* `Ui/Dataset/DatasetGridScrollHostTests.cs` drives real `MouseWheelEvent`s through
-the real view instead, asserts both computed scrollbar visibilities against an overflowing and a
-fitting dataset, pins the hint's origin against the grid's, and keeps `ABareGridIgnoresTheWheel` as
-the standing statement of what was wrong. It also records something measured rather than assumed:
-`ScrollViewer.OnMouseWheel` reads only the *sign* of `Delta` and makes exactly one `MouseWheelDown`
-call, so one event carrying twice the delta scrolls three rows, not six.
+**That fix was reported as still not working, and the report was right — the wheel is not a scroll
+gesture in the first place.** `Vcl.Grids.pas`, `TCustomGrid.DoMouseWheelDown`:
+
+```pascal
+if (Row = -1) or (Col = -1) then
+  begin if TopRow < RowCount - 1 then TopRow := TopRow + 1 end
+else if Row < RowCount - 1 then
+  Row := Row + 1;
+```
+
+A grid that has a current cell — which, in the VCL, is every grid with rows in it — moves its
+**selection** one row a notch and scrolls only as much as keeping the caret visible requires. Only
+the empty-grid branch touches `TopRow`. `TControl.DoMouseWheel` accumulates the delta and calls that
+once per `WHEEL_DELTA`, applying no `WheelScrollLines`: **one notch is one row, not the three a
+wheel usually means.** The user's words were exact — *"you can navigate up and down the patient
+list"* — and I read them as scrolling.
+
+So the first attempt fixed the half that was invisible on the cohort the parity pass uses and left
+the half that was reported. On population 1, 31 patients in a maximised window, every row fits:
+there is nothing to scroll, and a correct scroll implementation is indistinguishable from a dead
+one. `MatrixGrid.OnMouseWheel` now moves the caret, one row a notch, with the VCL's accumulator so
+a two-notch message moves two rows and a touchpad's fractions add up instead of vanishing. Marking
+the event handled is load-bearing: the `ScrollViewer` would otherwise *also* scroll three rows.
+
+**Verified against the running application, not only in the suite.** `C:\work\qs-run\uia.ps1` drives
+the port through UI Automation — the Delphi rig next door walks child `HWND`s, which does not
+transfer, because a WPF window is a single `HWND`. With population 1 loaded and the caret set by a
+click, one column of pixels down the `PID` column locates the current-row tint `#F3F9FD`:
+
+| | |
+|---|---|
+| caret after the click | top y = 252 |
+| four notches down | y = 337, **moved 85 px** |
+| four notches back up | y = 252, back exactly |
+| one row at this display's 125 % | 21.25 px — so 85 px is **four rows**, to the pixel |
+
+and `scrollbar-check.ps1` asks UIA rather than the screen: **0** scrollbars maximised where 31 rows
+fit, **1** (21 × 550) once the window is shrunk so they do not, **0** again on re-maximising. That is
+`Auto` behaving, and it is the thing that did not exist at all before. Only colours and offsets were
+read; no cell value was.
+
+**Same lesson as (5), one level up — and then again underneath it.**
+`Ui/Controls/MatrixGridScrollInfoTests.cs` covered every one of the unreachable methods and passed
+throughout, including a case then named `TheWheelMovesThreeRows` which calls `grid.MouseWheelDown()`
+on a bare control. *A test that calls an API itself cannot notice that nothing else does* — and,
+worse, its name asserted a behaviour the product never had. It is now
+`TheIScrollInfoWheelMembersMoveThreeRows`, with a comment saying what it is not.
+`Ui/Controls/MatrixGridWheelTests.cs` answers the gesture and
+`Ui/Dataset/DatasetGridScrollHostTests.cs` answers the host, with
+`TheHostDoesNotScrollWhenTheWheelMovesTheCaret` as the seam: it would read 51 px if the handled flag
+were dropped.
+
+**(7) Two more from the same screen, and one of them killed the process.** Reported minutes after
+(6) was confirmed working.
+
+**(7a) The floating data hint did not follow the caret.** The hint kept reading `PersonId = 260`
+while the caret sat on 261. The port was faithful to `05-ui-spec.md` §G.2, which said the panel *"is
+**not** repositioned on hover or on keyboard navigation — only on click"*. **§G.2 was wrong.** It
+read `fGrid.OnClick := UpdateDataHintPanel` as a mouse click, and a VCL `Click` is not one:
+`TCustomGrid.FocusCell` raises it (`Vcl.Grids.pas:3426`), and `SetRow`, `SetCol` and `KeyDown`'s
+navigation all go through `FocusCell`, guarded by `if (NewCurrent.X <> Col) or (NewCurrent.Y <> Row)`
+so that only a real move counts. The wheel arrives the same way, through `Row := Row + 1`. The
+Delphi author left the answer in the source being ported — `MainQuickStat.pas:311`,
+`{ Moving around in grid triggers update hint view }` — and the spec quoted the line above it
+without the comment. So the arrow keys were wrong too, and had been since Phase 3; the wheel is only
+what made it visible. `MoveCaret` now raises `CellActivated` on an actual move, and §G.2 is struck
+through and corrected in place.
+
+**(7b) An unhandled `ArgumentOutOfRangeException` on the UI thread, and the process terminated.**
+`MatrixGrid.GetDisplayCellText` indexed `matrix.Columns[...]` against counts cached in
+`MatrixGridLayout`. Those counts are a *copy*: `SyncCounts` refreshes them, and `OnRender` and
+`MeasureOverride` both call it first, which is why **painting was never affected and this looked like
+nothing was wrong**. The accessors are not on that path.
+`CollectionsTabViewModel.CollectDataAsync` opens with `matrix.ClearVariables()` and then `await`s
+once per ticked element, mutating the bound matrix in place and raising no notification — so the
+cached column count outlives the columns for as long as the run takes, minutes with 213 elements
+ticked. `MatrixGridAutomationPeer` reaches those accessors from `UpdateSubtree` during
+`ContextLayoutManager.fireAutomationEvents`, i.e. **on every layout pass, whenever a UI Automation
+client is attached**. Every such pass in that window indexed an emptied list.
+
+Two fixes: the accessors are now total against the *live* matrix, per axis, because a column header
+survives losing the rows and a fixed cell survives losing the columns; and `Refresh()` invalidates
+the peer, which it never did — only the dependency properties did, and a collect run moves none of
+them, so a screen reader was reading the previous dataset out of recycled peers. Four cases in
+`Ui/Controls/MatrixGridStaleShapeTests.cs`, all four negative-controlled by reverting the guard.
+
+**Worth being plain about how it was found: I caused it.** Driving the port through UI Automation to
+measure (6) left a client attached to the running instance, and the next collect crashed. It is a
+real defect — Narrator, any assistive technology, or any automation tool reproduces it, and it is a
+hard kill rather than a degradation — but nobody had met it because nothing had ever listened to the
+grid's peer in a live process. The suite exercises the peer directly, which cannot reproduce the
+timing.
+
+**Not fixed, reported: two automation names expose an object's `ToString()`.** Each connection in the
+database combo is announced as `QuickStatConnection { Name = Testdatabase (NDV), StudyName = NDV,
+ConnectionString = FILE NAME=.\FastTrak.UDL, … }` — a screen reader reads out the whole connection
+string — and every row of the data-element list as `QuickStat.ViewModels.DataElementViewModel`.
+`DisplayMemberPath` fixes what is *drawn*, not the `ListBoxItem`'s UIA `Name`. One
+`AutomationProperties.Name` binding on each `ItemContainerStyle`. Not patient data, so not R6, and
+not in the scope of anything reported — but it is one line each and a screen reader is the one user
+who would notice.
 
 **Left open by Phase 5**
 

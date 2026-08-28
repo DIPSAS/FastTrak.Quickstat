@@ -904,9 +904,17 @@ if cbShowDataHint.Checked then
 ```
 
 * Triggered by `fGrid.OnClick` **and** by toggling `cbShowDataHint`.
-* Anchored just **below** the clicked cell (cell top + one row height + 1, offset 3,3), left edge
-  aligned with the cell's left edge. It is **not** repositioned on hover or on keyboard
-  navigation — only on click.
+* **`OnClick` here means every caret movement, not a mouse click.** ~~It is **not** repositioned on
+  hover or on keyboard navigation — only on click.~~ **That was wrong, and the port shipped it**
+  (PORT-PLAN.md §8.11 (7)). A VCL `Click` is raised by `TCustomGrid.FocusCell`
+  (`Vcl.Grids.pas:3426`), and `SetRow`, `SetCol` and `KeyDown`'s navigation all go through
+  `FocusCell` — guarded by `if (NewCurrent.X <> Col) or (NewCurrent.Y <> Row)`, so only on an actual
+  move. The mouse wheel reaches it the same way, because `DoMouseWheelDown` does `Row := Row + 1`.
+  The Delphi author says as much at `MainQuickStat.pas:311`:
+  `{ Moving around in grid triggers update hint view }`. So the hint follows the arrow keys, Page
+  Up/Down, Home/End and the wheel. Hover is the one thing that genuinely does not move it.
+* Anchored just **below** the current cell (cell top + one row height + 1, offset 3,3), left edge
+  aligned with the cell's left edge.
 * Fixed width 240 px; the height formula yields ≈ 116 px for a two-line hint, which is far too
   tall — **size to content in the port** and cap the width at ~320 px.
 * Content: line 1 = `PersonId = <n>` when anonymous, else the patient's full name;
@@ -915,7 +923,8 @@ if cbShowDataHint.Checked then
 * Any exception while building the hint turns `lblInfo` **red** and shows the exception message
   in the status area — reproduce with an error state on the status text.
 * WPF: a non-focusable `Popup` (`Placement=Relative` to the `DataGridCell`, `AllowsTransparency=False`,
-  `StaysOpen=True`) or a `Canvas`-hosted `Border` over the grid. Keep it click-driven.
+  `StaysOpen=True`) or a `Canvas`-hosted `Border` over the grid. Drive it from the **caret**, not from
+  the mouse — see the second bullet.
 
 ### G.3 Wait cursors
 

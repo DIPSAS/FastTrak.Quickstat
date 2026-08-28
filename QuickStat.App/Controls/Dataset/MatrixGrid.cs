@@ -49,11 +49,16 @@ namespace QuickStat.Controls.Dataset;
 /// </para>
 /// <para>
 /// That paragraph was here, and unmet, for the whole of Phase 5: <c>DatasetTabView.xaml</c> hosted
-/// the grid in a bare <c>Grid</c>, so the wheel did nothing, there were no scrollbars, and
+/// the grid in a bare <c>Grid</c>, so there were no scrollbars on either axis and
 /// <see cref="ScrollOwner"/> was permanently <see langword="null"/>. Everything below
 /// <see cref="LineUp"/> is an interface member that only a <c>ScrollViewer</c> ever calls.
 /// <c>Ui/Dataset/DatasetGridScrollHostTests.cs</c> now enforces the requirement instead of stating
 /// it; PORT-PLAN.md §8.11 (6).
+/// </para>
+/// <para>
+/// <b>The wheel is not part of that</b>, and assuming it was is what made the first attempt at
+/// §8.11 (6) fix only half the fault. <see cref="OnMouseWheel"/> moves the caret one row a notch,
+/// which is what <c>TCustomGrid</c> does, and marks the event handled before the host sees it.
 /// </para>
 /// </remarks>
 public class MatrixGrid : FrameworkElement, IScrollInfo
@@ -277,6 +282,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     private Size _viewport;
     private double _horizontalOffset;
     private double _verticalOffset;
+    private int _wheelAccumulator;
     private MatrixGridHit _hover = MatrixGridHit.Miss;
     private ToolTip? _toolTip;
     private int _resizingColumn = NoIndex;
@@ -626,6 +632,12 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         InvalidateMeasure();
         InvalidateVisual();
         ScrollOwner?.InvalidateScrollInfo();
+
+        // The peer caches one object per cell position and only dropped them when a dependency
+        // property moved - which a collect run does not do, because it mutates the bound matrix in
+        // place.  A screen reader was therefore reading the previous dataset's values out of peers
+        // for positions that had been recycled.  PORT-PLAN.md §8.11 (7).
+        InvalidatePeer();
     }
 
     /// <summary>
@@ -723,6 +735,11 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         int ordinal = _layout.FixedOrdinalAt(displayColumnIndex);
         int dataColumn = _layout.DataColumnAt(displayColumnIndex);
 
+        if (!StillInTheMatrix(matrix, kind, rowIndex, dataColumn))
+        {
+            return "";
+        }
+
         return kind switch
         {
             MatrixGridCellKind.FixedHeader => FixedColumns.Header(ordinal),
@@ -757,7 +774,9 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         MatrixGridCellKind kind = _layout.KindAt(rowIndex, displayColumnIndex);
         PersonMatrix? matrix = Matrix;
 
-        if (kind == MatrixGridCellKind.None || matrix is null)
+        if (kind == MatrixGridCellKind.None
+            || matrix is null
+            || !StillInTheMatrix(matrix, kind, rowIndex, _layout.DataColumnAt(displayColumnIndex)))
         {
             return null;
         }
@@ -884,9 +903,16 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     public void PageRight() => SetHorizontalOffset(_horizontalOffset + ViewportWidth);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <b>Not what the wheel does over this grid.</b> <see cref="OnMouseWheel"/> handles the gesture
+    /// itself - one row of caret movement a notch, as <c>TCustomGrid</c> does - and marks it handled,
+    /// so the host never gets as far as calling this. It stays because <see cref="IScrollInfo"/>
+    /// requires it and because a different host might route a wheel here deliberately.
+    /// </remarks>
     public void MouseWheelUp() => SetVerticalOffset(_verticalOffset - WheelStep());
 
     /// <inheritdoc />
+    /// <remarks>See <see cref="MouseWheelUp"/>: the wheel does not reach this.</remarks>
     public void MouseWheelDown() => SetVerticalOffset(_verticalOffset + WheelStep());
 
     /// <inheritdoc />
@@ -1184,6 +1210,59 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <b>The wheel moves the caret, one row a notch - it does not scroll.</b> That is
+    /// <c>TCustomGrid.DoMouseWheelDown</c>, which is a two-branch method: with a current cell it
+    /// does <c>Row := Row + 1</c> and lets the view follow, and only when there is none does it
+    /// touch <c>TopRow</c>. So the wheel over the dataset is the Down arrow, bounded at
+    /// <c>FixedRows</c> and <c>RowCount - 1</c>, and a grid whose rows all fit on screen still
+    /// visibly responds to it. A port that scrolled instead would do nothing at all on the 31-row
+    /// cohort the parity pass uses, which is exactly how this was found (PORT-PLAN.md §8.11 (6)).
+    /// </para>
+    /// <para>
+    /// Marking it handled is load-bearing: the enclosing <c>ScrollViewer</c> would otherwise
+    /// <em>also</em> scroll three rows through <see cref="IScrollInfo.MouseWheelDown"/>. Those two
+    /// members remain because the interface requires them, and the scrollbars and their drag do use
+    /// the rest of it - but nothing reaches them by wheel.
+    /// </para>
+    /// <para>
+    /// The accumulator is <c>TControl.DoMouseWheel</c>'s, and it matters twice: a wheel that reports
+    /// two notches in one message moves two rows rather than one, and a precision touchpad sending
+    /// deltas below <see cref="Mouse.MouseWheelDeltaForOneLine"/> moves a row once they add up to
+    /// one instead of never. Note that the VCL applies no <c>WheelScrollLines</c> here - one notch
+    /// is one row, not the three a wheel usually means.
+    /// </para>
+    /// </remarks>
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+
+        base.OnMouseWheel(e);
+
+        if (e.Handled || Matrix is null || _layout.RowCount == 0)
+        {
+            // Nothing to navigate - and nothing to scroll either, so letting it bubble costs
+            // nothing and keeps an empty grid from swallowing a gesture aimed at whatever encloses
+            // it.
+            return;
+        }
+
+        _wheelAccumulator += e.Delta;
+
+        int notches = _wheelAccumulator / Mouse.MouseWheelDeltaForOneLine;
+
+        _wheelAccumulator -= notches * Mouse.MouseWheelDeltaForOneLine;
+
+        for (int step = 0; step < Math.Abs(notches); step++)
+        {
+            MoveCaret(notches < 0 ? Key.Down : Key.Up, control: false);
+        }
+
+        e.Handled = true;
+    }
+
+    /// <inheritdoc />
     protected override void OnKeyDown(KeyEventArgs e)
     {
         ArgumentNullException.ThrowIfNull(e);
@@ -1205,10 +1284,27 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     /// <param name="control">Whether <c>Ctrl</c> is held.</param>
     /// <returns><see langword="true"/> when the key was a navigation key and the caret moved.</returns>
     /// <remarks>
+    /// <para>
     /// Split out of <see cref="OnKeyDown"/> for the same reason as <see cref="PressAt"/>: a
     /// synthesised <see cref="KeyEventArgs"/> needs a live <see cref="PresentationSource"/>, and
-    /// <see cref="Keyboard.Modifiers"/> reads the real keyboard. Note that it does <b>not</b> raise
-    /// <see cref="CellActivated"/> - the floating hint moves on click and on nothing else (§G.2).
+    /// <see cref="Keyboard.Modifiers"/> reads the real keyboard.
+    /// </para>
+    /// <para>
+    /// <b>It raises <see cref="CellActivated"/> when the caret actually moves, so the floating hint
+    /// follows the keyboard and the wheel as well as the mouse.</b> <c>05-ui-spec.md</c> §G.2 said
+    /// the opposite - "not repositioned on hover or on keyboard navigation, only on click" - and that
+    /// was a misreading of <c>fGrid.OnClick := UpdateDataHintPanel</c>. A VCL <c>Click</c> is not a
+    /// mouse click: <c>TCustomGrid.FocusCell</c> raises it (<c>Vcl.Grids.pas:3426</c>), and
+    /// <c>SetRow</c>, <c>SetCol</c> and keyboard navigation all go through <c>FocusCell</c>. The
+    /// Delphi author left the note in <c>MainQuickStat.pas:311</c> himself:
+    /// <c>{ Moving around in grid triggers update hint view }</c>. PORT-PLAN.md §8.11 (7).
+    /// </para>
+    /// <para>
+    /// Only on an actual move, which is the VCL's own guard - <c>if (NewCurrent.X &lt;&gt; Col) or
+    /// (NewCurrent.Y &lt;&gt; Row)</c> at <c>Vcl.Grids.pas:4383</c>. <see cref="SetCurrentCell"/>
+    /// stays silent: that is the programmatic setter, and nothing in the shipped application assigns
+    /// the caret behind the user's back.
+    /// </para>
     /// </remarks>
     internal bool MoveCaret(Key key, bool control)
     {
@@ -1219,6 +1315,8 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
         int rows = _layout.RowCount;
         int columns = _layout.DataColumnCount;
+        int wasRow = CurrentRowIndex;
+        int wasColumn = CurrentColumnIndex;
         bool hadRow = CurrentRowIndex != NoIndex;
         bool hadColumn = CurrentColumnIndex != NoIndex;
         int row = hadRow ? Math.Clamp(CurrentRowIndex, 0, rows - 1) : 0;
@@ -1261,6 +1359,11 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         }
 
         SetCurrentCell(row, column);
+
+        if (row != wasRow || column != wasColumn)
+        {
+            OnCellActivated(new MatrixGridCellEventArgs(row, column));
+        }
 
         return true;
     }
@@ -1342,6 +1445,46 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
         _layout.RowCount = matrix?.Rows.Count ?? 0;
         _layout.DataColumnCount = matrix?.Columns.Count ?? 0;
+    }
+
+    /// <summary>
+    /// Whether a position <see cref="_layout"/> still believes in is a position the matrix still has.
+    /// </summary>
+    /// <param name="matrix">The live matrix.</param>
+    /// <param name="kind">What <see cref="MatrixGridLayout.KindAt"/> made of the position.</param>
+    /// <param name="rowIndex">Data row, or <see cref="NoIndex"/> for the header row.</param>
+    /// <param name="dataColumn">Index into <see cref="PersonMatrix.Columns"/>, or <see cref="NoIndex"/>.</param>
+    /// <returns><see langword="false"/> when the position has been outlived.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>The layout's counts are a copy, and the matrix is mutated in place.</b>
+    /// <see cref="SyncCounts"/> refreshes them, and <see cref="OnRender"/> and
+    /// <see cref="MeasureOverride"/> call it every time, which is why painting is self-healing. The
+    /// accessors below are not on that path: <see cref="MatrixGridAutomationPeer"/> reaches them from
+    /// <c>UpdateSubtree</c> during <c>fireAutomationEvents</c>, and <see cref="OnToolTipOpening"/>
+    /// from an input event. Both can arrive between a mutation and the next render.
+    /// </para>
+    /// <para>
+    /// That window is not narrow. <c>CollectionsTabViewModel.CollectDataAsync</c> calls
+    /// <c>matrix.ClearVariables()</c> and then <c>await</c>s once per data element, so with 213 ticked
+    /// the grid's cached column count outlives the columns themselves for <em>minutes</em>. With a
+    /// screen reader or any other UI Automation client attached, every layout pass in that window
+    /// walked the cached cell peers and indexed an emptied list: PORT-PLAN.md §8.11 (7), an
+    /// unhandled <see cref="ArgumentOutOfRangeException"/> that terminated the process.
+    /// </para>
+    /// </remarks>
+    private static bool StillInTheMatrix(PersonMatrix matrix, MatrixGridCellKind kind, int rowIndex, int dataColumn)
+    {
+        bool row = rowIndex >= 0 && rowIndex < matrix.Rows.Count;
+        bool column = dataColumn >= 0 && dataColumn < matrix.Columns.Count;
+
+        return kind switch
+        {
+            MatrixGridCellKind.FixedHeader => true,
+            MatrixGridCellKind.ColumnHeader => column,
+            MatrixGridCellKind.Fixed => row,
+            _ => row && column,
+        };
     }
 
     private void ClampCurrentCell()
