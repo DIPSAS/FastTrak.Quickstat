@@ -632,6 +632,24 @@ Rejection sampling guarantees uniqueness **within one export**.
   pseudonym. Longitudinal linkage across two exports is impossible.
 * ⇒ Worst of both worlds. The port must fix this (§9, R-1).
 
+**As ported.** `MatrixAnonymiser` keeps the scale-factor table above exactly — the widths are parity
+— and replaces the draw with `scale + HMAC-SHA256(key, personId ‖ counter) mod 9·scale`, rejecting
+both modulo bias and collisions. The key is 256 bits from the OS CSPRNG, never persisted, zeroed when
+replaced. Uniqueness is structural rather than statistical: `Derive` skips any candidate already in
+the map, and both directions of the map are filled with `Dictionary.Add`, which throws rather than
+overwriting. Past the end of the space it gives up after 10 000 attempts and throws — a failed
+export, never a shared id.
+
+**Where the space is drawn matters as much as how.** `IAnonymiser` is a singleton, and
+`DatasetExporter` only calls `EnsureSpaceFor`, which deliberately leaves a space that is already wide
+enough alone (that is what makes two exports of one loaded dataset identical). So *something* has to
+say "new dataset", and for a while nothing did — see PORT-PLAN.md §8.11 (12). `PopulationLoader`
+now calls `Reset(matrix.Rows.Count)` as part of the load sequence, between `PreparePopulation` and
+`SetPopulation`, which is what makes the pseudonyms of two populations independent. It passes
+`Rows.Count` and not the cohort length because `Rows.Count` is the number `ExportDataset.FromMatrix`
+later carries to `EnsureSpaceFor`; if the two disagreed the exporter would widen the space and
+discard the map it had just been handed.
+
 **The re-identification key is written to disk.** `SaveToFile` on the anonymiser
 (`Anoymizer.pas:64-82`) is invoked when `AIdentification = pgiRandomPersonId`
 (`EPR.QA.Matrix.pas:489-490`) and writes `ChangeFileExt(csvPath, '.mapping.txt')`:

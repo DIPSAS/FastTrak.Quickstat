@@ -107,8 +107,10 @@ public sealed class DatasetExporter : IDatasetExporter
 
         if (columns.UsesPseudonyms && _anonymiser.EnsureSpaceFor(dataset.Rows.Count))
         {
-            // Whoever loaded the population should have called Reset. Recovering silently would hide
-            // the case where a stale map from a previous cohort is still in place.
+            // The population load calls Reset (QuickStat.App's PopulationLoader), so reaching this
+            // means nothing was loaded - a test, or a dataset that arrived some other way.
+            // Recovering silently would hide the case where a stale map from a previous cohort is
+            // still in place.
             _logger.LogInformation(
                 "No pseudonym space existed for {RowCount} people, so one was created at export time.",
                 dataset.Rows.Count);

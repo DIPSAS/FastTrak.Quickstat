@@ -915,7 +915,7 @@ that is the colouring users actually see, and it is ported as-is.
 
 | Bug | Consequence today | Fix |
 |---|---|---|
-| Pseudonym RNG never seeded (`Randomize` appears nowhere) | Random PIDs are identical across every run and every machine, yet differ between two exports in one session — reproducible where it should not be, unstable where it should not be | Seed properly; make pseudonyms stable for the lifetime of a loaded dataset |
+| Pseudonym RNG never seeded (`Randomize` appears nowhere) | Random PIDs are identical across every run and every machine, yet differ between two exports in one session — reproducible where it should not be, unstable where it should not be | Keyed derivation from a per-dataset CSPRNG secret; stable for the lifetime of a loaded dataset, independent between datasets. The second half needs a *reset point*, and the port initially had none — §8.11 (12) |
 | `<export>.mapping.txt` re-identification key written next to every anonymised export, and never deleted for temp exports | Plaintext key files accumulate in `%TEMP%` | Make it opt-in, warn explicitly, and track it for deletion |
 | Display anonymity and export anonymity are independent paths | The grid can show names while the export omits them, or the reverse | Single source of truth |
 | Cancelling the period dialog | Previous population's patients stay on screen under the *new* population's title | Abort the load |
@@ -1151,10 +1151,11 @@ build is only useful if the subscribers have run too.
 
 ### 8.11 What Phase 5 found by running things
 
-Three defects, none of them reachable without a server, and one of them the kind that only appears
-when a real process actually exits. All three are fixed, and each has a regression test that fails if
-it comes back — every one of those tests was negative-controlled by reverting the production change
-and watching it fail. (3) is not a defect but the thing this phase existed to do.
+Twelve entries, and the list grew as the phase went on: the first three came out of finally having a
+server, the later ones out of the product owner's manual parity pass. Each defect is fixed and each
+has a regression test that fails if it comes back — every one of those tests was negative-controlled
+by reverting the production change and watching it fail. (3) is not a defect but the thing this phase
+existed to do.
 
 **(1) `SqlOptions.PersonIdListTypeName` named a table type that has never existed.** It defaulted to
 `"Report.PersonIdList"`, a name that comes from `Docs/Port/03-collectors.md` §C.4 item 2 — which
@@ -1555,6 +1556,48 @@ one machine-tolerant case: whatever `Find()` answers here, it is either `null` o
 The end-to-end path was measured once by hand instead, with a throwaway probe on a synthetic
 two-column CSV: `EXCEL.EXE` started from the resolved path and the window came up titled
 `quickstat-excel-probe.csv - Excel`. Probe deleted, Excel closed, file removed. 2 565 tests.
+
+**(12) Nothing in the running application ever reset the pseudonym map.** Asked from the parity pass:
+*do we have tests for the new random PID feature? Ensuring that the PIDs are unique is essential.*
+Uniqueness itself held, and holds structurally rather than statistically — `Derive` skips a candidate
+already in the map and both directions are filled with `Dictionary.Add`, which throws rather than
+overwriting, so the worst case is a loud failure. Two things behind the question did not hold.
+
+**`IAnonymiser.Reset` had no caller outside the tests.** `QuickStat.App` contained no reference to
+`IAnonymiser` at all; `PopulationLoader.LoadAsync` did not take one. The only production entry point
+was `DatasetExporter`'s `EnsureSpaceFor`, which by design leaves a space that is already wide enough
+alone — that is what makes two exports of one loaded dataset identical. With a singleton anonymiser
+and nobody resetting, one map served the whole session:
+
+- **Cross-dataset linkability, R6 and therefore release-blocking.** Load population A, export; load B,
+  export. A patient in both is handed the *same* pseudonym in both files, because `GetPseudonym`
+  returns the memoised value — so joining two anonymised exports reveals who is in both cohorts.
+  `DatasetExporter`'s own remarks and §7.2 promise the opposite. `TheSamePatientIsUnlinkableAcrossDatasets`
+  passed throughout, because the *test* calls `Reset`: it was guarding a path no user could take.
+- **Capacity.** The space is `9 × ScaleFactor` and widens only for the current cohort, never for the
+  accumulated map, so roughly ten same-scale exports in one session reach the wall and the eleventh
+  throws. It fails closed, but with a message about attempts rather than about sessions.
+- **Stale width.** A 12-patient cohort exported after a 5 000-patient one inherited five-digit ids.
+
+`PopulationLoader` now calls `Reset(matrix.Rows.Count)` between `PreparePopulation` and
+`SetPopulation` — the one place §8.10 (b) put the load sequence, so the double-click and the package
+replay both get it. `Rows.Count` and not the cohort length, because that is the number
+`ExportDataset.FromMatrix` later hands to `EnsureSpaceFor`; disagreeing would make the exporter widen
+the space and throw away the map it had just been given. An abandoned load resets nothing, because a
+cancelled period dialog leaves the previous cohort in the grid and its pseudonyms have to stay with
+it.
+
+**No test looked at the pseudonym column of a file with more than one row in it.** Every pseudonymised
+export case used the one-patient worked example, or compared two whole files byte for byte. The new
+`Export/PseudonymUniquenessTests.cs` parses the column back out of a finished 200-row CSV and a
+finished 200-row workbook, checks each id against the patient it belongs to rather than only that the
+ids differ, runs the densest cohort the scale factor allows (999 in 9 000, about 11% — the old case
+ran at 5.6%), and walks a small space off the end to pin that the collision loop throws rather than
+repeating. The gap was real: the negative control that hoists the writer's lookup out of its loop, so
+that every row carries row 0's pseudonym, failed **five** cases and **all five were new** — nothing in
+the previous 2 565 noticed a file in which two hundred patients shared one id. Three controls in all:
+dropping the `Reset` fails four loader cases, hoisting the lookup fails five, and removing the
+collision check fails fourteen. 2 576 tests.
 
 **Left open by Phase 5**
 

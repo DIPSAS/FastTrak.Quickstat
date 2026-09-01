@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using QuickStat.Domain.Anonymisation;
 using QuickStat.Domain.Matrix;
 using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
@@ -38,7 +39,7 @@ public class PopulationLoaderTests
         {
             Matrix = ShellWorkspaceTests.NewMatrix();
             Workspace = new ShellWorkspace(Matrix);
-            Loader = new PopulationLoader(Parameters, Patients, Workspace);
+            Loader = new PopulationLoader(Parameters, Patients, Workspace, Anonymiser);
         }
 
         internal PersonMatrix Matrix { get; }
@@ -48,6 +49,9 @@ public class PopulationLoaderTests
         internal FakePatientRepository Patients { get; } = new();
 
         internal FakeParameterResolver Parameters { get; } = new();
+
+        /// <summary>The real one, so a case can read the map the load is supposed to have emptied.</summary>
+        internal MatrixAnonymiser Anonymiser { get; } = new();
 
         internal PopulationLoader Loader { get; }
 
@@ -230,6 +234,110 @@ public class PopulationLoaderTests
     }
 
     // ---------------------------------------------------------------------------------------
+    //  The pseudonym space.  PORT-PLAN.md §8.11 (12): nothing in the application called Reset, so
+    //  one map served the whole session and the "unlinkable across datasets" property that
+    //  MatrixAnonymiser's remarks and §7.2 promise did not hold in the running program.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ALoadDrawsAPseudonymSpaceSizedForItsOwnCohort()
+    {
+        Harness harness = new();
+
+        harness.Patients.Cohort = [.. Enumerable.Range(1, 12).Select(ShellWorkspaceTests.NewPatient)];
+
+        Assert.False(harness.Anonymiser.HasPseudonymSpace);
+
+        await harness.LoadAsync();
+
+        Assert.True(harness.Anonymiser.HasPseudonymSpace);
+
+        // Twelve people: RowCount is 13, so the Delphi's factor is 100 and the ids are three digits.
+        Assert.Equal(100, harness.Anonymiser.ScaleFactor);
+        Assert.Equal(MatrixAnonymiser.ScaleFactorFor(harness.Matrix.Rows.Count), harness.Anonymiser.ScaleFactor);
+    }
+
+    [Fact]
+    public async Task ASecondLoadForgetsTheFirstCohortsPseudonymsEntirely()
+    {
+        // The deterministic half.  DatasetExporter only ever calls EnsureSpaceFor, which keeps a
+        // space that is already wide enough - so if the load does not reset, the previous cohort's
+        // map is still sitting there when the next one is exported.
+        Harness harness = new();
+
+        harness.Patients.Cohort = [.. Enumerable.Range(1, 12).Select(ShellWorkspaceTests.NewPatient)];
+
+        await harness.LoadAsync();
+
+        foreach (MatrixRow row in harness.Matrix.Rows)
+        {
+            _ = harness.Anonymiser.GetPseudonym(row.PersonId);
+        }
+
+        Assert.Equal(12, harness.Anonymiser.PseudonymToPersonId.Count);
+
+        await harness.LoadAsync(ShellWorkspaceTests.NewPopulation(258));
+
+        Assert.Empty(harness.Anonymiser.PseudonymToPersonId);
+    }
+
+    [Fact]
+    public async Task APatientInTwoPopulationsIsNotHandedTheSamePseudonymTwice()
+    {
+        // The privacy half, and the reason the deterministic case above is not enough: an empty map
+        // proves the bookkeeping was cleared, not that the key was.  Two exports of two populations
+        // that share a patient must not let anybody join them on the pseudonym.
+        const int patient = 4711;
+        const int loads = 80;
+
+        Harness harness = new();
+
+        harness.Patients.Cohort =
+        [
+            .. Enumerable.Range(1, 19).Select(ShellWorkspaceTests.NewPatient),
+            ShellWorkspaceTests.NewPatient(patient),
+        ];
+
+        HashSet<int> seen = [];
+
+        for (int load = 0; load < loads; load++)
+        {
+            await harness.LoadAsync(ShellWorkspaceTests.NewPopulation(300 + load));
+
+            seen.Add(harness.Anonymiser.GetPseudonym(patient));
+        }
+
+        // Twenty people give a scale factor of 100, so 900 values: 80 independent draws are about
+        // 77 distinct in expectation.  Anything at or below 20 means the loads are correlated, and
+        // one single value is what a missing Reset looks like.
+        Assert.True(
+            seen.Count > 20,
+            $"The same patient kept the same pseudonym across populations: {seen.Count} distinct in {loads} loads.");
+    }
+
+    [Fact]
+    public async Task AnAbandonedLoadLeavesThePseudonymSpaceAlongsideTheCohortItBelongsTo()
+    {
+        // The map has to follow the matrix exactly.  A cancelled period dialog leaves the previous
+        // cohort in the grid, so throwing its pseudonyms away would give the very next export of an
+        // untouched dataset a different set of ids.
+        Harness harness = new();
+
+        harness.Patients.Cohort = [ShellWorkspaceTests.NewPatient(1), ShellWorkspaceTests.NewPatient(2)];
+
+        await harness.LoadAsync();
+
+        int before = harness.Anonymiser.GetPseudonym(1);
+
+        harness.Parameters.Answer = new ParameterResolution { Succeeded = false, CancelledByUser = true };
+
+        PopulationLoadResult result = await harness.LoadAsync(ShellWorkspaceTests.NewPopulation(258));
+
+        Assert.False(result.Loaded);
+        Assert.Equal(before, harness.Anonymiser.GetPseudonym(1));
+    }
+
+    // ---------------------------------------------------------------------------------------
     //  The one outcome the loader hands back instead of acting on.
     // ---------------------------------------------------------------------------------------
 
@@ -288,10 +396,12 @@ public class PopulationLoaderTests
         FakeParameterResolver parameters = new();
         FakePatientRepository patients = new();
         ShellWorkspace workspace = new(ShellWorkspaceTests.NewMatrix());
+        MatrixAnonymiser anonymiser = new();
 
-        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(null!, patients, workspace));
-        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(parameters, null!, workspace));
-        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(parameters, patients, null!));
+        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(null!, patients, workspace, anonymiser));
+        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(parameters, null!, workspace, anonymiser));
+        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(parameters, patients, null!, anonymiser));
+        Assert.Throws<ArgumentNullException>(() => new PopulationLoader(parameters, patients, workspace, null!));
     }
 
     [Fact]

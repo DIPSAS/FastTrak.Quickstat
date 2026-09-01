@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using QuickStat.Configuration;
 using QuickStat.Data;
 using QuickStat.Diagnostics;
+using QuickStat.Domain.Anonymisation;
 using QuickStat.Domain.Matrix;
 using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
@@ -422,7 +423,7 @@ internal sealed class PopulationHarness : IDisposable
         // sequence into it, so faking it here would stop these tests proving the very thing they were
         // written to prove - that the cohort query, the national-id recovery and PreparePopulation
         // run in that order.
-        Loader = new PopulationLoader(Parameters, Patients, Workspace);
+        Loader = new PopulationLoader(Parameters, Patients, Workspace, Anonymiser);
 
         Picker = new PopulationPickerViewModel(
             Catalogue,
@@ -458,6 +459,12 @@ internal sealed class PopulationHarness : IDisposable
     internal FakePatientRepository Patients { get; } = new();
 
     internal FakeParameterResolver Parameters { get; } = new();
+
+    /// <summary>
+    /// The real anonymiser rather than a fake, because the load sequence resets it and the tests
+    /// that assert so have to read the map it keeps.
+    /// </summary>
+    internal MatrixAnonymiser Anonymiser { get; } = new();
 
     internal FakeSessionService Session { get; } = new();
 

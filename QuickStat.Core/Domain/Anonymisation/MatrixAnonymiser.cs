@@ -26,7 +26,8 @@ namespace QuickStat.Domain.Anonymisation;
 ///   <item>
 ///     <term>Unlinkable across datasets</term>
 ///     <description>
-///       <see cref="Reset"/> draws a fresh 256-bit key from the operating system CSPRNG
+///       <see cref="Reset"/> - called from the population load, and nowhere else - draws a fresh
+///       256-bit key from the operating system CSPRNG
 ///       (<see cref="RandomNumberGenerator"/>). Pseudonyms are
 ///       <c>scale + HMAC-SHA256(key, personId || counter) mod 9*scale</c>. HMAC-SHA256 under an
 ///       independent, uniformly random, never-persisted key is a pseudo-random function, so the

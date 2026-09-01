@@ -44,6 +44,14 @@ public interface IAnonymiser
     /// behaviour that was broken. An exporter that merely needs a space to exist calls
     /// <see cref="EnsureSpaceFor"/>.
     /// </para>
+    /// <para>
+    /// <b>There is exactly one caller, and for a while there were none.</b>
+    /// <c>QuickStat.App</c>'s <c>PopulationLoader.LoadAsync</c>, which is the single description of
+    /// a population load, so both the double-click and the package replay reach it. Nothing else may
+    /// call this. Its absence was a live privacy defect rather than a loose end - one map served the
+    /// whole session, so a patient in two populations kept one pseudonym across both exports and
+    /// joining them re-identified co-membership. PORT-PLAN.md §8.11 (12).
+    /// </para>
     /// </remarks>
     void Reset(int personCount);
 

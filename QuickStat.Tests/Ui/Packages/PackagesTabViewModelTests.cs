@@ -69,7 +69,7 @@ public class PackagesTabViewModelTests
             // above is only a catalogue to search and is wired to a workspace of its own.  Not a
             // fake: PORT-PLAN.md §8.10 (b) put the load sequence in here, and the national-id and
             // locked-matrix cases below are assertions about that sequence.
-            Loader = new PopulationLoader(Parameters, Patients, Workspace);
+            Loader = new PopulationLoader(Parameters, Patients, Workspace, Anonymiser);
 
             IdentificationPolicy identification = new();
 
@@ -121,6 +121,9 @@ public class PackagesTabViewModelTests
         internal FakePopulationRepository Audit { get; }
 
         internal FakeParameterResolver Parameters { get; }
+
+        /// <summary>The real anonymiser: the replay's load resets it, and a case below says so.</summary>
+        internal MatrixAnonymiser Anonymiser { get; } = new();
 
         internal PopulationLoader Loader { get; }
 
@@ -200,7 +203,11 @@ public class PackagesTabViewModelTests
             new FakeSessionService(),
             new FakePackageRepository(),
             new FakePopulationRepository(),
-            new PopulationLoader(new FakeParameterResolver(), new FakePatientRepository(), workspace),
+            new PopulationLoader(
+                new FakeParameterResolver(),
+                new FakePatientRepository(),
+                workspace,
+                new MatrixAnonymiser()),
             new UserNotifier(new HeadlessNotificationPresenter(), NullLogger<UserNotifier>.Instance),
             QuickStat.Tests.Ui.Populations.PopulationTestDoubles.NewPickerViewModel(),
             QuickStat.Tests.Ui.Collections.CollectionsTabHarness.Headless(

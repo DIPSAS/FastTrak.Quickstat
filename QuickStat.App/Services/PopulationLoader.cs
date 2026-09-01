@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using QuickStat.Domain.Anonymisation;
 using QuickStat.Domain.Matrix;
 using QuickStat.Domain.Patients;
 using QuickStat.Domain.Populations;
@@ -8,7 +9,8 @@ namespace QuickStat.Services;
 
 /// <summary>
 /// The one description of <em>loading a population</em>: resolve the placeholders, run the cohort
-/// query, recover the national ids, fill the matrix, and tell the workspace.
+/// query, recover the national ids, fill the matrix, draw a fresh pseudonym space, and tell the
+/// workspace.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -53,6 +55,7 @@ namespace QuickStat.Services;
 /// </remarks>
 public sealed class PopulationLoader
 {
+    private readonly IAnonymiser _anonymiser;
     private readonly IQueryParameterResolver _parameters;
     private readonly IPatientRepository _patients;
     private readonly IShellWorkspace _workspace;
@@ -61,19 +64,26 @@ public sealed class PopulationLoader
     /// <param name="parameters">Resolves the population's <c>:Name</c> placeholders, prompting for a period.</param>
     /// <param name="patients">Runs the cohort query, and the national-id recovery query behind it.</param>
     /// <param name="workspace">Owns the one <see cref="PersonMatrix"/> and records what is in it.</param>
+    /// <param name="anonymiser">
+    /// The shared pseudonym map, reset here because a new cohort is a new dataset. See
+    /// <see cref="LoadAsync"/>.
+    /// </param>
     /// <exception cref="ArgumentNullException">Any argument is <see langword="null"/>.</exception>
     public PopulationLoader(
         IQueryParameterResolver parameters,
         IPatientRepository patients,
-        IShellWorkspace workspace)
+        IShellWorkspace workspace,
+        IAnonymiser anonymiser)
     {
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(patients);
         ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(anonymiser);
 
         _parameters = parameters;
         _patients = patients;
         _workspace = workspace;
+        _anonymiser = anonymiser;
     }
 
     /// <summary>Runs a population and leaves its cohort in the matrix.</summary>
@@ -133,6 +143,25 @@ public sealed class PopulationLoader
     /// they differ in.
     /// </para>
     /// <para>
+    /// <b><see cref="IAnonymiser.Reset"/> is here because nowhere else was, and the omission was a
+    /// privacy defect rather than an untidiness.</b> <see cref="IAnonymiser"/> is a singleton and
+    /// <see cref="QuickStat.Export.DatasetExporter"/> only ever calls
+    /// <see cref="IAnonymiser.EnsureSpaceFor"/>,
+    /// which by design leaves a space that is already wide enough alone - so with nobody resetting,
+    /// the pseudonym map lived for the whole session. A patient in two populations was handed the
+    /// <em>same</em> pseudonym in both exports, and joining the two anonymised files revealed who was
+    /// in both cohorts: precisely the property <c>MatrixAnonymiser</c>'s remarks and PORT-PLAN.md
+    /// §7.2 promise. Two lesser consequences went with it - the space is <c>9 × ScaleFactor</c> wide
+    /// and never widens for an accumulated map, so a long session eventually exhausts it, and a
+    /// cohort exported after a much larger one inherited the larger one's digit width.
+    /// </para>
+    /// <para>
+    /// It takes <c>Rows.Count</c> and not <c>cohort.Count</c> because <c>Rows.Count</c> is the number
+    /// <see cref="QuickStat.Export.ExportDataset.FromMatrix"/> carries to
+    /// <see cref="IAnonymiser.EnsureSpaceFor"/> at export time; the two must agree, or the exporter
+    /// widens the space and discards the map it was just given.
+    /// </para>
+    /// <para>
     /// <b><see cref="IShellWorkspace.SetPopulation"/> comes last.</b> <see cref="PersonMatrix"/>
     /// raises no notifications, so the workspace cannot observe it and reads
     /// <c>Rows.Count</c> at the moment it is told; told any earlier,
@@ -182,6 +211,13 @@ public sealed class PopulationLoader
         matrix.Clear();
         matrix.SortBy = MatrixSortOrder.PersonId;
         matrix.PreparePopulation(cohort);
+
+        // A new cohort is a new dataset, so it gets a new key and an empty map.  Nothing else in the
+        // application calls this: DatasetExporter only calls EnsureSpaceFor, which keeps a space that
+        // is already wide enough, so without this line one map served the whole session and the same
+        // patient kept one pseudonym across two populations.  Rows.Count, not cohort.Count - see the
+        // remarks.
+        _anonymiser.Reset(matrix.Rows.Count);
 
         // Last, because the workspace reads Rows.Count at this moment (:567-569).
         _workspace.SetPopulation(population);
