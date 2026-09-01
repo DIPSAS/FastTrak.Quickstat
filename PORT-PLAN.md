@@ -7,7 +7,7 @@ Last updated: 2026-08-28
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 546 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 579 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -114,11 +114,22 @@ Last updated: 2026-08-28
 > `Report.AddQuickStat` is an upsert keyed on title — which the Delphi does not know, and shows a
 > duplicate list row for.
 >
+> **§6 of the checklist — the whole Packages tab — is closed too, and it cost a fifteenth defect**
+> (§8.11 (14)). Every one of its nine items was driven through the running window and measured
+> rather than eyeballed: the two selection colours came back `#C8D9E9` and `#E7F2FC` exactly, the
+> filter is trimmed here and not on the population list, the replay's *uncheck* half is proved by a
+> three-element package followed by a two-element one, and both dangling-reference warnings read
+> back with real line breaks. The one that failed was *"title bold"*: `FontWeight="SemiBold"` drew
+> the title pixel for pixel identically to the comment below it. **`SemiBold` is a weight this
+> application does not render** — which also puts a question mark over the dataset grid's header row
+> (checklist 4.5) and the selected tab caption (8.1), both left for the owner.
+>
 > **What is left in Phase 5 needs a person.** The `05-ui-spec.md` walkthrough is still a human job,
 > now written out as **`Docs/Port/08-parity-checklist.md`**:
-> ~60 items that need eyes, everything else marked as already covered and by what. The port
+> ~50 items that need eyes, everything else marked as already covered and by what. The port
 > launches from **`C:\work\qs-run\run.ps1`**, which stages a working `QuickStat.config.xml` and a
-> correctly encoded UDL beside the executable. **§8.10 is fully closed.**
+> correctly encoded UDL beside the executable; the scripts beside it now drive the window as well as
+> launch it. **§8.10 is fully closed.**
 > Two structural differences between the two CSVs are known, attributed and deliberate — read §8.14
 > before treating either as a bug.
 >
@@ -1156,9 +1167,10 @@ build is only useful if the subscribers have run too.
 
 ### 8.11 What Phase 5 found by running things
 
-Thirteen entries, and the list grew as the phase went on: the first three came out of finally having
-a server, the later ones out of the product owner's manual parity pass, and the last out of being
-allowed to write to that server. Each defect is fixed and each
+Fourteen entries, and the list grew as the phase went on: the first three came out of finally having
+a server, the later ones out of the product owner's manual parity pass, one out of being
+allowed to write to that server, and the last out of measuring what that pass could only squint at.
+Each defect is fixed and each
 has a regression test that fails if it comes back — every one of those tests was negative-controlled
 by reverting the production change and watching it fail. (3) is not a defect but the thing this phase
 existed to do.
@@ -1637,6 +1649,50 @@ Three things the round trip revealed that no reading of the Pascal would have:
   harmless: two long titles sharing their first 80 characters collide into one row through the upsert
   above. A `MaxLength="80"` on both boxes would close it; not done, because it changes what the user
   can type and is the owner's call.
+
+**(14) `SemiBold` is not a weight this application renders, and the packages list was the proof.**
+Closing §6 of the parity checklist meant measuring what a person is asked to judge by eye, and the
+one item that failed was *"title bold"*. A package was saved whose comment is a copy of its own
+title, so the two runs differ in nothing but their declared weight, and both were measured off the
+screen at 100 % scale:
+
+| | ink mass | drawn width |
+|---|---|---|
+| comment, no `FontWeight` | 52 570 | 92 px |
+| title, `FontWeight="SemiBold"` | 52 570 | 92 px |
+| title, `FontWeight="Bold"` | 80 839 | 93 px |
+
+Identical to the unit is not "close": the title was being rasterised with the regular face. Zooming
+both strings 6× says the same thing by eye, and the population list next door — which has always
+said `Bold` (`PopulationPickerView.xaml:233`) — has always looked bold.
+
+**It is not the font.** The same machine, outside the application, renders Segoe UI at 12 px with
+`TextFormattingMode.Display` as 81 px / 83 px / 85 px wide and 43 568 / 63 952 / 80 539 ink for
+Normal / SemiBold / Bold, and `Fonts.SystemFontFamilies` lists a real SemiBold face in the family —
+so weight 600 is both available and plainly distinguishable out there. Inside the window it is not,
+and the shape of the `Bold` result says why it is worth someone's curiosity rather than mine: 54 %
+more ink for **one** pixel of width is the signature of synthetic emboldening, not of a heavier face
+being picked up. **The root cause is not pinned, and this entry does not claim it is** — what is
+established is the outcome, three ways.
+
+*Fixed* where §6 needed it: `PackagesTabView.xaml`'s title says `Bold`, pinned by
+`Ui/Packages/PackagesViewMarkupTests.TheRowHasItsFourRunsAndABoldTitle`, which also pins the other
+three runs and the collapsing comment that §6.3 asks about.
+
+*Left for the owner*, because both were deliberate choices rather than oversights and changing them
+is a design decision:
+
+- **`MatrixGrid.EmphasisFontWeight` defaults to `SemiBold`** — §F.3 chose that over the Delphi's
+  `[fsBold]`. The consequence is that the dataset grid's header row and current row are drawn plain
+  where the reference draws them bold; the zoomed header strip shows it. Checklist 4.5.
+- **`QsTabItem` turns the selected tab's caption `SemiBold`** (`QuickStat.Styles.xaml:123`).
+  Checklist 8.1. Selecting a tab does widen its caption by 2 px, so this one is less clear-cut than
+  the list row and wants an eye rather than a number.
+
+Six further uses — the banner, the busy overlay, the two dialog headers, the dataset caption's
+inner run and the unused `QsDataGridColumnHeader` — are the same weight and presumably the same
+non-effect, but nothing in the specification says any of them must be visibly heavier, so they are
+listed rather than changed.
 
 **Left open by Phase 5**
 

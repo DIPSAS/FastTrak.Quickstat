@@ -31,8 +31,20 @@ collect all 213 elements in about a minute.
 | ⚠ | **Deliberate difference.** Do *not* report it — it is a decision already taken, with its reason |
 | ❓ | **A decision, not a comparison.** Nothing to look at; somebody has to choose |
 
-Roughly **60 items need eyes**. Four other acceptance criteria close along the way, marked
-**[AC-n]** where they do.
+Roughly **50 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
+measured on 2026-09-01 rather than looked at. Four other acceptance criteria close along the way,
+marked **[AC-n]** where they do.
+
+**Where a ✅ says "measured", the number is in the item and the script that produced it is in
+`C:\work\qs-run`.** That folder started as a launcher and is now a small instrument: `tree.ps1` and
+`raw.ps1` read the automation tree (and the raw one is not optional — every `SectionHeader` in this
+application is invisible to the control view), `grid-menu.ps1`, `dialog.ps1`, `pkg-*.ps1` and
+`selection-colour.ps1` drive and sample, `zoom.ps1` blows a rectangle up for the questions only an
+eye settles. Two traps are baked into them and worth knowing before writing another: an owned WPF
+window is **not** a child of the desktop root in the automation tree, so a dialog that is plainly on
+screen is missing from any search that looks there; and `Enable-QsDpiAwareness` has to be called
+before anything reads a rectangle, or Windows hands this process a stretched copy of the screen and
+every sampled colour is a resampled blend.
 
 **A ✅ is worth what the test behind it is worth, and the first two defects this pass found were both
 under one.** 2.10 was covered by a test that read the markup and confirmed the gesture was spelled
@@ -195,7 +207,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   the Phase 4 feature, and it has never been seen through the running shell. Expect ~280 of 281 on
   ProcId 14. **[AC-5]**
 - [ ] **4.5** `PID` text, header and data, is dark teal `#035F66`; everything else black. Header
-  row and the current row are **bold**. §C.3.
+  row and the current row are **bold**. §C.3. ⚠ **They are not, and the reason is not this
+  control's.** `MatrixGrid.EmphasisFontWeight` defaults to `SemiBold`, as §F.3 asks, and this build
+  draws `SemiBold` indistinguishably from `Normal` — so the header row is plain where the Delphi's
+  was `[fsBold]`. Measured, with the mechanism, in PORT-PLAN.md §8.11 (14); the one-word fix is the
+  owner's, because §F.3 chose `SemiBold` over the Delphi's bold deliberately. Look at the header
+  row and say whether you want it back.
 - [ ] **4.6** Click a cell: it should go `#C8D9E9`, and the rest of that row a 50 % tint —
   `#F3F9FD` over white, `#EEF3F9` over a `#F5F5F5` empty cell. §C.3 rules 5–6.
 - [ ] **4.7** Empty-but-known cells `#F5F5F5`, no-object cells `#FFFAFA`, ordinary `#FFFFFF`.
@@ -269,43 +286,58 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 
 ## 6. Packages tab — §B.3
 
-**The server round trip is now covered; what is left here is what it looks like.** Packages are
-stored *server-side* in `Report.QuickStat`, so exercising them **writes to `EFT00028_TEST_020`** —
-which the product owner authorised on 2026-09-01, closing PORT-PLAN.md §8.10 (h). `C:\work\qs-packages`
-drives the real `IPackageRepository` against the real table and passes 29 checks, restoring the row
-count it found: save, list, replay, delete, Norwegian text through the `varchar` columns, the sorted
-and de-duplicated `DataElements`, and a replay that loads its population and collects into a 25 × 9
-matrix. Re-run it any time with `dotnet run --project C:\work\qs-packages`. The items below are the
-part a rig cannot judge — layout, colour, and the gestures. If you do save from the UI, delete what
-you create.
+**This section is closed. Every item was driven through the running port and measured on
+2026-09-01, and one of them was a defect.** Packages are stored *server-side* in
+`Report.QuickStat`, so exercising them **writes to `EFT00028_TEST_020`** — which the product owner
+authorised on 2026-09-01, closing PORT-PLAN.md §8.10 (h). Two rigs did it:
+`C:\work\qs-packages` drives the real `IPackageRepository` against the real table (29 checks: save,
+list, replay, delete, Norwegian text through the `varchar` columns, the sorted and de-duplicated
+`DataElements`, a replay that collects into a 25 × 9 matrix), and `C:\work\qs-run` drives the
+window itself — `grid-menu.ps1`, `dialog.ps1`, `package-row.ps1`, `selection-colour.ps1`,
+`pkg-filter.ps1`, `pkg-open.ps1`, `pkg-delete.ps1`. Both restore what they found; `Report.QuickStat`
+is back to the 0 rows it started with. **If you re-run any of this by hand, delete what you create.**
 
-- [ ] **6.1** Header reads `Packaged datasets` — not `Packages`, which is only the tab caption.
+- ✅ **6.1** Header reads `Packaged datasets`, above the filter box; `Packages` is only the tab
+  caption. §B.3. *(It is a `SectionHeader`, so like every other one it is raw-view only in the
+  automation tree — `raw.ps1`, not `tree.ps1`.)*
+- ✅ **6.2** `Package dataset specification for reuse` on the grid's right-click menu opens a
+  modal headed `Save specification` with `Unique name` / `Comments`, `OK` disabled until a title is
+  typed. **Cleared on every open**, checked the second time round, after a save had filled it.
+  §D.1, §E.
+- ✅ **6.3** Saving adds the row without a restart, and the row is: id `#888888`, `Pop#<n>`
+  `#894605`, right-aligned two pixels off the row's edge and in the smaller size (13 px against
+  17 px), comment `#333333` word-wrapped underneath (three lines, 51 px, against a 39 px row for a
+  one-line comment), row `#FFFFFF`, and the bottom pixel of the row `#F0F0F0` — the 1 px divider.
   §B.3.
-- [ ] **6.2** `Package dataset specification for reuse` from the grid context menu opens the save
-  dialog **cleared**, headed `Save specification`. §D.1, §E.
-- [ ] **6.3** Saving adds a row to the list without a restart: id grey, title bold, `Pop#<n>` brown
-  and right-aligned, comment word-wrapped underneath, 1 px divider. §B.3.
-- [ ] **6.4** Selected + focused is `#C8D9E9` and selected + unfocused `#E7F2FC` — the raw pair. A
-  list never paints the grid's 50 % blend; getting this wrong is exactly the defect §8.14 found.
-- [ ] **6.5** The filter is **trimmed** here, unlike the population filter, which is not. §B.3
-  vs §B.1.1 — PORT-PLAN.md §8.8 (i) says the difference is real and deliberate.
-- [ ] **6.6** **Double click replays the package in full:** selects and loads its population,
-  unchecks everything, re-checks each stored collector by name, runs the collect, and sets the
-  dataset caption to the package title. §B.3. *(Until PORT-PLAN.md §8.11 (5) this was reachable by
-  **nothing** — the same dead `MouseBinding` as the population list, and here with no `Enter`
-  beside it, because the Delphi has none either. **Check the gesture itself**: the outcome is now
-  covered — `qs-packages` replays a saved package off the live table into a 25 × 9 matrix.)*
-- [ ] **6.7** …and the left pane ends on the **Collections** tab, not the Packages tab. That is
-  parity, restored after `07` §3.1 said otherwise (wave-2 defect 4).
-- [ ] **6.8** A package naming an unknown population, and one naming an unknown collector, produce
-  the two warnings in §D.4. *(Hand-editable in `Report.QuickStat` if you want to force it — or run
-  `qs-packages`, which writes both rows and confirms the dangling `ProcId` is absent from the
-  catalogue and the dangling name absent from the registry. What it cannot see is the two dialogs.)*
-- [ ] **6.9** Delete asks `Do you really want to delete this package: "<title>"?` and deletes on
-  Yes. §D.1. *(That the row actually leaves `Report.QuickStat`, and that deleting an id which is
-  already gone is a silent no-op, are both covered by `qs-packages`.)*
-- ⚠ **Delete is disabled when nothing is selected.** The Delphi enables it always and warns at
-  execute time. Improvement, §D.1.
+  ⚠ **The title was not bold, and now is.** With `FontWeight="SemiBold"` the title drew *pixel for
+  pixel identically* to the comment beneath it. It says `Bold` now, like the population list next
+  door. PORT-PLAN.md §8.11 (14) — **read it before touching any other `SemiBold` in this
+  application**, because eight of them are left and at least one is visible (4.5).
+- ✅ **6.4** Selected + focused `#C8D9E9`, selected + unfocused `#E7F2FC`, unselected `#FFFFFF` —
+  each the colour of 92 % of the row's pixels, so the raw pair and not the grid's 50 % blend.
+  §8.14's defect stays fixed.
+- ✅ **6.5** The filter is **trimmed** here and not on the population list, confirmed both ways in
+  one sitting: `   ZZ-PARITY UI 2   ` matches its row here, `   Aktive personer   ` matches nothing
+  there. §B.3 vs §B.1.1 — PORT-PLAN.md §8.8 (i).
+- ✅ **6.6** **Double click replays the package in full**, and the *uncheck* half is what needed
+  proving: replaying a three-element package gave `PID AGE YOB SEX`, replaying a two-element one
+  straight afterwards gave `PID AGE SEX` — so the previous ticks went, rather than the two being
+  added to them. The caption follows the package title each time. §B.3. *(Until PORT-PLAN.md
+  §8.11 (5) this gesture was reachable by nothing at all — the same dead `MouseBinding` as the
+  population list, and here with no `Enter` beside it, because the Delphi has none either.)*
+- ✅ **6.7** …and the left pane ends on **Collections**, after every replay, including the one that
+  warned first. Parity, restored after `07` §3.1 said otherwise (wave-2 defect 4).
+- ✅ **6.8** Both warnings from §D.4, with **real line breaks**, from rows written for the purpose:
+  `The selection is based on an unknown population (ProcId=999999).⏎The data collection can not be
+  performed at this time.⏎Perhaps the population is from a different protocol?` — and that one
+  stops, no population is loaded. `The selection contains an unknown data element.⏎Element name was
+  "ZZ.NOT.A.COLLECTOR".⏎The data collection will be incomplete.⏎Perhaps the selection was created in
+  a later version?` — and that one continues, collecting the elements it does know.
+- ✅ **6.9** Delete asks `Do you really want to delete this package:⏎"<title>"?` with `Yes` / `No`,
+  from **both** the toolbar button and the row's context menu. `No` leaves the row on the server;
+  `Yes` takes it out of `Report.QuickStat` and out of the list without a restart.
+- ⚠ **Delete is disabled when nothing is selected**, confirmed with four rows on screen and the
+  selection cleared. The Delphi enables it always and warns at execute time. Improvement, §D.1.
 - ⚠ **Saving under a title that already exists updates one row here and shows two in the Delphi.**
   `Report.AddQuickStat` is an upsert keyed on `(StudyId, Title)`; the Delphi appends its new object
   to an in-memory list and never re-reads, so it lists one server row twice until restart. The port
@@ -324,7 +356,12 @@ you create.
 ## 7. Dialogs — §E, §D.4, §D.5
 
 - [ ] **7.1** Save dialog: `Unique name` / `Comments`, `OK` / `Cancel`, centred on the main window,
-  not resizable. §E.
+  not resizable. §E. *(The four labels, the two buttons and the disabled `OK` are confirmed —
+  §6.2. Two things a rig noticed and left for you: the buttons run **`Cancel` then `OK`**,
+  left to right, and **the first time the dialog opens in a fresh process it is 27 px left and
+  90 px above the owner's centre** — every later open that session is exact to the pixel, which the
+  warning dialogs are on the first open too. Cosmetic, and it smells like `SizeToContent` measuring
+  after `CenterOwner` has placed the window.)*
 - [ ] **7.2** The period picker appears **by itself** when a query declares `@StartDate` and
   `@StopDate` — it is not on any menu. Norwegian throughout, `OK` disabled while start ≥ end,
   and the dates are remembered per query. §D.5.
@@ -337,7 +374,11 @@ you create.
 ## 8. Chrome, theme and shutdown
 
 - [ ] **8.1** Section headers: teal `#178891`, white text, 26 px. Tab strip: selected tab has a
-  3 px teal bar along the **top** edge and semibold text. §F.4.
+  3 px teal bar along the **top** edge and semibold text. §F.4. *(The teal bar is there. **Doubt
+  the semibold**: `QsTabItem`'s selection trigger asks for it, and `SemiBold` is the weight this
+  build does not render — see 4.5 and PORT-PLAN.md §8.11 (14). Selecting a tab does widen its
+  caption by 2 px, so something changes; whether it looks bolder is exactly the sort of thing this
+  line is for.)*
 - [ ] **8.2** Move the window, maximise it, close, reopen — geometry comes back. Then change screen
   resolution: the ini is keyed **per resolution**, so a different geometry is expected, not a bug.
   §G.1.

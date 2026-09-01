@@ -91,6 +91,10 @@
                     template's.  An empty comment collapses rather than reserving a blank line: the
                     VCL measured the drawn text, so a package saved without one was a single-line
                     row there too.
+
+                    The title is Bold, and it is deliberately not SemiBold: with SemiBold this build
+                    drew it pixel for pixel identically to the comment beneath it, measured off the
+                    screen.  PORT-PLAN.md §8.11 (14); pinned by PackagesViewMarkupTests.
                 -->
                 <DataTemplate DataType="{x:Type vm:PackageViewModel}">
                     <StackPanel Margin="0,2">
@@ -106,7 +110,7 @@
                                        Text="{Binding RowId}" />
                             <TextBlock Grid.Column="1"
                                        Margin="6,0"
-                                       FontWeight="SemiBold"
+                                       FontWeight="Bold"
                                        Foreground="{StaticResource QsTitleBrush}"
                                        Text="{Binding Title}"
                                        TextTrimming="CharacterEllipsis"
