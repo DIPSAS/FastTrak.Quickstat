@@ -2,7 +2,11 @@
 
 Status: **in implementation — Phases 0–5 largely complete. Resume in Phase 5 (see below).**
 Branch: `feature/dotnet`
-Last updated: 2026-08-28
+Last updated: 2026-09-01
+
+> **For "what is left", read `PORT-REMAINING-TODO.md` instead.** It is one page, ranked by what
+> would stop a release, and every line points back into this document. This file is the record of
+> *why*; that one is the list of *what next*. Keep them in step.
 
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
