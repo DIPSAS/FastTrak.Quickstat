@@ -588,6 +588,7 @@ One dialog serves two purposes; only the header/title text differs.
 | Button bar | 48 px, docked bottom, 1 px top border |
 | OK | `TBitBtn Kind = bkOK` → caption **`OK`**, 92 × 30, `ModalResult = mrOk`, `Margin R 16` |
 | Cancel | `TBitBtn Kind = bkCancel` → caption **`Cancel`**, 88 × 30, `ModalResult = mrCancel`, `Margin R 4` |
+| Order | `btnSave.Left` 280, `btnClose.Left` 184 — **OK on the right**. ⚠ The port puts OK **first**; see the semantics below |
 | `Clear()` | empties both fields |
 
 Semantics:
@@ -605,6 +606,11 @@ Semantics:
   `PackagedSelection.MaxTitleLength`; a divergence, taken 2026-09-01 (PORT-PLAN.md §8.11 (13)).
   `memComment` needs no cap: `Comment` is `varchar(MAX)`.
 * Cancel does nothing at all (no side effects).
+* **The button order is the one thing here the port does not copy.** The `.dfm` puts OK on the
+  right, which is the opposite of the Windows convention and of `NotificationDialog`, whose `Yes`
+  has always come first. On the product owner's instruction of 2026-09-01 both this dialog and
+  `TfrmPeriod` were switched to commit-first, dismiss-second; the sizes and the 4 + 4 + 16 spacing
+  are unchanged. PORT-PLAN.md §7.3.
 
 WPF: a `Window` with `WindowStartupLocation="CenterOwner"`, `ResizeMode="NoResize"`,
 `ShowInTaskbar="False"`, `SizeToContent="Manual"`, `IsDefault` on OK and `IsCancel` on Cancel.

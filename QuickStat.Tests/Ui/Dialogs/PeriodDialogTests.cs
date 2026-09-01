@@ -106,6 +106,23 @@ public class PeriodDialogTests
     });
 
     [Fact]
+    public void TheButtonBarPutsOkFirst() => StaTestRunner.Run(() =>
+    {
+        // All three modals in this application agree on the platform order - commit first, dismiss
+        // second - since 2026-09-01. Both this and SaveSpecDialog took it from their .dfm the other
+        // way round; NotificationDialog has always been this way. PORT-PLAN.md §7.3.
+        RealisedWindow.Run(new PeriodDialog { DataContext = new PeriodViewModel() }, dialog =>
+        {
+            Point ok = dialog.OkButton.TranslatePoint(default, dialog);
+            Point cancel = dialog.CancelButton.TranslatePoint(default, dialog);
+
+            Assert.True(ok.X < cancel.X, $"OK at {ok.X} should be left of Cancel at {cancel.X}.");
+            Assert.True(dialog.OkButton.IsDefault);
+            Assert.True(dialog.CancelButton.IsCancel);
+        });
+    });
+
+    [Fact]
     public void OkIsDisabledWhileTheRangeIsInvalid() => StaTestRunner.Run(() =>
     {
         // Emetra.VclForm.Period.pas:74 - btnOk.Enabled := CalendarView1.Date < CalendarView2.Date.

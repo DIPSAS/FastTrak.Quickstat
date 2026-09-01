@@ -988,6 +988,22 @@ that is the colouring users actually see, and it is ported as-is.
     container and not on the `ListBox`: `ToolTipService` walks *up* from whatever is under the
     pointer, so a tip on the list would also answer for the empty space below the last row, where
     there is no population to double-click.
+- **Three more from the same pass, on the product owner's instruction of 2026-09-01.**
+  - **The `Unique name` box stops at 80 characters** — §8.11 (13). `Report.QuickStat.Title` is
+    `varchar(80)` and `Report.AddQuickStat` upserts on `(StudyId, Title)`, so a longer title does
+    not lose its tail, it overwrites the package sharing its first 80, silently. `edtTitle` has no
+    `MaxLength`; the box is the only layer that can say anything, because nothing below it raises.
+  - **`SemiBold` is gone from the application** — §8.11 (14) and (15). Eight uses became `Bold`,
+    which is what §F.2 says the Delphi draws; two were removed, because the Delphi draws those
+    plain. The population tip above the list is bold on the same instruction: muted grey and bold
+    reads as an instruction rather than as a caption.
+  - **The modals put OK first and Cancel second**, left to right — the platform order.
+    `Emetra.VclForm.EditAndMemo.dfm` has it the other way (`btnSave.Left` 280 against
+    `btnClose.Left` 184) and so does `Emetra.VclForm.Period.dfm`, but `NotificationDialog` has
+    always read `Yes` then `No`, so the application disagreed with itself as well as with Windows.
+    Sizes and the 4 + 4 + 16 spacing are still §E's; only the order moved. All three dialogs now
+    pin it — `TheButtonBarPutsOkFirst` in both `SaveSpecDialogTests` and `PeriodDialogTests`, and
+    the pre-existing `Yes`/`No` case in `NotificationDialogTests`.
 
 ---
 

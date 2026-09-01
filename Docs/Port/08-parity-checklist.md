@@ -365,11 +365,13 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
   27 px left and 90 px above the owner's centre the first time in a process, and every dialog now
   redoes the centring from `OnSourceInitialized` once its size is known. Verified in a fresh
   process on 2026-09-01 — first open, dialog centre 1437,870 against the owner's 1437,870.
-  `Ui/Dialogs/DialogCentringTests`. **The button order is not a defect**: `Cancel` then `OK`, left
-  to right, is what `Emetra.VclForm.EditAndMemo.dfm` lays out — `btnSave.Left` 280 against
-  `btnClose.Left` 184 — and `TheButtonBarPutsOkOnTheRight` pins it. It is the opposite of the usual
-  Windows order, so if you want the usual order instead, that is a deliberate divergence and one
-  line.)*
+  `Ui/Dialogs/DialogCentringTests`.)*
+- ⚠ **The buttons read `OK` then `Cancel`, and the Delphi's read `Cancel` then `OK`.** A deliberate
+  divergence, taken on the owner's instruction 2026-09-01: `btnSave.Left` 280 against
+  `btnClose.Left` 184 puts OK on the right in both Emetra dialogs, which is the opposite of the
+  Windows convention *and* of `NotificationDialog` next door, whose `Yes` has always come first —
+  so the application disagreed with itself. Sizes and spacing are unchanged. §7.3;
+  `TheButtonBarPutsOkFirst` in `SaveSpecDialogTests` and `PeriodDialogTests`.
 - [ ] **7.2** The period picker appears **by itself** when a query declares `@StartDate` and
   `@StopDate` — it is not on any menu. Norwegian throughout, `OK` disabled while start ≥ end,
   and the dates are remembered per query. §D.5.

@@ -73,10 +73,14 @@
         </Border>
 
         <!--
-            panButtons: 48 tall, one-pixel top rule.  OK is the rightmost of the two - btnSave.Left
-            is 280 against btnClose.Left 184 - which is the opposite of the usual Windows order but
-            is what the .dfm lays out, and what §E's "OK ... Margin R 16" / "Cancel ... Margin R 4"
-            already implies.  The gap between them is 4 + 4.
+            panButtons: 48 tall, one-pixel top rule.  Sizes and spacing are the .dfm's - OK 92 x 30,
+            Cancel 88 x 30, 4 + 4 between them, 16 to the right edge.
+
+            The ORDER is not.  btnSave.Left is 280 against btnClose.Left 184, so the Delphi puts OK
+            on the right, which is the opposite of what Windows does everywhere else - including
+            NotificationDialog next door, which has always read Yes then No.  Switched to the
+            platform order on the product owner's instruction, 2026-09-01: commit first, dismiss
+            second, left to right.  A deliberate divergence; PORT-PLAN.md §7.3.
         -->
         <Border DockPanel.Dock="Bottom"
                 Height="48"
@@ -85,22 +89,22 @@
             <StackPanel HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Orientation="Horizontal">
-                <Button x:Name="CancelButton"
-                        Width="88"
-                        Height="30"
-                        Margin="0,0,4,0"
-                        Style="{StaticResource QsPrimaryButton}"
-                        Content="Cancel"
-                        IsCancel="True" />
                 <Button x:Name="OkButton"
                         Width="92"
                         Height="30"
-                        Margin="4,0,16,0"
+                        Margin="0,0,4,0"
                         Style="{StaticResource QsPrimaryButton}"
                         Content="OK"
                         IsDefault="True"
                         IsEnabled="{Binding CanSave}"
                         Click="OnAccept" />
+                <Button x:Name="CancelButton"
+                        Width="88"
+                        Height="30"
+                        Margin="4,0,16,0"
+                        Style="{StaticResource QsPrimaryButton}"
+                        Content="Cancel"
+                        IsCancel="True" />
             </StackPanel>
         </Border>
 

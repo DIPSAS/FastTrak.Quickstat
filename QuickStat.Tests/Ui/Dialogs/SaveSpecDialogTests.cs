@@ -64,16 +64,18 @@ public class SaveSpecDialogTests
     });
 
     [Fact]
-    public void TheButtonBarPutsOkOnTheRight() => StaTestRunner.Run(() =>
+    public void TheButtonBarPutsOkFirst() => StaTestRunner.Run(() =>
     {
-        // btnSave.Left = 280 against btnClose.Left = 184, so OK is the rightmost - the opposite of
-        // the usual Windows order, and what §E's "OK ... Margin R 16" already implies.
+        // A deliberate divergence, taken 2026-09-01 (PORT-PLAN.md §7.3). The .dfm puts OK on the
+        // RIGHT - btnSave.Left = 280 against btnClose.Left = 184 - which is the opposite of what
+        // Windows does everywhere else, including NotificationDialog in this same application. The
+        // sizes and the 4 + 4 + 16 spacing are still §E's.
         RealisedWindow.Run(new SaveSpecDialog { DataContext = new SaveSpecViewModel { Title = "x" } }, dialog =>
         {
             Point ok = dialog.OkButton.TranslatePoint(default, dialog);
             Point cancel = dialog.CancelButton.TranslatePoint(default, dialog);
 
-            Assert.True(ok.X > cancel.X, $"OK at {ok.X} should be right of Cancel at {cancel.X}.");
+            Assert.True(ok.X < cancel.X, $"OK at {ok.X} should be left of Cancel at {cancel.X}.");
 
             Assert.Equal(92d, dialog.OkButton.Width);
             Assert.Equal(30d, dialog.OkButton.Height);

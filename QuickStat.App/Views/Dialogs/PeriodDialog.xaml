@@ -80,21 +80,26 @@
                 <StackPanel DockPanel.Dock="Right"
                             VerticalAlignment="Center"
                             Orientation="Horizontal">
-                    <Button Width="84"
-                            Height="36"
-                            Margin="0,0,8,0"
-                            Style="{StaticResource QsPrimaryButton}"
-                            Content="{x:Static vm:PeriodViewModel.CancelCaption}"
-                            IsCancel="True" />
+                    <!--
+                        Commit first, dismiss second - the platform order, switched from the .dfm's
+                        on 2026-09-01 together with SaveSpecDialog's.  PORT-PLAN.md §7.3.
+                    -->
                     <Button x:Name="OkButton"
                             Width="84"
                             Height="36"
-                            Margin="0,0,16,0"
+                            Margin="0,0,8,0"
                             Style="{StaticResource QsPrimaryButton}"
                             Content="{x:Static vm:PeriodViewModel.AcceptCaption}"
                             IsDefault="True"
                             IsEnabled="{Binding CanAccept}"
                             Click="OnAccept" />
+                    <Button x:Name="CancelButton"
+                            Width="84"
+                            Height="36"
+                            Margin="0,0,16,0"
+                            Style="{StaticResource QsPrimaryButton}"
+                            Content="{x:Static vm:PeriodViewModel.CancelCaption}"
+                            IsCancel="True" />
                 </StackPanel>
 
                 <TextBlock x:Name="BottomInfo"
