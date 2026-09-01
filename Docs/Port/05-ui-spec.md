@@ -695,17 +695,27 @@ Single system font stack, no Calibri/Tahoma:
 |---|---|
 | Base / body | `Segoe UI`, `FontSize="12"` |
 | Section header | `Segoe UI`, `FontSize="13"`, `Foreground="White"` |
-| Tab caption | `Segoe UI`, `FontSize="13"`; selected `FontWeight="SemiBold"` |
-| Wordmark | `Segoe UI`, `FontSize="20"`, `FontWeight="SemiBold"` |
+| Tab caption | `Segoe UI`, `FontSize="13"`; selected `FontWeight="Bold"` **on the caption presenter, never on the `TabItem`** |
+| Wordmark | `Segoe UI`, `FontSize="20"`, `FontWeight="Bold"` |
 | Version | `Segoe UI`, `FontSize="12"`; `version` in `QsAccentBrush`, number in `QsTextBrush` |
-| List title | `FontSize="12"`, `FontWeight="SemiBold"` |
+| List title | `FontSize="12"`, `FontWeight="Bold"` |
 | List id / category | `FontSize="11"` |
-| Grid | `FontSize="12"`; header `SemiBold` |
+| Grid | `FontSize="12"`; header and current row `Bold` |
 | Code / SQL | `Cascadia Mono, Consolas, Courier New`, `FontSize="11"` |
 | Paragraph (`lblDataElementInfo`) | `FontSize="12"`, `TextWrapping="Wrap"`, `LineHeight="17"` |
 
 Spacing rhythm: **4 / 8 / 16**. Section header bar `Padding="8,4"`, `Height="26"`. Controls
 inside a tab: `Margin="4"` horizontally, `8` between logical groups. No `BorderThickness > 1`.
+
+> **`SemiBold` was this table's word for "a softer bold", and it is not a weight this application
+> renders** — measured off the running window, a `SemiBold` run is pixel for pixel a regular one
+> (PORT-PLAN.md §8.11 (14)). Everywhere §F.2 says the Delphi draws text bold, this table now says
+> `Bold`; where the Delphi draws it plain, the port declares no weight at all rather than a no-op.
+>
+> **Never set an inherited text property on a `TabItem`.** `FontSize`, `FontWeight` and `Foreground`
+> all inherit, and a tab's content is its logical child, so a setter on the `TabItem` reaches the
+> whole page behind the tab. Both of the first two did (§8.11 (15)); they belong on the caption
+> presenter inside the template.
 
 ### F.4 Resource dictionary
 

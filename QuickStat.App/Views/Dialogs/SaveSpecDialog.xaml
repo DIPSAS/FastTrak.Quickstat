@@ -66,7 +66,7 @@
                 <TextBlock x:Name="HeaderText"
                            VerticalAlignment="Center"
                            FontSize="19"
-                           FontWeight="SemiBold"
+                           FontWeight="Bold"
                            Text="{Binding Header}"
                            TextTrimming="CharacterEllipsis" />
             </StackPanel>

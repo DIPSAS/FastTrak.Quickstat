@@ -203,8 +203,14 @@
                             width at 320.
                         -->
                         <StackPanel>
-                            <TextBlock FontWeight="SemiBold"
-                                       Foreground="{StaticResource QsTextBrush}"
+                            <!--
+                                No FontWeight.  The Delphi's hint is one plain TLabel, lblDataHint,
+                                with no Font.Style (MainQuickStat.dfm:1463); the port splits it over
+                                two lines, and the SemiBold that used to sit here drew nothing
+                                anyway (PORT-PLAN.md §8.11 (14)).  Promoting it to Bold would be a
+                                divergence rather than a fix.
+                            -->
+                            <TextBlock Foreground="{StaticResource QsTextBrush}"
                                        Text="{Binding Hint.Line1, Mode=OneWay}"
                                        TextWrapping="Wrap" />
                             <TextBlock Foreground="{StaticResource QsTextBrush}"

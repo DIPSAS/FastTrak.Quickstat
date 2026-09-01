@@ -52,7 +52,7 @@
                        Margin="6,3,3,3"
                        VerticalAlignment="Center"
                        FontSize="{StaticResource QsWordmarkFontSize}"
-                       FontWeight="SemiBold"
+                       FontWeight="Bold"
                        Foreground="{StaticResource QsTextBrush}"
                        Text="{Binding ProductName, Mode=OneTime}" />
 
@@ -71,7 +71,8 @@
             </TextBlock>
 
             <StackPanel Grid.Column="4" Margin="3,3,8,3" VerticalAlignment="Center">
-                <TextBlock FontWeight="SemiBold"
+                <!-- lblProgress is Font.Style = [fsBold] (MainQuickStat.dfm:949), like lblAppName. -->
+                <TextBlock FontWeight="Bold"
                            FontSize="{StaticResource QsFontSize}"
                            Foreground="{StaticResource QsTextBrush}"
                            Text="{Binding ProgressHeader, Mode=OneWay}" />
@@ -90,8 +91,13 @@
                                     and shows the exception message.  Any Fail() does the same.
                                 -->
                                 <DataTrigger Binding="{Binding ProgressIsError}" Value="True">
+                                    <!--
+                                        Colour only.  There used to be a FontWeight="SemiBold" here
+                                        too; it drew nothing (PORT-PLAN.md §8.11 (14)) and lblInfo
+                                        carries no Font.Style in the .dfm, so promoting it to Bold
+                                        would invent an emphasis the Delphi does not have.
+                                    -->
                                     <Setter Property="Foreground" Value="{StaticResource QsErrorBrush}" />
-                                    <Setter Property="FontWeight" Value="SemiBold" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>

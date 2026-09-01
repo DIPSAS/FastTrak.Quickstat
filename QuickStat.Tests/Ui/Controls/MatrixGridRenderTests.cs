@@ -194,13 +194,38 @@ public class MatrixGridRenderTests
     {
         StaTestRunner.Run(() =>
         {
-            MatrixGridHarness harness = MatrixGridHarness.RenderMatrix(
+            // "Pinned" means the whole header band is painted identically however far the data has
+            // scrolled, so it is compared with the unscrolled render rather than with one
+            // hand-picked pixel. That used to be Assert.Equal(FixedFill, PixelAt(60, 6)), and it
+            // broke the day the header went from SemiBold to Bold (PORT-PLAN.md §8.11 (14)): the
+            // probe had been landing on background inside a glyph's bounding box and started
+            // landing on ink. The band comparison cannot fail for that reason.
+            const int HeaderRule = 17;
+
+            MatrixGridHarness top = MatrixGridHarness.RenderMatrix(
+                MatrixGridTestData.LargeMatrix(rows: 200, columns: 5));
+
+            MatrixGridHarness scrolled = MatrixGridHarness.RenderMatrix(
                 MatrixGridTestData.LargeMatrix(rows: 200, columns: 5),
                 configure: grid => grid.SetVerticalOffset(17 * 50));
 
-            // The header is still at the top, whatever the offset.
-            Assert.Equal(FixedFill, harness.PixelAt(60, 6));
-            Assert.Equal(FixedLine, harness.PixelAt(60, 17));
+            List<(int X, int Y)> differences = [];
+
+            for (int y = 0; y <= HeaderRule; y++)
+            {
+                for (int x = 0; x < top.Width; x++)
+                {
+                    if (!Equals(top.PixelAt(x, y), scrolled.PixelAt(x, y)))
+                    {
+                        differences.Add((x, y));
+                    }
+                }
+            }
+
+            Assert.Empty(differences);
+
+            // And the band really is the header rather than two identical blanks: its bottom rule.
+            Assert.Equal(FixedLine, scrolled.PixelAt(60, HeaderRule));
         });
     }
 

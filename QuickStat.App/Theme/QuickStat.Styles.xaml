@@ -96,9 +96,14 @@
          what screenshot 1 shows.  No card frame, no border.
          =================================================================================== -->
 
+    <!--
+        Every text property here is set on the CAPTION, never on the TabItem.  FontSize, FontWeight
+        and Foreground all inherit, and a TabItem's Content is its logical child, so a setter on the
+        TabItem reaches the whole page behind the tab - the section headers, the labels, the check
+        boxes, everything.  FontSize did exactly that from the start and nobody saw it: the selected
+        tab's page drew at 13 px instead of 12.  See TabCaptionWeightTests.
+    -->
     <Style x:Key="QsTabItem" TargetType="{x:Type TabItem}">
-        <Setter Property="FontSize" Value="{StaticResource QsHeaderFontSize}" />
-        <Setter Property="Foreground" Value="{StaticResource QsTextBrush}" />
         <Setter Property="Padding" Value="12,0" />
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Template">
@@ -114,13 +119,27 @@
                                           Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
-                                          RecognizesAccessKey="True" />
+                                          RecognizesAccessKey="True"
+                                          TextElement.FontSize="{StaticResource QsHeaderFontSize}"
+                                          TextElement.Foreground="{StaticResource QsTextBrush}" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="HighlightBar" Property="Background" Value="{StaticResource QsTealBrush}" />
                             <Setter TargetName="Root" Property="Background" Value="{StaticResource QsPageBrush}" />
-                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <!--
+                                Bold, not SemiBold: §F.2 says the selected tab caption is bold, and
+                                SemiBold is a weight this application does not render at all -
+                                measured, PORT-PLAN.md §8.11 (14).
+
+                                TargetName="Label" is load-bearing.  FontWeight is an INHERITED
+                                property and a TabItem's Content is its logical child, so setting it
+                                on the TabItem walks straight into the tab's whole page: every label,
+                                check box and section header on the selected tab turns bold too.
+                                That was true while this said SemiBold as well - it simply drew
+                                nothing, so nobody could see it.  Scope it to the header presenter.
+                            -->
+                            <Setter TargetName="Label" Property="TextElement.FontWeight" Value="Bold" />
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
@@ -453,7 +472,7 @@
     <Style x:Key="QsDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}">
         <Setter Property="Background" Value="{StaticResource QsPageBrush}" />
         <Setter Property="Foreground" Value="{StaticResource QsTealDarkBrush}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="3,1" />
         <Setter Property="BorderBrush" Value="{StaticResource QsGridLineBrush}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />

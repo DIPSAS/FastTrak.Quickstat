@@ -21,5 +21,12 @@ public partial class PeriodDialog : Window
     /// <summary>Initialises the dialog.</summary>
     public PeriodDialog() => InitializeComponent();
 
+    /// <inheritdoc />
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        DialogOwner.CentreOnOwner(this);
+    }
+
     private void OnAccept(object sender, RoutedEventArgs e) => DialogResult = true;
 }

@@ -7,7 +7,7 @@ Last updated: 2026-08-28
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 580 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 588 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -121,8 +121,11 @@ Last updated: 2026-08-28
 > three-element package followed by a two-element one, and both dangling-reference warnings read
 > back with real line breaks. The one that failed was *"title bold"*: `FontWeight="SemiBold"` drew
 > the title pixel for pixel identically to the comment below it. **`SemiBold` is a weight this
-> application does not render** — which also puts a question mark over the dataset grid's header row
-> (checklist 4.5) and the selected tab caption (8.1), both left for the owner.
+> application does not render.** On the owner's instruction of 2026-09-01 every remaining use was
+> resolved — eight to `Bold`, two removed — and that exposed a defect the inert weight had been hiding
+> since the theme was written: `QsTabItem` set `FontWeight` **and `FontSize`** on the `TabItem`, both
+> of which inherit into the tab's whole page. The selected tab's content had been drawing at 13 px
+> instead of 12 all along, and went bold the moment the weight became real. §8.11 (15).
 >
 > **What is left in Phase 5 needs a person.** The `05-ui-spec.md` walkthrough is still a human job,
 > now written out as **`Docs/Port/08-parity-checklist.md`**:
@@ -1024,9 +1027,45 @@ Not blocking; each has a working default so implementation can proceed.
 
    `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
    `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,
-   not resistance-driving.** The string `J01FF` appears nowhere in the database repository at all.
-   Dropping `J01FF%` therefore does not merely follow the buildable refs; it brings the collector
-   into line with the knowledge base the same product ships.
+   not resistance-driving.** Dropping `J01FF%` therefore does not merely follow the buildable refs;
+   it brings the collector into line with the knowledge base the same product ships.
+
+   *Correction, 2026-09-01:* an earlier revision said the string `J01FF` "appears nowhere in the
+   database repository at all". True of the current tree, not of its history: `git log --all -S`
+   finds it in exactly two commits, `7a5cafc5` (2016-07-01) adding and `5fade677` (2019-06-20)
+   removing a `dbo.KBInteraction` seed script. Those rows are **drug–drug interaction** pairs for
+   `J01FF01` — nephrotoxicity with `J01G`, prolonged muscle relaxation with `M03A…` — and say
+   nothing about resistance tiers. The conclusion is unaffected; the claim needed the qualifier.
+
+   **Third line of evidence — the chronology, and it answers "isn't the version without `J01FF`
+   simply older?"** (asked 2026-09-01; checked in `C:\work\FastTrak`, which is the library history,
+   not the flattened `FastTrak\` copy in this repository). **No — the removal is the later act, by
+   the author of the original.**
+
+   | When | Commit | What |
+   |---|---|---|
+   | 2018-04-08 | `222e6f54e`, Magne Rekdal | **Creates** `SpDrugsetAntibiotic`, all four patterns, `J01FF%` among them from birth |
+   | 2019-12-28 | `af72c67a`, Magne Rekdal | Creates the three `KB.AntibioticResistance*` tier views. Never modified since |
+   | 2020-09-21 | `9f4a5ed4f`, Magne Rekdal | **Removes** `J01FF%`; renames the collector and its caption; adds `SpDrugsetAntibioticRecommended` |
+
+   A `-G 'J01FF'` sweep over **all** refs finds exactly those two commits ever touching a `J01FF`
+   line in `EPR.QA.SQL.pas`. Mainline still carries the untouched 2018 text — `origin/master`
+   (tip 2026-08-26), `origin/develop` (2026-05-07), `origin/develop_old` (2024-04-12) — and none of
+   them descends from `9f4a5ed4f`. A tip sweep: **92 refs carry `J01FF`, 28 lack it, and 27 of the
+   28 descend from `9f4a5ed4f`** (the 28th, a local `feature/eResept`, has no antibiotic collector
+   at all).
+
+   **It is not one of that commit's rebase artefacts, despite its "Rebase on develop." subject.**
+   Its entire diff to `EPR.QA.SQL.pas` is **32 insertions and 3 deletions**, and the three deletions
+   are the two `SpDrugsetAntibiotic` declarations being renamed to `SpDrugsetAntibioticResistance`
+   plus the `J01FF%` line itself. Nothing else in the file was lost, so this is a surgical edit
+   inside a coherent refactor — unlike the BDR and NEWS2 losses elsewhere in the same commit.
+
+   What *is* true is that the lineage carrying the removal is dead — `origin/tarmscreening/develop`
+   stops at 2023-09-01 — while mainline, which never received it, is still developed today. So this
+   is an **unmerged divergence, not a stale-versus-current question**, and both readings have a
+   defensible claim on "what the product means now". That is precisely why it needs a clinician and
+   not an archaeologist.
 
    **This remains release-blocking for this collector.** It is a clinical definition — which
    antibiotics count as resistance-driving — and neither "the code has been this way" nor "the
@@ -1687,20 +1726,44 @@ established is the outcome, three ways.
 `Ui/Packages/PackagesViewMarkupTests.TheRowHasItsFourRunsAndABoldTitle`, which also pins the other
 three runs and the collapsing comment that §6.3 asks about.
 
-*Left for the owner*, because both were deliberate choices rather than oversights and changing them
-is a design decision:
+*Settled on the owner's instruction, 2026-09-01* — "just make bold then, I guess". Every remaining
+`SemiBold` was resolved one way or the other, on one rule: **a weight declaration must mean
+something.** Where §F.2 says the Delphi draws the text bold it is now `Bold`; where the Delphi draws
+it plain the declaration is **removed**, because a no-op that silently becomes a divergence the day
+the rendering changes is worse than no declaration at all.
 
-- **`MatrixGrid.EmphasisFontWeight` defaults to `SemiBold`** — §F.3 chose that over the Delphi's
-  `[fsBold]`. The consequence is that the dataset grid's header row and current row are drawn plain
-  where the reference draws them bold; the zoomed header strip shows it. Checklist 4.5.
-- **`QsTabItem` turns the selected tab's caption `SemiBold`** (`QuickStat.Styles.xaml:123`).
-  Checklist 8.1. Selecting a tab does widen its caption by 2 px, so this one is less clear-cut than
-  the list row and wants an eye rather than a number.
+| Site | Delphi | Now |
+|---|---|---|
+| `MatrixGrid.EmphasisFontWeight` — grid header and current row | `[fsBold]`, §F.2 | `Bold` |
+| `QsTabItem`, selected caption | selected tab bold, §F.2 | `Bold`, **on the caption presenter** — see (15) |
+| `lblAppName`, the wordmark | `[fsBold]`, `MainQuickStat.dfm:891` | `Bold` |
+| `lblProgress` | `[fsBold]`, `MainQuickStat.dfm:949` | `Bold` |
+| `TfrmSaveSpec` banner | `[fsBold]`, `EditAndMemo.dfm:887` | `Bold` |
+| `TfrmPeriod` banner | `[fsBold]`, `Period.dfm:58` | `Bold` |
+| Busy overlay message | no counterpart — the port invented the overlay | `Bold` |
+| `QsDataGridColumnHeader` | unused inventory style mirroring the grid header | `Bold` |
+| Data hint, line 1 | `lblDataHint` is one plain `TLabel`, no `Font.Style` | **removed** |
+| `lblInfo` when `ProgressIsError` | §G.2 turns it red, nothing more | **removed** |
 
-Six further uses — the banner, the busy overlay, the two dialog headers, the dataset caption's
-inner run and the unused `QsDataGridColumnHeader` — are the same weight and presumably the same
-non-effect, but nothing in the specification says any of them must be visibly heavier, so they are
-listed rather than changed.
+`Ui/Theme/SemiBoldTests` now sweeps every XAML file as XML and every `.cs` file for the token, so
+the weight cannot come back by habit; a comment may still discuss it, which is the point.
+
+**(15) Making the tab caption bold exposed a second defect that had been there all along, and the
+product owner saw it before the tests did.** `QsTabItem` set `FontWeight` **on the `TabItem`**.
+`FontWeight` is an inherited property and a tab's `Content` is its logical child, so the setter
+walked straight into the page behind the tab: every section header, label and check box on the
+selected tab went bold. Reported from a running build within minutes of the change, with a
+side-by-side screenshot against the Delphi.
+
+It had always been wrong. `SemiBold` simply drew nothing, so nothing showed. And the same style set
+**`FontSize`** on the `TabItem` too — that one was never inert: `TabCaptionWeightTests` measures the
+page at **13 px against the base 12**, so every control on the selected tab had been a point too
+large since the theme was written, in the port's most-looked-at pane. Both properties now sit on the
+caption presenter inside the template, `Foreground` with them.
+
+Two lessons, both cheap to state and neither obvious from a passing suite: an inert value hides the
+mistakes it is attached to, and *the first screen of the application is not covered by 2 588 tests*
+unless something looks at it.
 
 **Left open by Phase 5**
 
@@ -2175,7 +2238,7 @@ down:
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.
 
    **Written out as `Docs/Port/08-parity-checklist.md`**, so the pass is a walk rather than a
-   re-read of 1 163 lines of specification. Roughly 60 items need eyes; everything already pinned
+   re-read of 1 163 lines of specification. **49 items** still need eyes; everything already pinned
    by a test or measured off the running binary is listed as covered and skippable, with the source
    of the assurance named, and every deliberate difference is collected so it is not reported as a
    defect. Criteria 2, 3, 5, 6 and 7 close along the way and are marked where they do.

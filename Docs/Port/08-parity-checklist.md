@@ -31,7 +31,7 @@ collect all 213 elements in about a minute.
 | ⚠ | **Deliberate difference.** Do *not* report it — it is a decision already taken, with its reason |
 | ❓ | **A decision, not a comparison.** Nothing to look at; somebody has to choose |
 
-Roughly **50 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
+**49 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
 measured on 2026-09-01 rather than looked at. Four other acceptance criteria close along the way,
 marked **[AC-n]** where they do.
 
@@ -106,10 +106,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   above the list**, not at the foot of the tab. Hovering any row shows the tool tip `Double-click to
   select this population`; hovering the blank space under the last row shows nothing. §B.1 item 5,
   §B.1.1 items 4a and 5.
-- ⚠ **Both are changes to `lblHintPopulation`, made on the owner's request.** The Delphi label is
-  bottom-aligned on the tab, below the frame and the source pane, and reads `Tip: Double click to
+- ⚠ **All three are changes to `lblHintPopulation`, made on the owner's request.** The Delphi label
+  is bottom-aligned on the tab, below the frame and the source pane, and reads `Tip: Double click to
   prepare population` — "prepare population" being `PreparePopulation`, an internal verb. The tool
-  tip is new.
+  tip is new. And it is **bold**, decided on 2026-09-01 after seeing it both ways: muted grey and
+  bold reads as an instruction rather than as a caption. It went bold by accident first, through the
+  tab-inheritance defect in PORT-PLAN.md §8.11 (15); the accident is fixed and this is deliberate.
 - [ ] **2.2** `Frequently used only` starts **disabled** and becomes enabled only once a study is
   connected. §G.6.
 - [ ] **2.3** Toggling `Frequently used only` **re-queries the server** — the list content changes,
@@ -207,12 +209,11 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   the Phase 4 feature, and it has never been seen through the running shell. Expect ~280 of 281 on
   ProcId 14. **[AC-5]**
 - [ ] **4.5** `PID` text, header and data, is dark teal `#035F66`; everything else black. Header
-  row and the current row are **bold**. §C.3. ⚠ **They are not, and the reason is not this
-  control's.** `MatrixGrid.EmphasisFontWeight` defaults to `SemiBold`, as §F.3 asks, and this build
-  draws `SemiBold` indistinguishably from `Normal` — so the header row is plain where the Delphi's
-  was `[fsBold]`. Measured, with the mechanism, in PORT-PLAN.md §8.11 (14); the one-word fix is the
-  owner's, because §F.3 chose `SemiBold` over the Delphi's bold deliberately. Look at the header
-  row and say whether you want it back.
+  row and the current row are **bold**. §C.3. *(They were not: `MatrixGrid.EmphasisFontWeight`
+  defaulted to `SemiBold`, as §F.3 asked, and this build draws `SemiBold` indistinguishably from
+  `Normal`. **Fixed on the owner's instruction 2026-09-01** — the default is `Bold`, which is the
+  Delphi's `[fsBold]`, and the header now reads bold in a fresh window. PORT-PLAN.md §8.11 (14).
+  The colours are still yours to check.)*
 - [ ] **4.6** Click a cell: it should go `#C8D9E9`, and the rest of that row a 50 % tint —
   `#F3F9FD` over white, `#EEF3F9` over a `#F5F5F5` empty cell. §C.3 rules 5–6.
 - [ ] **4.7** Empty-but-known cells `#F5F5F5`, no-object cells `#FFFAFA`, ordinary `#FFFFFF`.
@@ -311,8 +312,9 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
   §B.3.
   ⚠ **The title was not bold, and now is.** With `FontWeight="SemiBold"` the title drew *pixel for
   pixel identically* to the comment beneath it. It says `Bold` now, like the population list next
-  door. PORT-PLAN.md §8.11 (14) — **read it before touching any other `SemiBold` in this
-  application**, because eight of them are left and at least one is visible (4.5).
+  door. PORT-PLAN.md §8.11 (14). **There is no `SemiBold` left anywhere in the application**: the
+  other ten were resolved on 2026-09-01, eight to `Bold` and two removed, and
+  `Ui/Theme/SemiBoldTests` sweeps every XAML and `.cs` file so the weight cannot come back.
 - ✅ **6.4** Selected + focused `#C8D9E9`, selected + unfocused `#E7F2FC`, unselected `#FFFFFF` —
   each the colour of 92 % of the row's pixels, so the raw pair and not the grid's 50 % blend.
   §8.14's defect stays fixed.
@@ -359,11 +361,15 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
 
 - [ ] **7.1** Save dialog: `Unique name` / `Comments`, `OK` / `Cancel`, centred on the main window,
   not resizable. §E. *(The four labels, the two buttons and the disabled `OK` are confirmed —
-  §6.2. Two things a rig noticed and left for you: the buttons run **`Cancel` then `OK`**,
-  left to right, and **the first time the dialog opens in a fresh process it is 27 px left and
-  90 px above the owner's centre** — every later open that session is exact to the pixel, which the
-  warning dialogs are on the first open too. Cosmetic, and it smells like `SizeToContent` measuring
-  after `CenterOwner` has placed the window.)*
+  §6.2. Two things a rig noticed. **The first-open offset is fixed**: the dialog used to come up
+  27 px left and 90 px above the owner's centre the first time in a process, and every dialog now
+  redoes the centring from `OnSourceInitialized` once its size is known. Verified in a fresh
+  process on 2026-09-01 — first open, dialog centre 1437,870 against the owner's 1437,870.
+  `Ui/Dialogs/DialogCentringTests`. **The button order is not a defect**: `Cancel` then `OK`, left
+  to right, is what `Emetra.VclForm.EditAndMemo.dfm` lays out — `btnSave.Left` 280 against
+  `btnClose.Left` 184 — and `TheButtonBarPutsOkOnTheRight` pins it. It is the opposite of the usual
+  Windows order, so if you want the usual order instead, that is a deliberate divergence and one
+  line.)*
 - [ ] **7.2** The period picker appears **by itself** when a query declares `@StartDate` and
   `@StopDate` — it is not on any menu. Norwegian throughout, `OK` disabled while start ≥ end,
   and the dates are remembered per query. §D.5.
@@ -376,11 +382,12 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
 ## 8. Chrome, theme and shutdown
 
 - [ ] **8.1** Section headers: teal `#178891`, white text, 26 px. Tab strip: selected tab has a
-  3 px teal bar along the **top** edge and semibold text. §F.4. *(The teal bar is there. **Doubt
-  the semibold**: `QsTabItem`'s selection trigger asks for it, and `SemiBold` is the weight this
-  build does not render — see 4.5 and PORT-PLAN.md §8.11 (14). Selecting a tab does widen its
-  caption by 2 px, so something changes; whether it looks bolder is exactly the sort of thing this
-  line is for.)*
+  3 px teal bar along the **top** edge and **bold** text. §F.4. *(Both confirmed in a fresh window
+  on 2026-09-01. The caption was `SemiBold`, which this build does not render; making it `Bold`
+  then turned the **whole page** bold, because the setter was on the `TabItem` and `FontWeight`
+  inherits into a tab's content. Both are fixed, and the same style's `FontSize` had been leaking
+  13 px into every control on the selected tab since the theme was written — PORT-PLAN.md
+  §8.11 (15). Worth a look at the page as well as the strip.)*
 - [ ] **8.2** Move the window, maximise it, close, reopen — geometry comes back. Then change screen
   resolution: the ini is keyed **per resolution**, so a different geometry is expected, not a bug.
   §G.1.

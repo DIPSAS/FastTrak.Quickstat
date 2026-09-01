@@ -51,7 +51,7 @@
                 <TextBlock x:Name="MessageText"
                            HorizontalAlignment="Center"
                            FontSize="{StaticResource QsHeaderFontSize}"
-                           FontWeight="SemiBold"
+                           FontWeight="Bold"
                            Foreground="{StaticResource QsTextBrush}"
                            Text="{Binding Message}"
                            TextAlignment="Center"

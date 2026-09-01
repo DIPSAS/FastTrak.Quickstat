@@ -31,5 +31,12 @@ public partial class SaveSpecDialog : Window
     /// <summary>Initialises the dialog.</summary>
     public SaveSpecDialog() => InitializeComponent();
 
+    /// <inheritdoc />
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        DialogOwner.CentreOnOwner(this);
+    }
+
     private void OnAccept(object sender, RoutedEventArgs e) => DialogResult = true;
 }

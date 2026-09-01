@@ -31,5 +31,12 @@ public partial class NotificationDialog : Window
     /// </summary>
     private NotificationDialog() => InitializeComponent();
 
+    /// <inheritdoc />
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        DialogOwner.CentreOnOwner(this);
+    }
+
     private void OnYes(object sender, RoutedEventArgs e) => DialogResult = true;
 }

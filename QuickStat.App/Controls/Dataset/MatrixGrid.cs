@@ -259,7 +259,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
         nameof(EmphasisFontWeight),
         typeof(FontWeight),
         typeof(MatrixGrid),
-        new FrameworkPropertyMetadata(FontWeights.SemiBold, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(FontWeights.Bold, FrameworkPropertyMetadataOptions.AffectsRender));
 
     /// <summary>Identifies the <see cref="Foreground"/> dependency property.</summary>
     public static readonly DependencyProperty ForegroundProperty =
@@ -289,7 +289,7 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
     private double _resizeOriginX;
     private double _resizeOriginWidth;
     private Typeface _regularTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-    private Typeface _emphasisTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+    private Typeface _emphasisTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
     private double _pixelsPerDip = 1;
     private MatrixGridRenderStatistics _lastRender;
 
@@ -539,8 +539,11 @@ public class MatrixGrid : FrameworkElement, IScrollInfo
 
     /// <summary>Weight of the header row and the current row.</summary>
     /// <remarks>
-    /// The Delphi used <c>[fsBold]</c>; §F.3 specifies <c>SemiBold</c> for the port's grid header,
-    /// which is what this defaults to.
+    /// <c>Bold</c>, which is the Delphi's <c>[fsBold]</c>. §F.3 originally specified <c>SemiBold</c>
+    /// here as a softer bold, and that turned out to be a weight this application does not render:
+    /// measured off the running window, a <c>SemiBold</c> run is pixel for pixel a regular one
+    /// (PORT-PLAN.md §8.11 (14)), so the header row and the current row were drawn plain. The spec
+    /// is corrected; changing this back would silently lose the emphasis again.
     /// </remarks>
     public FontWeight EmphasisFontWeight
     {

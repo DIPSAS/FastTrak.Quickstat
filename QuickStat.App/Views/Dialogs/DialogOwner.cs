@@ -45,4 +45,41 @@ internal static class DialogOwner
 
         dialog.Owner = owner;
     }
+
+    /// <summary>Puts a dialog over the centre of its owner, once its own size is known.</summary>
+    /// <param name="dialog">The modal, from its <c>SourceInitialized</c>.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="dialog"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// <c>WindowStartupLocation="CenterOwner"</c> already does this, and gets it right on every open
+    /// but the <em>first</em> in a process: these dialogs size to their content, and the placement
+    /// is computed before the content has settled, so the first <c>Save specification</c> of a
+    /// session came up 27 px left and 90 px above the owner's centre (parity checklist 7.1).
+    /// Redoing the arithmetic once the window has been measured is cheap and cannot be wrong twice.
+    /// </para>
+    /// <para>
+    /// A maximised owner is left alone. <see cref="Window.Left"/> and <see cref="Window.Top"/> report
+    /// the <em>restore</em> bounds in that state, so correcting from them would move a correctly
+    /// placed dialog; WPF, which works from the real window rectangle, is right there already.
+    /// </para>
+    /// </remarks>
+    internal static void CentreOnOwner(Window dialog)
+    {
+        ArgumentNullException.ThrowIfNull(dialog);
+
+        if (dialog.Owner is not { WindowState: WindowState.Normal } owner)
+        {
+            return;
+        }
+
+        dialog.UpdateLayout();
+
+        if (dialog.ActualWidth <= 0 || dialog.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        dialog.Left = owner.Left + ((owner.ActualWidth - dialog.ActualWidth) / 2);
+        dialog.Top = owner.Top + ((owner.ActualHeight - dialog.ActualHeight) / 2);
+    }
 }

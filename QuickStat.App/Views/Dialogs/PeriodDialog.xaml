@@ -56,8 +56,9 @@
                 BorderBrush="{StaticResource QsBorderBrush}"
                 BorderThickness="0,0,0,1">
             <StackPanel Margin="16,0" VerticalAlignment="Center">
+                <!-- hdrPeriod is Font.Height -19, Font.Style = [fsBold] (Emetra.VclForm.Period.dfm:58). -->
                 <TextBlock FontSize="19"
-                           FontWeight="SemiBold"
+                           FontWeight="Bold"
                            Text="{x:Static vm:PeriodViewModel.DialogHeader}" />
                 <TextBlock Foreground="{StaticResource QsMutedTextBrush}"
                            Text="{Binding SubHeaderText}"

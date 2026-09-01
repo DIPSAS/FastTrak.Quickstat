@@ -142,8 +142,18 @@
             controls and a whole frame below the list it talks about; here it sits on the list's own
             top edge, and PopulationPickerViewModel.TipText records the rewording.
         -->
+        <!--
+            Bold on the product owner's word, 2026-09-01, having seen it both ways: muted grey and
+            bold reads as an instruction rather than as a caption, and it is the only text on the
+            tab telling you how to use the list.  A divergence - lblHintPopulation carries no
+            Font.Style - but this label is already moved and reworded on the same authority.
+
+            It went bold by accident first: QsTabItem set FontWeight on the TabItem, which inherits
+            into the whole page (PORT-PLAN.md §8.11 (15)).  That is fixed; this one is deliberate.
+        -->
         <TextBlock Grid.Row="3"
                    Margin="0,0,0,3"
+                   FontWeight="Bold"
                    Foreground="{StaticResource QsMutedTextBrush}"
                    Text="Double-click on a population to select it" />
 
