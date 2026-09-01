@@ -77,17 +77,14 @@ lines plus one policy decision.
 
 ## Deployment-time, undischargeable here
 
-**8. R1** — `Encrypt=True;TrustServerCertificate=True` preserves today's connectivity but is not a
-security improvement. Needs a smoke test against a real customer server, and revisiting.
-
-**9. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
+**8. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
 non-cohort rows client-side. Harmless on 25 patients, unknown on production volumes. Preserved
 deliberately for parity; recorded as a performance follow-up.
 
-**10. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
+**9. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
 where re-checked against the pinned ref. Confirm before relying on one.
 
-**11. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
+**10. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
 five-minute check for whoever has access; it would either confirm the row or overturn it.
 
 ---
@@ -112,3 +109,8 @@ recorded SHA-256 — it is the only thing tying the banner picture to the build 
   content had been drawing at 13 px instead of 12 since the theme was written. §8.11 (15).
 - **Dialogs re-centre on their owner**, so the first one of a session is no longer 27 px off, and
   **the buttons read `OK` then `Cancel`** — the platform order. §7.3, checklist 7.1.
+- **R1, the `Encrypt` / `TrustServerCertificate` default — closed for this port, on scope.**
+  `Encrypt=True;TrustServerCertificate=True` is how every FastTrak application connects today, so
+  the port changes nothing and decides nothing. Whether the estate should keep trusting arbitrary
+  server certificates is a real question with a different owner and a wider blast radius than one
+  application. §8 (2), §9 R1.
