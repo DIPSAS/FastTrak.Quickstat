@@ -109,8 +109,8 @@ recorded SHA-256 — it is the only thing tying the banner picture to the build 
   content had been drawing at 13 px instead of 12 since the theme was written. §8.11 (15).
 - **Dialogs re-centre on their owner**, so the first one of a session is no longer 27 px off, and
   **the buttons read `OK` then `Cancel`** — the platform order. §7.3, checklist 7.1.
-- **R1, the `Encrypt` / `TrustServerCertificate` default — closed for this port, on scope.**
-  `Encrypt=True;TrustServerCertificate=True` is how every FastTrak application connects today, so
-  the port changes nothing and decides nothing. Whether the estate should keep trusting arbitrary
-  server certificates is a real question with a different owner and a wider blast radius than one
-  application. §8 (2), §9 R1.
+- **R1, the `Encrypt` / `TrustServerCertificate` default — closed for this port, on scope.** There
+  is no house setting to match: `FastTrak.exe` connects through the UDL, which carries no encryption
+  keywords, and other .NET applications may set `Encrypt=false`. The connection-level posture across
+  the estate is a platform question with a different owner, not one this port settles. §8 (2),
+  §9 R1.
