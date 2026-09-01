@@ -111,6 +111,6 @@ recorded SHA-256 — it is the only thing tying the banner picture to the build 
   **the buttons read `OK` then `Cancel`** — the platform order. §7.3, checklist 7.1.
 - **R1, the `Encrypt` / `TrustServerCertificate` default — closed for this port, on scope.** There
   is no house setting to match: `FastTrak.exe` connects through the UDL, which carries no encryption
-  keywords, and other .NET applications may set `Encrypt=false`. The connection-level posture across
+  keywords, and at least one .NET service sets `Encrypt=false`. The connection-level posture across
   the estate is a platform question with a different owner, not one this port settles. §8 (2),
   §9 R1.

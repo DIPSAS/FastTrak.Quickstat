@@ -1025,8 +1025,9 @@ Not blocking; each has a working default so implementation can proceed.
 
    **Settled 2026-09-01 — closed for this port, on scope.** The product owner's ruling, with the
    estate's actual picture: **`FastTrak.exe` just uses the UDL**, whose initialisation string
-   carries no encryption keywords at all, and **other .NET applications may be setting
-   `Encrypt=false`**. So there is no single house setting for this port to match or depart from —
+   carries no encryption keywords at all, and **at least one .NET service sets `Encrypt=false`**
+   with no `TrustServerCertificate` beside it - checked, not reported. So there is no single house
+   setting for this port to match or depart from —
    which is exactly why it is not QuickStat's decision to take. The connection-level posture across
    the estate belongs to whoever owns the platform. Recorded so that closing it is a decision rather
    than an omission, and so the earlier draft of this row — which claimed the port matched what
@@ -2175,7 +2176,7 @@ down:
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | `Encrypt=true` breaks every existing connection | Explicit defaults + a connectivity smoke test before rollout. **Closed 2026-09-01, on scope** (§8 (2)). There is no house setting to match: `FastTrak.exe` connects through the UDL, whose string carries no encryption keywords, and other .NET applications may set `Encrypt=false`. The port's `Encrypt=True;TrustServerCertificate=True` is therefore one app's default among several, overridable per connection — and the estate-wide posture outlives this port and has a different owner |
+| R1 | `Encrypt=true` breaks every existing connection | Explicit defaults + a connectivity smoke test before rollout. **Closed 2026-09-01, on scope** (§8 (2)). There is no house setting to match: `FastTrak.exe` connects through the UDL, whose string carries no encryption keywords, and at least one .NET service sets `Encrypt=false`, checked directly. The port's `Encrypt=True;TrustServerCertificate=True` is therefore one app's default among several, overridable per connection — and the estate-wide posture outlives this port and has a different owner |
 | R2 | Population SQL is stored **in the database**, not in this repo — arbitrary text with `:Name` parameters | The `:Name`→`@Name` rewriter needs a real scanner (skipping literals, `[]`, `""`, `--`, `/* */`, `::`) plus a dry-run diagnostic over production `SqlText` before release |
 | R3 | The 150-entry collector registry is transcribed by hand | **Discharged** (Phase 5). `QuickStat.Tests/Collectors/Golden/` holds one Pascal-derived statement per collector and **131 of 131 match** what the port generates. The derivations were made blind to the C#, so agreement is evidence rather than tautology; the comparison was negative-controlled. The inventory table in `03-collectors.md` remains the acceptance checklist |
 | R4 | CSV byte-format drift (encoding, decimal separator, trailing separator) breaks downstream consumers | **Discharged** (Phase 5, §8.14). The same cohort and the same 213 data elements were exported from `22.12.21.547` and from the port, in three identification variants, and compared programmatically: **0 differing cells in 12 462**, identical encoding, delimiters, quoting, line ends and trailing separator. The fully-identified pair carries `0xD8` ×2, `0xE6` ×1 and `0xF8` ×5 in both files, which is the CP1252 evidence this row used to lack — the earlier run had produced *no* byte above `0x7F`. Two structural differences remain and both are attributed: the port de-duplicates two repeated column names (deliberate, `PersonMatrix.cs:215-242`), and the ten `FORM.*` columns are ordered differently because the Delphi feeds a batch-size-1 collector from a hash dictionary. `Export/CsvByteParityTests` still pins the format from the specification; it is now corroborated rather than sole |
