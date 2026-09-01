@@ -115,12 +115,23 @@
 
             <TextBlock Grid.Row="0" Margin="0,0,0,1" Text="Unique name" />
 
+            <!--
+                MaxLength is a deliberate divergence from edtTitle, which has none
+                (Emetra.VclForm.EditAndMemo.dfm:931-943).  Report.QuickStat.Title is varchar(80) and
+                Report.AddQuickStat upserts on (StudyId, Title), so past 80 characters the Delphi
+                does not merely lose the tail - it silently writes over the package whose title
+                shared those 80.  Stopping the typing is the only place that can be said; there is
+                no error to catch, at any layer.  PORT-PLAN.md §8.11 (13).
+
+                The comment box below is deliberately uncapped: Comment is varchar(MAX).
+            -->
             <TextBox x:Name="TitleBox"
                      Grid.Row="1"
                      Height="21"
                      Margin="0,0,0,1"
                      Style="{StaticResource QsFlatTextBox}"
                      AutomationProperties.Name="Unique name"
+                     MaxLength="{x:Static vm:SaveSpecViewModel.MaxTitleLength}"
                      Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
 
             <TextBlock Grid.Row="2" Margin="0,4,0,1" Text="Comments" />

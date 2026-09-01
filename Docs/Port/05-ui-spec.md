@@ -598,6 +598,12 @@ Semantics:
 * `actSavePatientSelection` **does not** — the previous title/comment is still there. See §I.3.
 * There is **no validation**: OK is always enabled and an empty `Title` is accepted.
   Recommended (and low-risk) improvement: disable OK while `Title` is blank — flag it.
+* There is **no `MaxLength` on `edtTitle`** either, and `Report.QuickStat.Title` is `varchar(80)`.
+  A longer title is truncated in silence — a `VARCHAR(80)` *parameter* assignment does not raise —
+  and because `Report.AddQuickStat` upserts on `(StudyId, Title)`, two titles that share their first
+  80 characters merge into one row, the second overwriting the first. The port caps the box at
+  `PackagedSelection.MaxTitleLength`; a divergence, taken 2026-09-01 (PORT-PLAN.md §8.11 (13)).
+  `memComment` needs no cap: `Comment` is `varchar(MAX)`.
 * Cancel does nothing at all (no side effects).
 
 WPF: a `Window` with `WindowStartupLocation="CenterOwner"`, `ResizeMode="NoResize"`,

@@ -50,4 +50,17 @@ public sealed record PackagedSelection
 
     /// <summary>Separator used in <c>Report.QuickStat.DataElements</c>.</summary>
     public const char CollectorNameSeparator = ';';
+
+    /// <summary>How long a <see cref="Title"/> may be: <c>Report.QuickStat.Title</c> is <c>varchar(80)</c>.</summary>
+    /// <remarks>
+    /// Assigning a longer string to <c>Report.AddQuickStat</c>'s <c>@Title VARCHAR(80)</c> truncates
+    /// it <b>in silence</b> - a parameter assignment, unlike an <c>INSERT</c>, raises no 8152 - and
+    /// the Delphi's <c>edtTitle</c> has no <c>MaxLength</c>, so a long title lost its tail there with
+    /// no warning either. It is not only the tail that is lost: the procedure upserts on
+    /// <c>(StudyId, Title)</c>, so two titles sharing their first 80 characters overwrite one
+    /// another. The <c>Save specification</c> box therefore stops here rather than letting the
+    /// column do it quietly (PORT-PLAN.md §8.11 (13)). The column is <c>varchar</c> under
+    /// <c>Danish_Norwegian_CI_AS</c>, a single-byte code page, so 80 bytes is 80 characters.
+    /// </remarks>
+    public const int MaxTitleLength = 80;
 }

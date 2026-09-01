@@ -7,7 +7,7 @@ Last updated: 2026-08-28
 > **Resume here. Phases 0–4 are complete and Phase 5 is done bar two items that need a person, not a
 > machine.** The application is built, the functionality lost in the extraction is restored, and —
 > since 2026-08-27 — both it and the shipped Delphi build have been run against a real database and
-> their exports compared. **2 579 tests** pass with zero warnings under the machine's own `nn-NO`
+> their exports compared. **2 580 tests** pass with zero warnings under the machine's own `nn-NO`
 > plus `nb-NO` and `en-US`. The banner reads **`26.0.0.0`**.
 >
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
@@ -1643,12 +1643,20 @@ Three things the round trip revealed that no reading of the Pascal would have:
   `ReusingATitleUpdatesTheRowInsteadOfListingItTwice` fails with `[100 Same tittel, 100 Same tittel]`
   the moment the reload is replaced by a `Packages.Add`. The pre-existing `SavingRefreshesTheList`
   passes under that control, which is why the suite could not see it. 2 577 tests.
-- **`Title` is `varchar(80)` and neither dialog caps its text box** — the Delphi's `edtTitle` has no
-  `MaxLength` (`Emetra.VclForm.EditAndMemo.dfm:931-943`) and neither has the port's `TitleBox`. A
-  110-character title is stored as 80 with no error from anywhere. That is parity, and it is not
-  harmless: two long titles sharing their first 80 characters collide into one row through the upsert
-  above. A `MaxLength="80"` on both boxes would close it; not done, because it changes what the user
-  can type and is the owner's call.
+- **`Title` is `varchar(80)` and neither dialog capped its text box** — the Delphi's `edtTitle` has
+  no `MaxLength` (`Emetra.VclForm.EditAndMemo.dfm:931-943`) and nor had the port's `TitleBox`. A
+  110-character title is stored as 80 with no error from anywhere: assigning an over-long value to a
+  `VARCHAR(80)` *parameter* truncates silently, where the same assignment in an `INSERT` would raise
+  8152. That was parity, and it was not harmless: two long titles sharing their first 80 characters
+  collide into one row through the upsert above, so the second silently overwrites the first.
+  **Closed on the owner's instruction, 2026-09-01**: `PackagedSelection.MaxTitleLength = 80` names
+  the column width once, `SaveSpecViewModel` forwards it so the markup can reach it, and the name box
+  binds `MaxLength="{x:Static vm:SaveSpecViewModel.MaxTitleLength}"`. A deliberate divergence — it is
+  the one layer that *can* say anything, since nothing below it raises. The comment box stays
+  uncapped, because `Comment` is `varchar(MAX)`. Pinned by `TheNameBoxStopsAtTheWidthOfItsColumn`,
+  which types 110 characters as a real `TextInput` composition rather than assigning `Text` (WPF caps
+  what is entered, not what code sets) and gets 80 in both the box and the view-model;
+  negative-controlled by removing the attribute and watching it fail. 2 580 tests.
 
 **(14) `SemiBold` is not a weight this application renders, and the packages list was the proof.**
 Closing §6 of the parity checklist meant measuring what a person is asked to judge by eye, and the

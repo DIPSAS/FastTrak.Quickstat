@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using QuickStat.Domain.Packages;
 
 namespace QuickStat.ViewModels;
 
@@ -41,6 +42,12 @@ public sealed partial class SaveSpecViewModel : ObservableObject
 {
     /// <summary>The only header this dialog is given. Delphi <c>TXT_SAVE_SPEC</c>.</summary>
     public const string SaveSpecificationHeader = "Save specification";
+
+    /// <summary>
+    /// Cap on the name box, forwarded from <see cref="PackagedSelection.MaxTitleLength"/> so the
+    /// markup can reach it with <c>x:Static</c> and there is still only one 80 in the solution.
+    /// </summary>
+    public const int MaxTitleLength = PackagedSelection.MaxTitleLength;
 
     [ObservableProperty]
     private string _header = SaveSpecificationHeader;

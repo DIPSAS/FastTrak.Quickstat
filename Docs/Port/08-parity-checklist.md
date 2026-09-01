@@ -342,9 +342,11 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
   `Report.AddQuickStat` is an upsert keyed on `(StudyId, Title)`; the Delphi appends its new object
   to an in-memory list and never re-reads, so it lists one server row twice until restart. The port
   reloads. Deliberate — PORT-PLAN.md §8.11 (13).
-- ⚠ **A title longer than 80 characters is silently truncated**, in both builds: the column is
-  `varchar(80)` and neither dialog caps its text box. Parity, and the owner's call whether to add a
-  `MaxLength`. §8.11 (13).
+- ✅ **A title longer than 80 characters can no longer be typed.** `Report.QuickStat.Title` is
+  `varchar(80)`, and past it the upsert above does not merely lose the tail — it overwrites the
+  package sharing those 80, with nothing raising anywhere. The Delphi truncates silently; the name
+  box now stops at `PackagedSelection.MaxTitleLength`. A divergence, taken on the owner's
+  instruction 2026-09-01 — §8.11 (13), `TheNameBoxStopsAtTheWidthOfItsColumn`.
 - ✅ Replay ordering, the by-name re-check and both warning paths —
   `Ui/Packages/PackagesTabViewModelTests.cs`, `PackageViewModelTests.cs`.
 - ✅ Saving under an existing title leaves one list row, not two —

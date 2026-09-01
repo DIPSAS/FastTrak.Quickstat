@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using QuickStat.Domain.Packages;
 using QuickStat.ViewModels;
 using QuickStat.Views.Dialogs;
 using Xunit;
@@ -122,6 +123,46 @@ public class SaveSpecDialogTests
             Assert.True(dialog.CommentBox.AcceptsReturn);
         });
     });
+
+    [Fact]
+    public void TheNameBoxStopsAtTheWidthOfItsColumn() => StaTestRunner.Run(() =>
+    {
+        // Report.QuickStat.Title is varchar(80), and Report.AddQuickStat upserts on
+        // (StudyId, Title): past 80 characters a title does not merely lose its tail, it merges
+        // into whichever package shares those 80.  Assigning an over-long value to a VARCHAR(80)
+        // parameter truncates without raising, so no layer below this one can report it - which is
+        // why the box stops the typing.  A divergence from edtTitle, which has no MaxLength.
+        SaveSpecViewModel model = new();
+
+        RealisedWindow.Run(new SaveSpecDialog { DataContext = model }, dialog =>
+        {
+            Assert.Equal(PackagedSelection.MaxTitleLength, dialog.TitleBox.MaxLength);
+
+            dialog.TitleBox.Focus();
+            TypeInto(dialog.TitleBox, new string('x', 110));
+
+            Assert.Equal(80, dialog.TitleBox.Text.Length);
+            Assert.Equal(80, model.Title.Length);
+
+            // Comment is varchar(MAX). Capping it would invent a limit the database does not have.
+            Assert.Equal(0, dialog.CommentBox.MaxLength);
+        });
+    });
+
+    /// <summary>
+    /// Types <paramref name="text"/> into <paramref name="box"/> as input rather than assignment.
+    /// <see cref="TextBox.MaxLength"/> governs what is entered, not what is set from code, so
+    /// <c>Text = …</c> - which every other test here uses - walks straight past it.
+    /// </summary>
+    /// <param name="box">The box to type into. Must already hold the keyboard focus.</param>
+    /// <param name="text">The keystrokes, delivered as one composition.</param>
+    private static void TypeInto(TextBox box, string text) =>
+        box.RaiseEvent(new TextCompositionEventArgs(
+            InputManager.Current.PrimaryKeyboardDevice,
+            new TextComposition(InputManager.Current, box, text))
+        {
+            RoutedEvent = TextCompositionManager.TextInputEvent,
+        });
 
     [Fact]
     public void TheNameBoxHasTheFocusWhenTheDialogOpens() => StaTestRunner.Run(() =>
