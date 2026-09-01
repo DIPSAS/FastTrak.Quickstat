@@ -1170,6 +1170,49 @@ public class PackagesTabViewModelTests
     }
 
     [Fact]
+    public void ReusingATitleUpdatesTheRowInsteadOfListingItTwice()
+    {
+        // Report.AddQuickStat is an upsert keyed on (StudyId, Title): it looks the title up and
+        // UPDATEs when it finds one, so a second save under the same name changes one server row and
+        // returns the first row id.  The Delphi never asked - actSaveDataPackageExecute appends the
+        // new TPackagedSelection to fPackagedQuickStatGrids and refreshes the list view off that
+        // in-memory list (MainQuickStat.pas:870-875), so it shows two entries for one row until the
+        // next start-up.  The port re-reads the server instead, which is the whole reason
+        // SaveDataPackageAsync ends in ReloadAsync rather than Packages.Add.  Verified against the
+        // live procedure while closing PORT-PLAN.md §8.10 (h).
+        using Harness harness = new();
+
+        harness.Connect();
+        harness.Workspace.SetCheckedCollectorNames(["QS_HBA1C"]);
+        harness.Matrix.PreparePopulation([ShellWorkspaceTests.NewPatient(52)]);
+        harness.Workspace.SetPopulation(ShellWorkspaceTests.NewPopulation(257));
+
+        string comment = "fyrste";
+
+        harness.ViewModel.SaveSpecRequested += (_, request) =>
+        {
+            request.Accepted = true;
+            request.Title = "Same tittel";
+            request.Comment = comment;
+        };
+
+        harness.Dataset.SaveDataPackageCommand.Execute(null);
+
+        int firstRowId = Assert.Single(harness.ViewModel.Packages).RowId;
+
+        comment = "andre";
+
+        harness.Dataset.SaveDataPackageCommand.Execute(null);
+
+        PackageViewModel row = Assert.Single(harness.ViewModel.Packages);
+
+        Assert.Equal(firstRowId, row.RowId);
+        Assert.Equal("Same tittel", row.Title);
+        Assert.Equal("andre", row.Comment);
+        Assert.Equal(2, harness.Repository.Saved.Count);
+    }
+
+    [Fact]
     public void TheShellIsNotMarkedBusyWhileTheModalIsUp()
     {
         // IsBusy drives the wait cursor and the busy overlay, and the dialog is a window the user is

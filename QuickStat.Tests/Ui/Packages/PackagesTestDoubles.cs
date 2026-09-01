@@ -62,6 +62,13 @@ internal sealed class FakeSessionService : ISessionService
 }
 
 /// <summary>An <see cref="IPackageRepository"/> backed by a list instead of <c>Report.QuickStat</c>.</summary>
+/// <remarks>
+/// <see cref="SaveAsync"/> is an <b>upsert keyed on study and title</b>, because that is what
+/// <c>Report.AddQuickStat</c> is - it looks the title up first and only inserts when it finds
+/// nothing, so a second save under the same title returns the <em>first</em> row id. Read off the
+/// live procedure in <c>EFT00028_TEST_020</c> while closing PORT-PLAN.md §8.10 (h); an appending
+/// double would let the Delphi's duplicate-row bug back in without a test noticing.
+/// </remarks>
 internal sealed class FakePackageRepository : IPackageRepository
 {
     private int _nextRowId = 100;
@@ -105,9 +112,23 @@ internal sealed class FakePackageRepository : IPackageRepository
             return Task.FromException<PackagedSelection>(Throws);
         }
 
-        PackagedSelection withRowId = package with { RowId = _nextRowId++ };
+        int existing = Stored.FindIndex(stored =>
+            stored.StudyId == package.StudyId
+            && string.Equals(stored.Title, package.Title, StringComparison.OrdinalIgnoreCase));
 
-        Stored.Add(withRowId);
+        PackagedSelection withRowId = package with
+        {
+            RowId = existing < 0 ? _nextRowId++ : Stored[existing].RowId,
+        };
+
+        if (existing < 0)
+        {
+            Stored.Add(withRowId);
+        }
+        else
+        {
+            Stored[existing] = withRowId;
+        }
 
         return Task.FromResult(withRowId);
     }

@@ -269,10 +269,15 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 
 ## 6. Packages tab — §B.3
 
-**This is the one functional area nothing has exercised against a real database** (PORT-PLAN.md
-§8.10 h). Packages are stored *server-side* in `Report.QuickStat`, so testing save and delete
-**writes to `EFT00028_TEST_020`** — everything to date has been read-only. Do it knowingly, and
-delete what you create.
+**The server round trip is now covered; what is left here is what it looks like.** Packages are
+stored *server-side* in `Report.QuickStat`, so exercising them **writes to `EFT00028_TEST_020`** —
+which the product owner authorised on 2026-09-01, closing PORT-PLAN.md §8.10 (h). `C:\work\qs-packages`
+drives the real `IPackageRepository` against the real table and passes 29 checks, restoring the row
+count it found: save, list, replay, delete, Norwegian text through the `varchar` columns, the sorted
+and de-duplicated `DataElements`, and a replay that loads its population and collects into a 25 × 9
+matrix. Re-run it any time with `dotnet run --project C:\work\qs-packages`. The items below are the
+part a rig cannot judge — layout, colour, and the gestures. If you do save from the UI, delete what
+you create.
 
 - [ ] **6.1** Header reads `Packaged datasets` — not `Packages`, which is only the tab caption.
   §B.3.
@@ -288,19 +293,33 @@ delete what you create.
   unchecks everything, re-checks each stored collector by name, runs the collect, and sets the
   dataset caption to the package title. §B.3. *(Until PORT-PLAN.md §8.11 (5) this was reachable by
   **nothing** — the same dead `MouseBinding` as the population list, and here with no `Enter`
-  beside it, because the Delphi has none either. Check the gesture itself, not just the outcome.)*
+  beside it, because the Delphi has none either. **Check the gesture itself**: the outcome is now
+  covered — `qs-packages` replays a saved package off the live table into a 25 × 9 matrix.)*
 - [ ] **6.7** …and the left pane ends on the **Collections** tab, not the Packages tab. That is
   parity, restored after `07` §3.1 said otherwise (wave-2 defect 4).
 - [ ] **6.8** A package naming an unknown population, and one naming an unknown collector, produce
-  the two warnings in §D.4. *(Hand-editable in `Report.QuickStat` if you want to force it.)*
+  the two warnings in §D.4. *(Hand-editable in `Report.QuickStat` if you want to force it — or run
+  `qs-packages`, which writes both rows and confirms the dangling `ProcId` is absent from the
+  catalogue and the dangling name absent from the registry. What it cannot see is the two dialogs.)*
 - [ ] **6.9** Delete asks `Do you really want to delete this package: "<title>"?` and deletes on
-  Yes. §D.1.
+  Yes. §D.1. *(That the row actually leaves `Report.QuickStat`, and that deleting an id which is
+  already gone is a silent no-op, are both covered by `qs-packages`.)*
 - ⚠ **Delete is disabled when nothing is selected.** The Delphi enables it always and warns at
   execute time. Improvement, §D.1.
+- ⚠ **Saving under a title that already exists updates one row here and shows two in the Delphi.**
+  `Report.AddQuickStat` is an upsert keyed on `(StudyId, Title)`; the Delphi appends its new object
+  to an in-memory list and never re-reads, so it lists one server row twice until restart. The port
+  reloads. Deliberate — PORT-PLAN.md §8.11 (13).
+- ⚠ **A title longer than 80 characters is silently truncated**, in both builds: the column is
+  `varchar(80)` and neither dialog caps its text box. Parity, and the owner's call whether to add a
+  `MaxLength`. §8.11 (13).
 - ✅ Replay ordering, the by-name re-check and both warning paths —
   `Ui/Packages/PackagesTabViewModelTests.cs`, `PackageViewModelTests.cs`.
+- ✅ Saving under an existing title leaves one list row, not two —
+  `ReusingATitleUpdatesTheRowInsteadOfListingItTwice`, negative-controlled against the Delphi's
+  append.
 - ✅ Names inside a package are semicolon-delimited, sorted and deduplicated —
-  `Domain/Packages/CollectorNameListTests.cs`.
+  `Domain/Packages/CollectorNameListTests.cs`, and confirmed against the live column.
 
 ## 7. Dialogs — §E, §D.4, §D.5
 

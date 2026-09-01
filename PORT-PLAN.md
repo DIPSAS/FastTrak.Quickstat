@@ -13,7 +13,7 @@ Last updated: 2026-08-28
 > **Phase 5 — see §8.11 and §8.14 for the detail.** Golden SQL files for all 131 collectors,
 > independently re-derived from the Pascal (131/131 match); all 131 bind against a live catalog and
 > satisfy the five-column contract; **all 213 data elements then executed against that database, none
-> threw**, and the port exported the result through its own CSV writer; §8.10 (a) through (g) done;
+> threw**, and the port exported the result through its own CSV writer; **all of §8.10 done**;
 > the shipped `22.12.21.547` build was set up, driven through a full collect, and **its export
 > compared with the port's, cell by cell: 0 differences in 12 462 cells** across three identification
 > variants (§8.14). All three of §8.9 (a)'s disputed colours are now sampled off that running binary.
@@ -107,13 +107,18 @@ Last updated: 2026-08-28
 > `Double-click on a population to select it`; every row carries `Double-click to select this
 > population`, on the row and not on the list, so the blank space under the last one stays silent.
 >
-> **What is left in Phase 5, and both need a person.** No package has been read or written — that
-> one needs a *decision* first, because packages live server-side in `Report.QuickStat` and testing
-> them writes to the database, where everything so far has been read-only. And the `05-ui-spec.md`
-> walkthrough is still a human job, now written out as **`Docs/Port/08-parity-checklist.md`**:
+> **Packages are done too, since 2026-09-01 (§8.11 (13)).** They were the last untouched area and
+> the only one that cannot be tested read-only, because they live server-side in `Report.QuickStat`.
+> The product owner authorised writes to `EFT00028_TEST_020`, so `C:\work\qs-packages` drives the
+> real repository against the real table: 29 checks, 29 passed, table restored. It also found that
+> `Report.AddQuickStat` is an upsert keyed on title — which the Delphi does not know, and shows a
+> duplicate list row for.
+>
+> **What is left in Phase 5 needs a person.** The `05-ui-spec.md` walkthrough is still a human job,
+> now written out as **`Docs/Port/08-parity-checklist.md`**:
 > ~60 items that need eyes, everything else marked as already covered and by what. The port
 > launches from **`C:\work\qs-run\run.ps1`**, which stages a working `QuickStat.config.xml` and a
-> correctly encoded UDL beside the executable. §8.10 has only (h) left, and that is a summary row.
+> correctly encoded UDL beside the executable. **§8.10 is fully closed.**
 > Two structural differences between the two CSVs are known, attributed and deliberate — read §8.14
 > before treating either as a bug.
 >
@@ -1147,12 +1152,13 @@ build is only useful if the subscribers have run too.
 | e | ~~**Two literal glyph colours** (`#C42B1C`, `#9D5D00`) are written inline in 3.6's dialogs because agents may not add a brush~~ | **Done** (Phase 5). `QsErrorBrush` and `QsWarningBrush` are in `QuickStat.Brushes.xaml`, in §F.4, and in the inventory test. Three call sites, not two: `AppBannerView` had the same red inline for the failed status line (§G.2), which is the actual argument for the promotion — one of the two colours already existed twice and could drift. The hex is unchanged. `NotificationDialogTests` still asserts the literal rather than the key, on purpose: it is a rendering assertion and must keep failing if someone repoints the brush |
 | f | ~~**The busy overlay blocks the mouse but not the keyboard.**~~ | **Done** (Phase 5). The note's mechanism — disable `MainWindow`'s content — is the right one and **is not sufficient by itself**, which `Ui/Shell/MainWindowBusyLockoutTests.cs` measures rather than assumes. `IsEnabled = false` on the content host does stop the keyboard *arriving*: `Focus()` on anything inside returns `false`, tab traversal skips the whole subtree, and unlike `KeyboardNavigation.TabNavigation="None"` it also covers access keys, `Ctrl+Tab` and typing. But it does **not** evict focus that is already inside. The focused control stays focused while disabled and then handles no input, so a user who was in the check list when the run started would have the keyboard stranded on a dead control with the Cancel button unreachable — worse than the bug. `MainWindow.OnBusyOverlayVisibilityChanged` therefore does both: disable the content host, move focus onto the overlay (which is `Focusable` for that one reason, and puts Cancel one `Tab` away), then re-enable and put focus back where the user left it. It hangs off the overlay's `IsVisibleChanged` and not off `IsBusy` because a collapsed element cannot take focus and the binding may not have run yet, and the order is load-bearing in both directions: disable before taking focus, re-enable before giving it back. One cost, accepted: the shell is drawn greyed under the scrim for the duration, which `Screen.Cursor := crSqlWait` did not do |
 | g | ~~**`ICollectorRegistry.BuildAsync` hangs off `ISessionService.SessionChanged`**, fire-and-forget, rather than being awaited inside `ConnectionCoordinator.ConnectAsync` alongside the login and the caption load.~~ | **Done** (Phase 5). `ConnectAsync` is now login → captions → `BuildAsync` → `Done`, all awaited, and the Collections tab renders the result instead of fetching it: it empties the list on `SessionChanged` and fills it from a new `ICollectorRegistry.Rebuilt`, which `BuildAsync` raises *before it returns* — so the caller's `await` is also an await on the check list being on screen. That is what the Delphi got for free: `AfterLogin` (`MainQuickStat.pas:471-493`) is a login observer that `TSimpleDatabase.Connect` calls synchronously (`Emetra.Database.Simple.pas:391-406`), so `SelectConnection` cannot give the mouse back before `cbDataCollector` is populated. `TXT_LOADING_COLLECTORS` moved to `ConnectionCoordinator` with the query it describes. **Was it a race?** See §8.12 — the answer is "not the obvious one" |
-| h | **Largely closed, 2026-08-27.** Was: "nothing has ever run against a database" | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. That row then went further than it said: **all 213 collectors executed** (§8.11 (3)) and **both builds' exports were compared cell by cell** (§8.14). The one thing still untouched is that **no package has been read or written** |
+| h | ~~**Closed, 2026-09-01.** Was: "nothing has ever run against a database"~~ | See §8.11. Against `EFT00028_TEST_020`: all **131 collectors bind** (`sp_describe_first_result_set`, which resolves every object, column and join without executing anything), all 131 satisfy the five-column positional contract, a population loads, and the port's 213-element data-element list was built from the same `Report.GetFormClasses` rows and compared to the shipped build's. That row then went further than it said: **all 213 collectors executed** (§8.11 (3)) and **both builds' exports were compared cell by cell** (§8.14). The last untouched area — packages, which cannot be tested without **writing** — was closed on 2026-09-01 once the product owner authorised writes to that one database: §8.11 (13) |
 
 ### 8.11 What Phase 5 found by running things
 
-Twelve entries, and the list grew as the phase went on: the first three came out of finally having a
-server, the later ones out of the product owner's manual parity pass. Each defect is fixed and each
+Thirteen entries, and the list grew as the phase went on: the first three came out of finally having
+a server, the later ones out of the product owner's manual parity pass, and the last out of being
+allowed to write to that server. Each defect is fixed and each
 has a regression test that fails if it comes back — every one of those tests was negative-controlled
 by reverting the production change and watching it fail. (3) is not a defect but the thing this phase
 existed to do.
@@ -1598,6 +1604,39 @@ that every row carries row 0's pseudonym, failed **five** cases and **all five w
 the previous 2 565 noticed a file in which two hundred patients shared one id. Three controls in all:
 dropping the `Reset` fails four loader cases, hoisting the lookup fails five, and removing the
 collision check fails fourteen. 2 576 tests.
+
+**(13) Packages, the last untouched area, exercised end to end — and the port is right where the
+Delphi is wrong.** §8.10 (h)'s final sentence was "no package has been read or written", and it
+stayed that way because packages are the one feature that cannot be tested read-only: they live in
+`Report.QuickStat`. The product owner authorised writes to `EFT00028_TEST_020` on 2026-09-01, so
+`C:\work\qs-packages` — a scratch console beside `qs-harness`, outside the repository — now drives
+`IPackageRepository` against the live table: **29 checks, 29 passed, table restored to the row count
+it found.** Save, list, replay and delete all work; `Report.AddQuickStat`'s row id comes back out of
+its result set as `TPackagedSelection.Save` assumed; a Norwegian title and a multi-line comment
+survive the `varchar` columns byte for byte; `DataElements` is written sorted, de-duplicated and with
+blanks dropped; an empty list parses back to no names rather than one blank one; and a replay of a
+saved package loads its population and collects its four elements into a 25 × 9 matrix. Deleting a
+row id that no longer exists is a no-op rather than an error, which is what a stale list needs.
+
+Three things the round trip revealed that no reading of the Pascal would have:
+
+- **`Report.AddQuickStat` is an upsert keyed on `(StudyId, Title)`,** not an insert. It looks the
+  title up, `UPDATE`s when it finds one, and returns the *first* row id. Neither application says so.
+- **The Delphi shows a duplicate row for it, and the port does not.**
+  `actSaveDataPackageExecute` appends the new `TPackagedSelection` to `fPackagedQuickStatGrids` and
+  refreshes the list view off that in-memory list (`MainQuickStat.pas:870-875`), so saving twice under
+  one title leaves two entries pointing at one server row until the next start-up. The port's
+  `SaveDataPackageAsync` ends in `ReloadAsync`, so it re-reads and shows one. **A deliberate
+  divergence, now pinned**: `FakePackageRepository` models the upsert instead of appending, and
+  `ReusingATitleUpdatesTheRowInsteadOfListingItTwice` fails with `[100 Same tittel, 100 Same tittel]`
+  the moment the reload is replaced by a `Packages.Add`. The pre-existing `SavingRefreshesTheList`
+  passes under that control, which is why the suite could not see it. 2 577 tests.
+- **`Title` is `varchar(80)` and neither dialog caps its text box** — the Delphi's `edtTitle` has no
+  `MaxLength` (`Emetra.VclForm.EditAndMemo.dfm:931-943`) and neither has the port's `TitleBox`. A
+  110-character title is stored as 80 with no error from anywhere. That is parity, and it is not
+  harmless: two long titles sharing their first 80 characters collide into one row through the upsert
+  above. A `MaxLength="80"` on both boxes would close it; not done, because it changes what the user
+  can type and is the owner's call.
 
 **Left open by Phase 5**
 
