@@ -1104,6 +1104,24 @@ Not blocking; each has a working default so implementation can proceed.
    | `KB.AntibioticResistance3` | *HIGH RISK antibiotics* | `J01CR%`, `J01D[ABCDEHI]%`, `J01M%` |
    | `KB.AntibioticResistance2` | *INTERMEDIATE antibiotics* | everything `J01%` plus `A07AA09`, `P01AB01`, **`EXCEPT`** 1 and 3 |
 
+   ⚠ **How much weight that table can bear — checked 2026-09-02, and it is less than it looks.**
+   Those three labels exist in exactly **one** place: comment lines 9-11 and the matching `PRINT`
+   statements of `Upgrades/UpgradeTo19025.sql`. Not in the view definitions (none carries a
+   comment), not in `sys.extended_properties` (queried: zero rows), not in any table, and not in any
+   application code. **And that one source has a copy-paste error** — two of the three lines say
+   `AntibioticResistance3`, so the label *INTERMEDIATE* is attached to the name `3`, and the string
+   `AntibioticResistance2` never appears beside a semantic label anywhere. Reading it as view 2 is an
+   inference from position: the `PRINT` sits directly above `CREATE VIEW KB.AntibioticResistance2`,
+   and view 3 had already been created 13 lines earlier with the *HIGH RISK* label and a different
+   definition. The inference is safe, and the definitions corroborate it — view 2 is literally
+   "everything else", which is what an intermediate bucket is — but it is an inference from a
+   comment with a known typo, not a specification. **Views 1 and 3 have no consumer**: a sweep of
+   every ref in `C:\work\FastTrak` finds `AntibioticResistance` only as
+   `JOIN KB.AntibioticResistance2` in `EPR.QA.SQL.pas`. They exist so that view 2's `EXCEPT` can
+   subtract them, which is why nobody ever noticed the typo. Treat the tiers as corroboration of the
+   membership fact — measured, `J01FF`/`J01FF01`/`J01FF02` do come out of view 2 — and not as an
+   independent authority on what the tiers *mean*.
+
    `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
    `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,
    not resistance-driving.** Dropping `J01FF%` therefore does not merely follow the buildable refs;
