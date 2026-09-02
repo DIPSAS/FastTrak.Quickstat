@@ -240,7 +240,10 @@ begin
     if cellObject.InheritsFrom( TDataPoint ) then
     begin
       ADatapoint := cellObject as TDataPoint;
-      Result := Format( '%g', [ADatapoint.Value] );
+      if ADatapoint.Caption <> EmptyStr then
+        Result := ADatapoint.Caption
+      else
+        Result := Format( '%g', [ADatapoint.Value] );
     end
     else if cellObject.InheritsFrom( TPersonGridRow ) then
     begin

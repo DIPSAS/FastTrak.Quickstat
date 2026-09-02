@@ -9,7 +9,7 @@ uses
   Emetra.Database.Interfaces,
   Emetra.Logging.Interfaces,
   {Standard}
-  System.Generics.Collections, System.Classes, Vcl.Graphics;
+  Generics.Collections, System.Classes, Vcl.Graphics;
 
 type
   TColorStrategy = ( csLowIsBadHighIsGood, csHighIsBadLowIsGood, csHighAndLowIsBad, csHighIsBadOnly, csLowIsBadOnly );

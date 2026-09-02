@@ -6,7 +6,7 @@ uses
   {General}
   Emetra.Logging.Interfaces,
   {Standard}
-  System.Classes, System.UITypes, System.Generics.Collections;
+  System.Classes, System.UITypes, Generics.Collections;
 
 type
 

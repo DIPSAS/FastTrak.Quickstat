@@ -3,7 +3,7 @@
 interface
 
 uses
-  Vcl.Graphics, Winapi.Windows, System.Classes;
+  Graphics, Windows, Classes;
 
 type
   TQaImageType = ( qatNone, qatHeartOrgan, qatPill, qatSyringe, qatBreakfastEgg, qatFemurBone, qatInfusionDrip, qatTablet, qatFormAge );

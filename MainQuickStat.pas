@@ -534,9 +534,8 @@ begin
     begin
       fGridPopulation := nil;
       fPersonList.Load( APopulation );
-      // TODO: Disse feiler, hvor er de??
-//     if not fPersonList.IncludesNationalId then
-//        fPersonList.AddNationalIds;
+     if not fPersonList.IncludesNationalId then
+        fPersonList.AddNationalIds;
       LoadPopulationIntoGrid( APopulation );
       pgSelections.ActivePage := tbsDataElements;
       fGrid.StartPainting;

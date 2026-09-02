@@ -4,7 +4,7 @@ interface
 
 uses
   {Standard}
-  System.Classes, System.Contnrs;
+  Classes, Contnrs;
 
 const
   VERY_DISTANT_FUTURE = 999999;

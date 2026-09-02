@@ -3,7 +3,12 @@
 interface
 
 uses
-  Classes, Vcl.Graphics;
+  System.Classes, System.UITypes;
+{$IFDEF FMX}
+
+type
+  TColor = TAlphaColor;
+{$ENDIF}
 
 type
   IListBoxBase = interface ['{A83E9E86-A608-4A19-9BB2-B353E34B71E7}']

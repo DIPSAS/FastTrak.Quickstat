@@ -43,6 +43,7 @@ type
     fTokens: TTokenizer;
     fParamValues: TParams;
     fParameterDictionary: IParameterDictionary;
+    fIncludesNationalId: boolean;
   private
     function ParseDateOfBirth( ATrimmedText: string ): TDate;
     function TryFindPeople( const ASearchText: string; out ADataset: TDataset ): boolean;
@@ -77,6 +78,7 @@ type
     function CanMovePrevious: boolean;
     function MoveNext: boolean;
     function MovePrevious: boolean;
+    procedure AddNationalIds;
     procedure Load( const APopulation: IPopulation );
     procedure Query( const AQuery: string );
     procedure Reset;
@@ -86,6 +88,7 @@ type
   published
     property Caption: string read fCaption write fCaption;
     property Count: integer read Get_Count;
+    property IncludesNationalId: boolean read fIncludesNationalId;
     property ItemIndex: integer read Get_ItemIndex;
     property StudyName: string read Get_Name;
   end;
@@ -116,6 +119,37 @@ begin
   fSQL := ADatabase;
   fParameterDictionary := AParameterDictionary;
   Reset;
+end;
+
+procedure TPatientList.AddNationalIds;
+var
+  sc: TStudyCase;
+  scList: TDictionary<integer, TStudyCase>;
+  sqlList: string;
+begin
+  scList := TDictionary<integer, TStudyCase>.Create;
+  try
+    sqlList := EmptyStr;
+    for sc in fList do
+    begin
+      scList.Add( sc.PersonId, sc );
+      sqlList := sqlList + Format( ', %d', [sc.PersonId] );
+    end;
+    with fSQL.FastQuery( Format( QRY_PERSON_LIST_NATIONAL_IDS, [Copy( sqlList, 3, maxint )] ) ) do
+      try
+        while not EOF do
+        begin
+          if scList.TryGetValue( Fields[0].AsInteger, sc ) then
+            sc.NationalId := Fields[1].AsString;
+          Next;
+        end;
+        fIncludesNationalId := true;
+      finally
+        Close;
+      end;
+  finally
+    scList.Free;
+  end;
 end;
 
 procedure TPatientList.AfterConstruction;
@@ -306,6 +340,7 @@ begin
       end;
       thisDataset := fSQL.FastQuery( AQuery, qryParams );
       try
+        fIncludesNationalId := Assigned( thisDataset.FindField( FLD_NATIONAL_ID ) );
         infoText := thisDataset.FindField( 'InfoText' );
         while not thisDataset.EOF do
         begin
@@ -373,7 +408,7 @@ begin
     else if TRegEx.IsMatch( searchText, RGX_DOB_AND_NAME ) and textMatch.Success and dateMatch.Success then
       ADataset := fSQL.FastQuery( QRY_STUDY_PERSON_BY_DOB_NAME, [fStudyContext.StudyId, searchDOB, textMatch.Value + '%'] )
     else if searchDOB <> 0 then
-      ADataset := fSQL.FastQuery( QRY_STUDY_PERSON_BY_DOB, [fStudyContext.StudyId, FormatDateTime( 'yyyy-mm-dd', searchDOB )] )
+      ADataset := fSQL.FastQuery( QRY_STUDY_PERSON_BY_DOB, [fStudyContext.StudyId, searchDOB] )
     else if ( searchPersonId > 0 ) then
       ADataset := fSQL.FastQuery( QRY_PERSON_BY_ID, [searchPersonId] )
     else if TRegEx.IsMatch( searchText, RGX_NAME ) then

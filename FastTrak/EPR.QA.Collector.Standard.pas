@@ -36,7 +36,6 @@ uses
   Data.Db, System.SysUtils;
 
 const
-  QRY_FORM_DATA      = 'EXEC Report.GetFormData :PersonId, %s';
   QRY_FORM_INSTANCES = 'EXEC Report.GetFormInstances :PersonId';
 
   { TFormDataCollector }
@@ -45,7 +44,8 @@ constructor TFormDataCollector.Create( const ACollectorName, ATitle, AFormName: 
 begin
   inherited Create( PREFIX_FORM + ACollectorName, ATitle, AFactory, ADb, ALog );
   FVarPrefix := Format( '%s.', [AFormName] );
-  FSQL := Format( QRY_FORM_DATA, [QuotedStr( AFormName )] );
+  FSQL := SpSnapshotFormDataAll( AFormName );
+  fMaxBatchSize := 200;
 end;
 
 { TFormInstanceCollector }
@@ -64,7 +64,7 @@ begin
   inherited Create( PREFIX_FORM + ACollectorName, ATitle, AFactory, ADb, ALog );
   FVarPrefix := Format( '%s.', [AFormName] );
   FSQL := SpSnapshotFormDataNumeric( AFormName );
-  fMaxBatchSize := 100;
+  fMaxBatchSize := 200;
 end;
 
 end.

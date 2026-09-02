@@ -8,6 +8,10 @@ uses
   Emetra.VclUtil.ColorSet.Interfaces,
   Emetra.VclUtil.ColorCalculator,
   Emetra.VclUtil.Style.Interfaces,
+  {Emetra.Vcl}
+  Emetra.Vcl.Consts,
+  Emetra.Vcl.StdCtrls,
+  Emetra.Vcl.ExtCtrls,
   {Standard}
   Windows, Controls, Classes, ExtCtrls, StdCtrls, SysUtils, Graphics, Tabs,
   Forms, TypInfo, Contnrs, ComCtrls, ToolWin;
@@ -32,6 +36,8 @@ type
     procedure Set_FontSize( const AFontSize: integer );
     procedure Set_Flat( const AValue: boolean );
   protected
+    procedure DoCustomDrawToolbar( Sender: TToolBar; const ARect: TRect; var DefaultDraw: boolean );
+    procedure DoCustomDrawButton( Sender: TToolBar; Button: TToolButton; State: TCustomDrawState; var DefaultDraw: boolean );
     procedure NotifyClients;
     procedure SetColor( AControl: TControl; const APropName: string = 'Color'; AColor: TColor = clNone );
   public
@@ -44,10 +50,17 @@ type
     procedure UnregisterAll;
     { Other members }
     function ToolbarHeight: integer;
+    procedure StyleAccentPanel( APanel: TPanel );
+    procedure StyleDialog( AForm: TForm );
+    procedure StyleDialogControl( AControl: TControl; ADialogControl: TDialogControl );
+    procedure StyleDialogFooter( APanel: TPanel );
+    procedure StyleDialogHeader( APanel: TPanel );
     procedure StyleFrame( AFrame: TFrame );
     procedure StyleForm( AForm: TForm );
+    procedure StyleH1Label( ALabel: TLabel );
     procedure StyleHeaderLabel( ALabel: TLabel );
-    procedure StyleHeaderPanel( APanel: TPanel );
+    procedure StyleHeaderPanel( APanel: TPanel ); overload;
+    procedure StyleHeaderPanel( APanel: TdcHeaderPanel ); overload;
     procedure StyleButton( AButton: TCustomButton );
     procedure StyleButtonPanel( APanel: TCustomPanel );
     procedure StyleCheckPanel( APanel: TCustomPanel );
@@ -55,10 +68,11 @@ type
     procedure StyleLabel( ALabel: TLabel );
     procedure StyleBoldLabel( ALabel: TLabel );
     procedure StyleSmallLabel( ALabel: TLabel );
-    procedure StyleInfoLabel( ALabel: TLabel );
+    procedure StyleInfoLabel( ALabel: TLabel ); overload;
+    procedure StyleInfoLabel( ALabel: TdcLabel ); overload;
     procedure StyleTopPanel( APanel: TPanel );
     procedure StyleTopLabel( ALabel: TLabel );
-    procedure StyleToolBar( AToolbar: TToolbar );
+    procedure StyleToolBar( AToolbar: TToolBar; AStyle: TGuiControlStyle = gsDefault );
     procedure StyleSimpleCheckbox( ACheck: TCheckBox );
     procedure StyleSmallHeaderLabel( ALabel: TLabel );
     procedure StyleTabset( ATabSet: TTabSet );
@@ -73,7 +87,7 @@ type
 implementation
 
 uses
-  System.Math, Vcl.Buttons;
+  System.Math, Vcl.Buttons, Emetra.Vcl.Buttons;
 
 type
   TExposedPanel = class( TCustomPanel )
@@ -103,13 +117,37 @@ begin
   else
     FFontSize := 9;
   FMinFontSize := 8;
-  SetBaseColor( clBrownGray );
+  SetBaseColor( clStatusBarBk );
 end;
 
 procedure TGuiStyle.BeforeDestruction;
 begin
   FClientList.Free;
   inherited;
+end;
+
+procedure TGuiStyle.DoCustomDrawButton( Sender: TToolBar; Button: TToolButton; State: TCustomDrawState; var DefaultDraw: boolean );
+var
+  Buffer: TBitmap;
+begin
+  DefaultDraw := false;
+  Buffer := TBitmap.Create;
+  try
+    Buffer.SetSize( Button.Width, Button.Height );
+    Buffer.Canvas.Brush.Color := Sender.Color;
+    Buffer.Canvas.Font.Name := FFontName;
+    TdcToolButtonDraw.DrawToolButton( Buffer.Canvas, Button, Sender.Images, Sender.DisabledImages, State, Sender.ShowCaptions, Sender.List );
+    Sender.Canvas.Draw( Button.BoundsRect.Left, Button.BoundsRect.Top, Buffer );
+  finally
+    Buffer.Free;
+  end;
+end;
+
+procedure TGuiStyle.DoCustomDrawToolbar( Sender: TToolBar; const ARect: TRect; var DefaultDraw: boolean );
+begin
+  DefaultDraw := true;
+  Sender.Canvas.Brush.Color := Sender.Color;
+  Sender.Canvas.FillRect( ARect );
 end;
 
 function TGuiStyle.Get_Flat: boolean;
@@ -136,8 +174,6 @@ procedure TGuiStyle.StyleSmallHeaderLabel( ALabel: TLabel );
 begin
   ALabel.Font.Name := FFontName;
   ALabel.Font.Size := Max( FFontSize - 1, FMinFontSize );
-  ALabel.AlignWithMargins := true;
-  ALabel.Margins.Right := 3;
   ALabel.Layout := tlCenter;
   ALabel.Font.Color := clWhite;
   ALabel.Font.Style := [];
@@ -149,44 +185,105 @@ begin
   APanel.Ctl3D := not fFlat;
 end;
 
+procedure TGuiStyle.StyleInfoLabel( ALabel: TdcLabel );
+begin
+  with ALabel do
+  begin
+    AlignWithMargins := true;
+    Font.Name := FFontName;
+    Font.Size := Max( Min( FFontSize - 1, 9 ), FMinFontSize );
+    Font.Color := TColorCalculator.BlendColors( VeryDarkColor, PrettyDarkColor, 50 );
+    Transparent := true;
+    EllipsisPosition := epEndEllipsis;
+    AutoSize := false;
+    Height := abs( Font.Height ) + 4;
+    Hint := Caption;
+    ShowHint := true;
+  end;
+end;
+
 procedure TGuiStyle.StyleHeaderLabel( ALabel: TLabel );
 begin
   StyleHeaderControl( ALabel );
 end;
 
-procedure TGuiStyle.StyleToolBar( AToolbar: TToolbar );
+procedure TGuiStyle.StyleHeaderPanel( APanel: TdcHeaderPanel );
 begin
-  AToolbar.Font.Name := FFontName;
-  AToolbar.Font.Size := Max( FFontSize - 1, FMinFontSize );
-  if Assigned( AToolbar.Images ) then
-  begin
-    AToolbar.AutoSize := false;
-    FToolbarHeight := AToolbar.Images.Height + abs( AToolbar.Font.Height ) + 14;
-  end
+  APanel.HighlightActiveColor := BaseColor;
+  APanel.HeaderPadding.SetBounds( SpacingDefault, SpacingDouble, SpacingDefault, SpacingDouble );
+  APanel.HighlightStyle := hsThinBar;
+  APanel.HeaderRelativeFontSize := 3;
+  APanel.Font.Size := FFontSize;
+  APanel.Font.Name := FFontName;
+end;
+
+procedure TGuiStyle.StyleToolBar( AToolbar: TToolBar; AStyle: TGuiControlStyle );
+var
+  i: integer;
+begin
+  case AStyle of
+    gsArena:
+      begin
+        AToolbar.BorderWidth := 0;
+        AToolbar.DrawingStyle := dsNormal;
+        AToolbar.EdgeBorders := [];
+        AToolbar.EdgeInner := esNone;
+        AToolbar.EdgeOuter := esNone;
+        AToolbar.Flat := true;
+        AToolbar.Font.Name := FFontName;
+        AToolbar.Font.Size := Max( FFontSize, FMinFontSize );
+        AToolbar.GradientDrawingOptions := [];
+        AToolbar.OnCustomDraw := DoCustomDrawToolbar;
+        AToolbar.OnCustomDrawButton := DoCustomDrawButton;
+        AToolbar.ParentColor := true;
+        AToolbar.Transparent := false;
+        for i := 0 to Pred( AToolbar.ButtonCount ) do
+          AToolbar.Buttons[i].Cursor := crHandPoint;
+      end;
   else
-    AToolbar.AutoSize := true;
-  if AToolbar.ShowCaptions then
-    AToolbar.Height := FToolbarHeight
-  else
-    AToolbar.Height := AToolbar.Images.Height + 11;
-  AToolbar.BorderWidth := 0;
-  AToolbar.EdgeOuter := esLowered;
-  AToolbar.EdgeInner := esRaised;
-  if fFlat then
-  begin
-    AToolbar.EdgeBorders := [ebBottom];
-    AToolbar.DrawingStyle := dsNormal;
-    AToolbar.GradientStartColor := clNone;
-    AToolbar.GradientEndColor := clNone;
-  end
-  else
-  begin
-    AToolbar.EdgeBorders := [ebTop, ebBottom];
-    AToolbar.GradientEndColor := MediumColor;
-    AToolbar.GradientStartColor := VeryLightColor;
-    AToolbar.DrawingStyle := dsGradient;
+    begin
+      AToolbar.Font.Name := FFontName;
+      AToolbar.Font.Size := Max( FFontSize - 1, FMinFontSize );
+      if Assigned( AToolbar.Images ) then
+      begin
+        AToolbar.AutoSize := false;
+        FToolbarHeight := AToolbar.Images.Height + abs( AToolbar.Font.Height ) + 14;
+      end
+      else
+        AToolbar.AutoSize := true;
+      if AToolbar.ShowCaptions then
+        AToolbar.Height := FToolbarHeight
+      else
+        AToolbar.Height := AToolbar.Images.Height + 11;
+      AToolbar.BorderWidth := 0;
+      AToolbar.EdgeOuter := esLowered;
+      AToolbar.EdgeInner := esRaised;
+      if fFlat then
+      begin
+        AToolbar.EdgeBorders := [ebBottom];
+        AToolbar.DrawingStyle := dsNormal;
+        AToolbar.GradientStartColor := clNone;
+        AToolbar.GradientEndColor := clNone;
+      end
+      else
+      begin
+        AToolbar.EdgeBorders := [ebTop, ebBottom];
+        AToolbar.GradientEndColor := MediumColor;
+        AToolbar.GradientStartColor := VeryLightColor;
+        AToolbar.DrawingStyle := dsGradient;
+      end;
+      AToolbar.Transparent := false;
+    end;
   end;
-  AToolbar.Transparent := false;
+end;
+
+procedure TGuiStyle.StyleH1Label( ALabel: TLabel );
+begin
+  ALabel.Font.Name := FFontName;
+  ALabel.Font.Size := 16;
+  ALabel.Font.Color := $0089732F;
+  ALabel.Font.Style := [];
+  ALabel.AutoSize := true;
 end;
 
 procedure TGuiStyle.StyleHeaderControl( AControl: TControl );
@@ -213,9 +310,9 @@ begin
   else
     exit;
   thisFont.Name := FFontName;
-  thisFont.Size := FFontSize + 1;
-  thisFont.Color := clWhite;
-  thisFont.Style := [fsBold];
+  thisFont.Size := FFontSize;
+  thisFont.Color := clBlack;
+  thisFont.Style := [];
   if AControl is TPanel then
     thisPanel := AControl as TPanel
   else if AControl.Parent is TPanel then
@@ -224,15 +321,15 @@ begin
     exit;
   thisPanel.BorderWidth := 0;
   thisPanel.AutoSize := false;
-  thisPanel.Color := BaseColor;
-  thisPanel.ClientHeight := abs( thisFont.Height ) + 10;
+  thisPanel.Color := HeaderColor;
+  thisPanel.ClientHeight := abs( thisFont.Height ) + 16;
 end;
 
 procedure TGuiStyle.StylePanel( APanel: TCustomPanel );
 begin
   with TExposedPanel( APanel ) do
   begin
-    Color := LightColor;
+    Color := DialogColor;
     Font.Color := VeryDarkColor;
     Font.Name := FFontName;
   end;
@@ -261,7 +358,7 @@ end;
 
 procedure TGuiStyle.StyleFrame( AFrame: TFrame );
 begin
-  AFrame.Color := LightColor;
+  AFrame.Color := DialogColor;
   AFrame.Font.Name := FFontName;
   AFrame.Font.Size := FFontSize;
 end;
@@ -320,9 +417,75 @@ begin
   end;
 end;
 
+procedure TGuiStyle.StyleDialog( AForm: TForm );
+begin
+  AForm.Color := clDlgBackground;
+  AForm.Font.Name := FFontName;
+  AForm.Font.Size := FFontSize;
+end;
+
+procedure TGuiStyle.StyleDialogControl( AControl: TControl; ADialogControl: TDialogControl );
+begin
+  case ADialogControl of
+    dsHeaderTitleAlone:
+      with AControl as TLabel do
+      begin
+        AlignWithMargins := true;
+        Margins.SetBounds( 0, 15, 0, 0 );
+        Font.Name := FFontName;
+        Font.Color := $008B5F00;
+        Font.Style := [];
+        Font.Size := Round( FFontSize * 1.4 );
+      end;
+    dcHeaderTitle:
+      with AControl as TLabel do
+      begin
+        AlignWithMargins := false;
+        Font.Name := FFontName;
+        Font.Color := $008B5F00;
+        Font.Style := [];
+        Font.Size := Round( FFontSize * 1.4 );
+      end;
+    dcHeaderSubTitle:
+      with AControl as TLabel do
+      begin
+        AlignWithMargins := false;
+        Font.Name := FFontName;
+        Font.Size := FFontSize;
+        Font.Color := clGrayText;
+        Font.Style := [];
+      end;
+  end;
+end;
+
+procedure TGuiStyle.StyleDialogFooter( APanel: TPanel );
+var
+  i: integer;
+begin
+  APanel.Color := clWindow;
+  APanel.ParentBackground := false;
+  APanel.Padding.SetBounds( 20, 15, 20, 15 );
+  for i := 0 to Pred( APanel.ControlCount ) do
+  begin
+    if APanel.Controls[i] is TdcButton then
+    begin
+      APanel.Controls[i].Align := alRight;
+      APanel.Controls[i].AlignWithMargins := true;
+      APanel.Controls[i].Margins.SetBounds( 10, 0, 0, 0 );
+    end;
+  end;
+end;
+
+procedure TGuiStyle.StyleDialogHeader( APanel: TPanel );
+begin
+  APanel.Color := clWindow;
+  APanel.ParentBackground := false;
+  APanel.Padding.SetBounds( 20, 0, 20, 0 );
+end;
+
 procedure TGuiStyle.StyleForm( AForm: TForm );
 begin
-  AForm.Color := LightColor;
+  AForm.Color := DialogColor;
   AForm.Font.Name := FFontName;
   AForm.Font.Size := FFontSize;
 end;
@@ -410,6 +573,17 @@ begin
     Transparent := true;
     AutoSize := true;
   end;
+end;
+
+procedure TGuiStyle.StyleAccentPanel( APanel: TPanel );
+begin
+  APanel.BorderStyle := bsNone;
+  APanel.BevelOuter := bvNone;
+  APanel.BevelInner := bvNone;
+  APanel.Color := BaseColor;
+  APanel.ParentFont := true;
+  APanel.Font.Color := clWhite;
+  APanel.StyleElements := [];
 end;
 
 procedure TGuiStyle.StyleBoldLabel( ALabel: TLabel );

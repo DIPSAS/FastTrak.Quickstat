@@ -25,12 +25,12 @@ type
 
   TfrmPopulations = class( TFrame, IGuiStyleObserver, IStudyObserver, IAccessControlObserver )
     edtPopFilter: TEdit;
-    panCheckBoxes: TPanel;
     cbShowCommon: TCheckBox;
     cbSimpleView: TCheckBox;
-    panFilter: TPanel;
     lblFilterHeader: TLabel;
     memSourceCode: TMemo;
+    panCheckBoxes: TPanel;
+    panFilter: TPanel;
     splitMain: TRzSplitter;
     Bevel1: TBevel;
   private

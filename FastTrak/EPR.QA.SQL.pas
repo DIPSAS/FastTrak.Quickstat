@@ -85,7 +85,9 @@ function SpDrugCountNoAtc: string;
 function SpDrugWithoutDiagnose( const AVarName, ADrugPattern, ADxPattern: string ): string;
 function SpDrugAndRenalFunction( const ADrugPattern: string; const ALowGfrValueThreshold: integer ): string;
 function SpDrugHypertensionWithLowBp( const ALowBpThreshold: integer ): string;
-function SpDrugsetAntibiotic: string;
+function SpDrugsetAntibioticResistance: string;
+function SpDrugsetAntibioticIntermediate: string;
+function SpDrugsetAntibioticRecommended: string;
 
 { Snapshot no matter the age }
 function SpSnapshotEnum( const AItemIds: array of integer ): string;
@@ -94,6 +96,7 @@ function SpSnapshotVarsetAge( const AItemIds: array of integer ): string;
 function SpSnapshotLabdataByTrustLevel( const ATrustLevel: integer ): string;
 function SpSnapshotLabset( const ALabClassIds: array of integer ): string;
 function SpSnapshotQuantityIfBelowThreshold( const AItemId: integer; const AValue: double ): string;
+function SpSnapshotFormDataAll( const AFormName: string ): string;
 function SpSnapshotFormDataNumeric( const AFormName: string ): string;
 function SpSnapshotLabQuarters( const ALabClassId: integer ): string;
 
@@ -174,8 +177,8 @@ const
   QRY_FORMDATA_NUMERIC =
   { } 'SELECT agg.* FROM ' +
   { } '( ' +
-  { } '  SELECT ce.PersonId, mi.VarName, ISNULL(dp.Quantity,DATEDIFF(DD,''1899-12-30'',dp.DTVal)) AS DataValue, ce.EventTime, dp.RowId, ' +
-  { } '    RANK() OVER ( PARTITION BY ce.PersonId, mi.ItemId ORDER BY ce.EventNum DESC ) AS OrderBy ' +
+  { } '  SELECT ce.PersonId, mi.VarName, ISNULL(dp.Quantity,DATEDIFF(DD,''1899-12-30'',dp.DTVal)) AS DataValue, ce.EventTime, dp.RowId, mfi.OrderNumber, ' +
+  { } '    ROW_NUMBER() OVER ( PARTITION BY ce.PersonId, mi.ItemId ORDER BY ce.EventNum DESC ) AS OrderBy ' +
   { } '  FROM dbo.ClinDatapoint dp ' +
   { } '    JOIN dbo.ClinEvent ce ON ce.EventId = dp.EventId ' +
   { } '    JOIN dbo.ClinForm cf ON cf.EventId = ce.EventId ' +
@@ -185,9 +188,30 @@ const
   { } '  WHERE ( mf.FormName = %s ) ' +
   { } '  AND ( ce.PersonId IN ' + PID_LIST_PLACEHOLDER + ' )' +
   { } ') agg ' +
-  { } 'WHERE agg.OrderBy = 1';
+  { } 'WHERE agg.OrderBy = 1 ORDER BY agg.OrderNumber';
 begin
   Result := Format( QRY_FORMDATA_NUMERIC, [QuotedStr( AFormName )] );
+end;
+
+function SpSnapshotFormDataAll( const AFormName: string ): string;
+const
+  QRY_FORMDATA_ALL =
+  { } 'SELECT agg.* FROM ' +
+  { } '( ' +
+  { } '  SELECT ce.PersonId, mi.VarName, ISNULL(dp.Quantity,DATEDIFF(DD,''1899-12-30'',dp.DTVal)) AS DataValue, ce.EventTime, dp.RowId, dp.TextVal AS Caption, mfi.OrderNumber, ' +
+  { } '    ROW_NUMBER() OVER ( PARTITION BY ce.PersonId, mi.ItemId ORDER BY ce.EventNum DESC ) AS OrderBy ' +
+  { } '  FROM dbo.ClinDatapoint dp ' +
+  { } '    JOIN dbo.ClinEvent ce ON ce.EventId = dp.EventId ' +
+  { } '    JOIN dbo.ClinForm cf ON cf.EventId = ce.EventId ' +
+  { } '    JOIN dbo.MetaForm mf ON mf.FormId = cf.FormId ' +
+  { } '    JOIN dbo.MetaItem mi ON mi.ItemId = dp.ItemId ' +
+  { } '    JOIN dbo.MetaFormItem mfi ON mfi.FormId = cf.FormId AND mfi.ItemId = mi.ItemId ' +
+  { } '  WHERE ( mf.FormName = %s ) ' +
+  { } '  AND ( ce.PersonId IN ' + PID_LIST_PLACEHOLDER + ' )' +
+  { } ') agg ' +
+  { } 'WHERE agg.OrderBy = 1 ORDER BY agg.OrderNumber';
+begin
+  Result := Format( QRY_FORMDATA_ALL, [QuotedStr( AFormName )] );
 end;
 
 function SpRecentFormCountAll( const AMonthCount: integer ): string;
@@ -387,7 +411,7 @@ begin
   Result := Format( QRY_ATC_GFR, [QuotedStr( ADrugPattern ), ALowGfrValueThreshold] );
 end;
 
-function SpDrugsetAntibiotic: string;
+function SpDrugsetAntibioticResistance: string;
 const
   VAR_RESISTANCE_DRIVING_ANTIBIOTICS = 'RESISTANCE_DRIVING';
   QRY_DRUGSET_ANTIBIOTICS            =
@@ -398,9 +422,37 @@ const
   { } 'AND ' +
   { } '( ' +
   { } '  ( ot.ATC' + SQL_COLLATION + 'LIKE ''J01CR%''' + SQL_COLLATION + ') OR ( ot.ATC' + SQL_COLLATION + 'LIKE ''J01D[CDH]%''' + SQL_COLLATION + ') OR ' +
-  { } '  ( ot.ATC' + SQL_COLLATION + 'LIKE ''J01FF%''' + SQL_COLLATION + ') OR ( ot.ATC' + SQL_COLLATION + 'LIKE ''J01MA%''' + SQL_COLLATION + ') ' +
+  { } '  ( ot.ATC' + SQL_COLLATION + 'LIKE ''J01MA%''' + SQL_COLLATION + ') ' +
   { } ')';
 begin
+  Result := QRY_DRUGSET_ANTIBIOTICS;
+end;
+
+function SpDrugsetAntibioticRecommended: string;
+const
+  VAR_RECOMMENDED_ANTIBIOTICS = 'RECOMMENDED_AB';
+  QRY_DRUGSET_ANTIBIOTICS            =
+  { } 'SELECT PersonId, ''' + VAR_RECOMMENDED_ANTIBIOTICS +
+    ''' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption ' +
+  { } SQL_FROM_ONGOING_TREATMENT +
+  { } SQL_JOIN_ATC_INDEX +
+  { } SQL_WHERE_PERSON_LIST +
+  { } 'AND ( ot.ATC IN ( ''J01CE01'', ''J01CE02'', ''J01CF01'', ''J01CF02'', ''J01CA08'', ''J01CA11'', ''J01EA01'', ''J01EE01'', ''J01XE01'' ) )';
+begin
+  Result := QRY_DRUGSET_ANTIBIOTICS;
+end;
+
+function SpDrugsetAntibioticIntermediate: string;
+const
+  VAR_RECOMMENDED_ANTIBIOTICS = 'INTERMEDIATE_AB';
+  QRY_DRUGSET_ANTIBIOTICS            =
+  { } 'SELECT PersonId, ''' + VAR_RECOMMENDED_ANTIBIOTICS +
+    ''' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption ' +
+  { } SQL_FROM_ONGOING_TREATMENT +
+  { } SQL_JOIN_ATC_INDEX +
+  {} 'JOIN KB.AntibioticResistance2 r2 ON r2.AtcCode = ot.ATC ' +
+  { } SQL_WHERE_PERSON_LIST;
+ begin
   Result := QRY_DRUGSET_ANTIBIOTICS;
 end;
 

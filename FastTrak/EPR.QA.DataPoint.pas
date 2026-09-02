@@ -1,4 +1,4 @@
-unit EPR.QA.DataPoint;
+﻿unit EPR.QA.DataPoint;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   {EPR.QA}
   EPR.QA.Matrix.Interfaces,
   {Standard}
-  Vcl.Graphics, System.Classes;
+  Graphics, Classes;
 
 type
   TDataPoint = class( TInterfacedPersistent, ICellText )
@@ -53,7 +53,7 @@ type
 implementation
 
 uses
-  System.SysUtils;
+  SysUtils;
 
 { TDatapoint }
 

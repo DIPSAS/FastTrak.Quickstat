@@ -5,7 +5,7 @@ interface
 uses
   Emetra.Database.Interfaces,
   System.Classes,
-  System.Generics.Collections;
+  Generics.Collections;
 
 type
   TExactNumber = Currency;
@@ -30,7 +30,7 @@ type
 implementation
 
 uses
-  Data.DB;
+  Db;
 
 { TPercentileRanker }
 

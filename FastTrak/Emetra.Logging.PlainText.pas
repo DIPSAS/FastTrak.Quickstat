@@ -29,7 +29,7 @@ type
   { Summary:
     The TPlainTextLog class provides useful logging facilities for any application. }
 
-  TPlainTextLog = class( TLogAdapter, ILog, ILogItemList, ILogMultitarget )
+  TPlainTextLog = class( TLogAdapter, ILog, IClearableLog, ILogItemList, ILogMultitarget )
   strict private
     fCallCounter: Integer;
     fCriticalSection: TCriticalSection;

@@ -115,7 +115,7 @@ uses
   Emetra.Win.User,
   Emetra.Win.CursorStack,
   {Standard}
-  System.Diagnostics, System.Win.Registry, Variants, Windows, Vcl.Controls;
+  Diagnostics, Registry, Variants, Windows, Vcl.Controls;
 
 resourcestring
   SLoginCancelledByUser = 'Brukeren avbrøt innloggingen.';

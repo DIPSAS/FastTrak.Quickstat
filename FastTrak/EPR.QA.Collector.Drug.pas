@@ -65,6 +65,7 @@ const
   ATC_N05C     = 'N05C%';
   ATC_N06A     = 'N06A%';
   ATC_N06D     = 'N06D%';
+  ATC_J01XX05  = 'J01XX05';
 
 const
 

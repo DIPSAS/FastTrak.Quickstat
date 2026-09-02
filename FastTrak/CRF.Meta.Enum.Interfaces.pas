@@ -29,6 +29,7 @@ type
     function MaxScore: double;
     function ScoreToValue( const AScore: double ): integer;
     function ShortCode( const AValue: integer ): string;
+    function TryGetDefaultItem( out AItem: ICRFEnumItem ): boolean;
     function TryGetItem( const AValue: integer; out AItem: ICRFEnumItem ): boolean;
     function ValueToScore( const AValue: integer ): double;
     function ValidValue( const AValue: integer ): boolean;

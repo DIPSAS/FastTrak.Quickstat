@@ -9,6 +9,16 @@ uses
   System.Classes,
   Generics.Collections;
 
+const
+  { Connection string keys }
+  KEY_FILE_NAME = 'FILE NAME';
+  KEY_PROVIDER  = 'Provider';
+  KEY_DATABASE  = 'Initial Catalog';
+  KEY_SERVER    = 'Data Source';
+  KEY_USER_ID   = 'User ID';
+  KEY_PASSWORD  = 'Password';
+  KEY_SECURITY  = 'Integrated Security';
+
 type
   TSqlProvider = ( sqlOleDb, sqlNativeClient10, sqlNativeClient11 );
 
@@ -53,6 +63,9 @@ function GetUntrustedConnectionString( const AServer, ADatabase, AUserName, APas
 function GetFastTrakParentConnection: string;
 function GetAzureConnectionString( const APath: string ): string;
 function GetDogfoodConnectionString: string;
+function FastTrakUdlInResident: string;
+function GetFastTrakResidentConnection: string;
+
 
 function TryGetStoredCredentials( const AProjectName: string; out AServerName, ADatabaseName, AUserName, APassword: string ): boolean;
 
@@ -69,16 +82,6 @@ const
   PRM_DATABASE = 'Database';
   PRM_USERNAME = 'Username';
   PRM_PASSWORD = 'Password';
-
-const
-  { Connection string keys }
-  KEY_FILE_NAME = 'FILE NAME';
-  KEY_PROVIDER  = 'Provider';
-  KEY_DATABASE  = 'Initial Catalog';
-  KEY_SERVER    = 'Data Source';
-  KEY_USER_ID   = 'User ID';
-  KEY_PASSWORD  = 'Password';
-  KEY_SECURITY  = 'Integrated Security';
 
 const
   { Connection string values }
@@ -106,6 +109,16 @@ end;
 function GetFastTrakParentConnection: string;
 begin
   Result := KEY_FILE_NAME + '=' + FastTrakUdlInParent;
+end;
+
+function FastTrakUdlInResident: string;
+begin
+  Result := ExtractFilePath( ParamStr( 0 ) ) + 'FastTrak.UDL';
+end;
+
+function GetFastTrakResidentConnection: string;
+begin
+  Result := KEY_FILE_NAME + '=' + FastTrakUdlInResident;
 end;
 
 function GetTrustedConnectionString( const AServer, ADatabase: string; const AUseOleDbProvider: boolean = false ): string;
@@ -187,11 +200,16 @@ var
 begin
   udlFile := TStringList.Create;
   try
-    udlFile.StrictDelimiter := true;
-    QuoteChar := CHR( 39 );
+    self.Clear;
+    self.Delimiter := ';';
+    self.StrictDelimiter := true;
+    self.QuoteChar := CHR( 39 );
+
     udlFile.LoadFromFile( AFileName );
+
     if udlFile.Count > 2 then
       DelimitedText := udlFile[2];
+
   finally
     udlFile.Free;
   end;

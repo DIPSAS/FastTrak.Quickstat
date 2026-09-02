@@ -14,12 +14,13 @@ uses
   System.Classes, System.SysUtils;
 
 type
-  TPerson = class( TObservable, IPersonId, IPersonIdentity, IPerson, IPersonReadOnly, IObservable, IPhysicalAddress )
+  TPerson = class( TObservable, IPersonId, IPersonIdentity, IPerson, IPersonReadOnly, IObservable, IPhysicalAddress, IDigitalPerson )
   strict private
     FEventsEnabled: Boolean;
     FNationalId: string;
     FPersonId: integer;
   private
+    fDigitallyActive: integer;
     FDOB: TDate;
     FFirstName: string;
     FMiddleName: string;
@@ -37,6 +38,7 @@ type
     function Get_Age: Double;
     function Get_City: string;
     function Get_DOB: TDate;
+    function Get_DigitallyActive: integer;
     function Get_FirstName: string;
     function Get_FullName: string;
     function Get_GenderId: integer;
@@ -52,6 +54,7 @@ type
     function Get_StreetAddress: string;
     function Get_VisualId: string;
     function Get_YOB: integer;
+    procedure Set_DigitallyActive(const Value: integer);
     procedure Set_DOB( const Value: TDate );
     procedure Set_Email( const Value: string );
     procedure Set_FirstName( const Value: string );
@@ -101,6 +104,8 @@ type
     { Contact info }
     property Email: string read fEmail write Set_Email;
     property Phone: string read Get_Phone write Set_Phone;
+    { Additional }
+    property DigitallyActive: integer read Get_DigitallyActive write Set_DigitallyActive;
   end;
 
 implementation
@@ -135,6 +140,7 @@ begin
     fPhone := ASource.Phone;
     fPostalCode := ASource.PostCode;
     fEmployeeNumber := ASource.EmployeeNumber;
+    fDigitallyActive := ASource.DigitallyActive;
   finally
     EndUpdate;
   end;
@@ -162,6 +168,7 @@ begin
     fEmail := EmptyStr;
     fPhone := EmptyStr;
     fEmployeeNumber := 0;
+    fDigitallyActive := 0;
   finally
     EndUpdate;
   end;
@@ -178,6 +185,11 @@ end;
 function TPerson.Female: Boolean;
 begin
   Result := ( FSex = sexFemale );
+end;
+
+function TPerson.Get_DigitallyActive: integer;
+begin
+  Result := fDigitallyActive;
 end;
 
 function TPerson.Get_DOB: TDate;
@@ -277,6 +289,11 @@ begin
   finally
     EndUpdate;
   end;
+end;
+
+procedure TPerson.Set_DigitallyActive(const Value: integer);
+begin
+  fDigitallyActive := Value;
 end;
 
 procedure TPerson.Set_DOB( const Value: TDate );

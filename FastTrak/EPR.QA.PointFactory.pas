@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Generics.Collections;
+  Generics.Collections;
 
 type
   // <summary>

@@ -63,11 +63,10 @@ object frmPopulations: TfrmPopulations
       AlignWithMargins = True
       Left = 3
       Top = 3
-      Width = 293
+      Width = 80
       Height = 13
       Align = alTop
       Caption = 'Filter / s'#248'ketekst'
-      ExplicitWidth = 80
     end
     object edtPopFilter: TEdit
       AlignWithMargins = True

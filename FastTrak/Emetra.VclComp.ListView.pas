@@ -310,6 +310,9 @@ procedure TObjectListView.Prepare( AParent: TWinControl; const ALayout: TAlign )
 begin
   Parent := AParent;
   BorderStyle := bsNone;
+  BevelKind := bkFlat;
+  BevelOuter := bvLowered;
+  BevelInner := bvNone;
   Align := ALayout;
 end;
 
@@ -670,10 +673,8 @@ begin
     statusWidth := 0
   else
   begin
-    Canvas.Font.Size := Canvas.Font.Size - 1;
     DrawText( Canvas.Handle, statusText, Length( statusText ), ARect, DT_RIGHT );
     statusWidth := Canvas.TextWidth( statusText );
-    Canvas.Font.Size := Canvas.Font.Size + 1;
   end;
   { Draw Main text }
   Canvas.Font.Color := TextColor( FTextColor, ASelected );

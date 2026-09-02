@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Classes, Vcl.Graphics, Winapi.Windows;
+  Classes, Graphics, Windows;
 
 type
   TColorCalculator = class( TInterfacedPersistent )
@@ -14,6 +14,7 @@ type
     class function HSLtoRGB( H, S, L: double ): TColor;
     class function SelectFontColor( const AColor: TColor ): TColor;
     class function HtmlColor( const AColor: TColor ): string;
+    class function IsLightColor( const AColor: TColor ): boolean;
     class procedure RGBtoHSL( RGB: TColor; var H, S, L: double );
     class procedure RGBtoHSLRange( RGB: TColor; var H, S, L: integer );
 end;
@@ -21,7 +22,7 @@ end;
 implementation
 
 uses
-  System.SysUtils;
+  SysUtils;
 
 const
   HSLRange = 240;
@@ -94,6 +95,14 @@ class function TColorCalculator.HtmlColor( const AColor: TColor ): string;
 begin
   Result := Format( '%.6x', [ AColor ] );
   Result := '#' + Copy( Result, 5, 2 ) + Copy( Result, 3, 2 ) + Copy( Result, 1, 2 );
+end;
+
+class function TColorCalculator.IsLightColor( const AColor: TColor ): boolean;
+var
+  c: TColor;
+begin
+  c := ColorToRGB( AColor );
+  Result := ( ( c and $FF ) + ( c shr 8 and $FF ) + ( c shr 16 and $FF ) ) >= $180;
 end;
 
 class procedure TColorCalculator.RGBtoHSL( RGB: TColor; var H, S, L: double );

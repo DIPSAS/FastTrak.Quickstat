@@ -56,7 +56,7 @@ type
   ///   This contains a dictionary of <b>TCustomBusinessObject</b> descendants.
   ///   In can be used to find objects by name, and it will also manage the
   ///   lifetime of the objects, i.e. when the catalog is freed, every object
-  ///   in is also freed.
+  ///   it is also freed.
   /// </summary>
   TBusinessObjectCatalog = class( TCustomBusiness )
   strict private

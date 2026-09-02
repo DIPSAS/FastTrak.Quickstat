@@ -83,7 +83,7 @@ resourcestring
 
   { Select relation }
 
-  WARN_NO_RELATION =
+  MSG_NO_RELATION =
   { } 'Du har ikke en aktiv relasjon til {{%s}}.\n' +
   { } 'Du må definere din profesjonelle relasjon til\n' +
   { } 'pasienten for å kunne åpne denne journalen.\n\n' +
@@ -180,15 +180,15 @@ begin
   else
   begin
     if not fActiveCase.ValidGroup then
-    with fActiveCase do
-    begin
-      { Allow patient to be connected to a group at user's location }
-      if ( fActiveUser.GroupId > 0 ) and ( fActiveUser.ShowMyGroup )
-      { } and Log.LogYesNo( Format( MSG_RELOCATE_TO_GROUP, [FirstName, PronounObjective, fActiveUser.GroupName] ) ) then
-        GroupId := fActiveUser.GroupId
-      else if Log.LogYesNo( Format( MSG_RELOCATE_TO_CENTER, [FirstName, PronounObjective] ) ) then
-        UpdateGroup;
-    end
+      with fActiveCase do
+      begin
+        { Allow patient to be connected to a group at user's location }
+        if ( fActiveUser.GroupId > 0 ) and ( fActiveUser.ShowMyGroup )
+        { } and Log.LogYesNo( Format( MSG_RELOCATE_TO_GROUP, [FirstName, PronounObjective, fActiveUser.GroupName] ) ) then
+          GroupId := fActiveUser.GroupId
+        else if Log.LogYesNo( Format( MSG_RELOCATE_TO_CENTER, [FirstName, PronounObjective] ) ) then
+          UpdateGroup;
+      end
     else if ( fActiveCase.CenterId <> fActiveUser.CenterId ) then
       with fActiveCase do
       begin
@@ -215,7 +215,7 @@ begin
     Result := true
   else
   begin
-    if ( fActiveUser.RelationCount = 1 ) or Log.LogYesNo( Format( WARN_NO_RELATION, [fActiveCase.FullName] ), ltWarning ) then
+    if ( fActiveUser.RelationCount = 1 ) or Log.LogYesNo( Format( MSG_NO_RELATION, [fActiveCase.FullName] ), ltMessage ) then
       fActiveCase.UpdateRelation;
     Result := fActiveCase.ValidRelation;
   end;

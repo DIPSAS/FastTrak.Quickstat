@@ -10,11 +10,13 @@ object frmQuickStat: TfrmQuickStat
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
+  OldCreateOrder = False
   Position = poDefault
   OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow
+  PixelsPerInch = 96
   TextHeight = 13
   object panWhiteTop: TPanel
     Left = 0
@@ -909,7 +911,6 @@ object frmQuickStat: TfrmQuickStat
       AutoSize = True
       Field = vifFileVersion
       VersionInfo = RzVersionInfo1
-      FileVersionFormat = fvfFull
       ExplicitHeight = 36
     end
     object panProgress: TPanel
@@ -967,14 +968,12 @@ object frmQuickStat: TfrmQuickStat
     Top = 55
     Width = 1290
     Height = 730
+    ParentColor = True
     Position = 293
     Percent = 23
-    UpperLeft.Color = 15987699
-    LowerRight.Color = 15987699
     HotSpotVisible = True
     SplitterWidth = 9
     Align = alClient
-    Color = 15987699
     TabOrder = 1
     BarSize = (
       293
@@ -1014,7 +1013,6 @@ object frmQuickStat: TfrmQuickStat
       UseGradients = False
       FixedDimension = 19
       object tbsPopulation: TRzTabSheet
-        Color = 15987699
         Caption = 'Population'
         Padding.Left = 4
         Padding.Top = 4
@@ -1108,7 +1106,6 @@ object frmQuickStat: TfrmQuickStat
         end
       end
       object tbsDataElements: TRzTabSheet
-        Color = 15987699
         Caption = 'Collections'
         Padding.Left = 4
         Padding.Top = 4
@@ -1266,7 +1263,6 @@ object frmQuickStat: TfrmQuickStat
         end
       end
       object tbsPackages: TRzTabSheet
-        Color = 15987699
         Caption = 'Packages'
         Padding.Left = 4
         Padding.Top = 4
@@ -1381,7 +1377,6 @@ object frmQuickStat: TfrmQuickStat
       UseGradients = False
       FixedDimension = 19
       object tbsOverview: TRzTabSheet
-        Color = 15987699
         Caption = 'Dataset'
         Padding.Left = 4
         Padding.Top = 4
@@ -1496,7 +1491,6 @@ object frmQuickStat: TfrmQuickStat
         end
       end
       object tbsTimeSeries: TRzTabSheet
-        Color = 15987699
         TabEnabled = False
         Caption = 'Time series'
         Enabled = False

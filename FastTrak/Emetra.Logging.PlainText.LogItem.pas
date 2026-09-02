@@ -7,7 +7,7 @@ uses
   Emetra.Logging.Interfaces,
   Emetra.Logging.Colors,
   {Standard}
-  System.UITypes, System.SyncObjs, System.Classes, System.Generics.Collections, System.DateUtils, System.RegularExpressions;
+  System.UITypes, System.SyncObjs, System.Classes, Generics.Collections, System.DateUtils, System.RegularExpressions;
 
 type
   TLogItem = class( TInterfacedPersistent, IBasicLogItem, IColoredLogItem )

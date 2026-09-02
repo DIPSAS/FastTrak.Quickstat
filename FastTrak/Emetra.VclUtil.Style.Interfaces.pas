@@ -4,10 +4,15 @@ interface
 
 uses
   Emetra.VclUtil.ColorSet.Interfaces,
-  Vcl.Graphics, Vcl.Controls, Vcl.StdCtrls, Vcl.Forms, Vcl.ExtCtrls, Vcl.Tabs, Vcl.ComCtrls;
+  Vcl.Graphics, Vcl.Controls, Vcl.StdCtrls, Vcl.Forms, Vcl.ExtCtrls, Vcl.Tabs, Vcl.ComCtrls,
+  Emetra.Vcl.StdCtrls, Emetra.Vcl.ExtCtrls;
 
 type
   IGuiStyleObserver = interface; // Needs to be pre-declared for IGuiStyle
+
+  TGuiControlStyle = ( gsDefault, gsArena );
+
+  TDialogControl = ( dcHeaderTitle, dsHeaderTitleAlone, dcHeaderSubTitle );
 
   IGuiStyle = interface( IGuiColorSet )
     ['{03AD6C21-F68E-4719-89E7-900334BFE50F}']
@@ -29,22 +34,30 @@ type
     procedure Set_BaseColor( const AColor: TColor );
     { Other members }
     function ToolBarHeight: integer;
+    procedure StyleAccentPanel( APanel: TPanel );
     procedure StyleButton( AButton: TCustomButton );
     procedure StyleButtonPanel( APanel: TCustomPanel );
     procedure StyleCheckPanel( APanel: TCustomPanel );
+    procedure StyleDialog( AForm: TForm );
+    procedure StyleDialogControl( AControl: TControl; ADialogControl: TDialogControl );
+    procedure StyleDialogHeader( APanel: TPanel );
+    procedure StyleDialogFooter( APanel: TPanel );
     procedure StyleForm( AForm: TForm );
     procedure StyleFrame( AFrame: TFrame );
     procedure StyleBoldLabel( ALabel: TLabel );
+    procedure StyleH1Label( ALabel: TLabel );
     procedure StyleHeaderLabel( ALabel: TLabel );
-    procedure StyleHeaderPanel( APanel: TPanel );
-    procedure StyleInfoLabel( ALabel: TLabel );
+    procedure StyleHeaderPanel( APanel: TPanel ); overload;
+    procedure StyleHeaderPanel( APanel: TdcHeaderPanel ); overload;
+    procedure StyleInfoLabel( ALabel: TLabel ); overload;
+    procedure StyleInfoLabel( ALabel: TdcLabel ); overload;
     procedure StyleLabel( ALabel: TLabel );
     procedure StylePanel( APanel: TCustomPanel );
     procedure StyleSimpleCheckbox( ACheck: TCheckbox );
     procedure StyleSmallHeaderLabel( ALabel: TLabel );
     procedure StyleSmallLabel( ALabel: TLabel );
     procedure StyleTabset( ATabSet: TTabSet );
-    procedure StyleToolBar( AToolbar: TToolbar );
+    procedure StyleToolBar( AToolbar: TToolbar; AStyle: TGuiControlStyle = gsDefault );
     procedure StyleTopLabel( ALabel: TLabel );
     procedure StyleTopPanel( APanel: TPanel );
     { Registration of controls }

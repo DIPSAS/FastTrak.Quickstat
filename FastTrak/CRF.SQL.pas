@@ -4,7 +4,6 @@ interface
 
 const
 
-  CMD_CDSS_RESPOND        = 'EXEC dbo.AddAlertResponse :AlertId, :ResponseChar';
   CMD_CHECK_SCRIPT_RIGHTS = 'EXEC dbo.CheckScriptPermission';
   CMD_UPDATE_DEFAULT_POP  = 'EXEC dbo.UpdateDefaultPopulation :StudyId, :ProcId';
 
@@ -13,9 +12,12 @@ const
   QRY_GET_CLIN_TOUCH     = 'EXEC dbo.GetClinTouch :SessId, :PersonId, :EventNum, :MetaFormId';
   QRY_IMPORT_CONTEXT     = 'EXEC dbo.OpenImportContext :StudyName, :ContextName';
   QRY_IMPORT_CTX_UPDATE  = 'SELECT MAX(LastUpdate) AS LastUpdate FROM dbo.ImportContext WHERE ContextName=:ContextName';
-  QRY_NOM_MATCH          = 'EXEC dbo.GetNomMatch :MatchStr, :ListId';
   QRY_MY_PROFESSIONS     = 'EXEC dbo.GetProfessions';
   QRY_ACTIVE_PROFESSIONS = 'EXEC dbo.GetActiveProfessions';
+
+  { Nomenclature search }
+  QRY_NOM_MATCH          = 'EXEC dbo.GetNomMatch :MatchStr, :ListId';
+  QRY_NOM_PROCEDURES     = 'EXEC NOM.GetSearchProcedures :StudyId';
 
   { Studies }
   QRY_STUDY_ID   = 'SELECT StudyId FROM dbo.Study WHERE StudName=:StudyName';
@@ -31,15 +33,14 @@ const
   { Communications }
   CMD_SEND_MESSAGE = 'EXEC Comm.SendMessage :ClinFormId, :PartnerId, :MessageText, :MsgGuid';
 
-  { Alerts - Clinical Decision Support }
-  CMD_CDSS_UPDATE   = 'EXEC dbo.UpdateDSSAlerts :StudyId, :PersonId';
-  QRY_CDSS_RETRIEVE = 'EXEC dbo.GetAlertsByPerson :StudyId, :PersonId';
-  QRY_CDSS_RULE_LAG = 'EXEC dbo.GetRuleLag :StudyId, :PersonId';
-
   { Centers, groups, status and person responsible for the medical record }
   CMD_ADD_STUDY_CENTER    = 'EXEC dbo.AddStudyCenter :CenterName';
   CMD_ADD_STUDY_GROUP     = 'EXEC dbo.AddStudyGroup :GroupId, :GroupName, :CenterId';
   CMD_DISABLE_STUDY_GROUP = 'EXEC dbo.DisableStudyGroup :StudyGroupId';
+  QRY_MY_CENTER           = 'SELECT ul.CenterId FROM dbo.UserList ul WHERE ul.UserId = USER_ID()';
+  QRY_MY_CENTERS          = 'EXEC dbo.GetStudyCenters';
+  QRY_MY_ROLES            = 'EXEC AccessCtrl.GetMyRoles';
+  QRY_MY_PROFESSION       = 'SELECT dbo.GetMyProfession()';
   QRY_ALL_CENTERS         = 'EXEC dbo.GetAllStudyCenters';
   QRY_GROUPS              = 'EXEC dbo.GetStudyGroups :StudyId, :UserId';
   QRY_STUDYCASELOG        = 'EXEC dbo.GetStudyCaseLog :StudyId, :PersonId';
@@ -116,10 +117,13 @@ const
   QRY_CRF_UPDATE_FORM_XML         = 'EXEC CRF.UpdateClinFormData :SessId, :ClinFormId, :FormData';
 
   { Threaded data }
-  QRY_ADD_THREADED_DATA    = 'EXEC CRF.AddClinThreadData :TouchId,:ThreadId,:ItemId,:Quantity,:DTVal,:EnumVal,:TextVal';
-  CMD_UPDATE_THREADED_DATA = 'EXEC CRF.UpdateClinThreadData :RowId,:TouchId,:Quantity,:DTVal,:EnumVal,:TextVal';
-  CMD_LOCK_CLINTHREAD_ROW  = 'EXEC CRF.UpdateClinThreadLockRow :RowId';
-  QRY_GET_THREADED_DATA    = 'EXEC CRF.GetClinThreadData :ThreadId';
+  QRY_ADD_THREADED_DATA       = 'EXEC CRF.AddClinThreadData :TouchId,:ThreadId,:ItemId,:Quantity,:DTVal,:EnumVal,:TextVal';
+  CMD_UPDATE_THREADED_DATA    = 'EXEC CRF.UpdateClinThreadData :RowId,:TouchId,:Quantity,:DTVal,:EnumVal,:TextVal';
+  CMD_LOCK_CLINTHREAD_ROW     = 'EXEC CRF.UpdateClinThreadLockRow :RowId';
+  QRY_GET_THREADED_DATA       = 'EXEC CRF.GetClinThreadData :StudyId, :PersonId';
+  QRY_GET_THREADED_FORMS      = 'EXEC CRF.GetClinThreadFormList :StudyId, :PersonId';
+  QRY_GET_THREAD_NAMES        = 'EXEC CRF.GetThreadNames :FormId';
+  QRY_CRF_UPDATE_SUBFORMS_XML = 'EXEC CRF.UpdateClinThreadFormData :SessId, :ClinFormId, :FormData';
 
   { Person }
   QRY_PERSON_DETAILS  = 'EXEC dbo.GetPersonDetails :SessId, :PersonId';
@@ -150,7 +154,6 @@ const
   QRY_MY_META_FORMS     = 'EXEC CRF.GetMyMetaForms :StudyId, :MyProfession, :PersonId';
   QRY_MY_ACTIVITY       = 'EXEC dbo.GetMyActivity :StudyId';
   QRY_MY_FAVORITE_FORMS = 'EXEC dbo.GetMyFavoriteForms :StudyId';
-  QRY_MY_CENTERS        = 'EXEC dbo.GetStudyCenters';
   CMD_UPD_MY_CENTER     = 'EXEC dbo.UpdateMyCenter :CenterId';
   CMD_UPD_MY_GROUP      = 'EXEC dbo.UpdateMyGroup :StudyId, :GroupId';
   CMD_UPD_MY_PROFESSION = 'EXEC dbo.UpdateMyProfession :ProfId';

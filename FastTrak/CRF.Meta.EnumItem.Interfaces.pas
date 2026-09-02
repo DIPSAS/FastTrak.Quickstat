@@ -16,6 +16,7 @@ type
     function Get_ItemText: string;
     function Get_HelpText: string;
     function Get_HtmlColor: string;
+    function Get_IsDefaultAnswer: boolean;
     function Get_LastUpdate: TDateTime;
     function Get_ShortCode: string;
     function Get_Value: integer;
@@ -27,6 +28,7 @@ type
     procedure Set_HelpText( const AValue: string );
     procedure Set_HtmlColor( const AValue: string );
     procedure Set_ICD10( const AValue: string );
+    procedure Set_IsDefaultAnswer( const AValue: boolean );
     procedure Set_Score( const AValue: double );
     procedure Set_ShortCode( const AValue: string );
     procedure Set_Value( const AValue: integer );
@@ -42,6 +44,7 @@ type
     property ExcludeFromText: boolean read Get_ExcludeFromText;
     property ICD10: string read Get_ICD10 write Set_ICD10;
     property ItemText: string read Get_ItemText;
+    property IsDefaultAnswer: boolean read Get_IsDefaultAnswer write Set_IsDefaultAnswer;
     property HelpText: string read Get_HelpText write Set_HelpText;
     property HtmlColor: string read Get_HtmlColor write Set_HtmlColor;
     property LastUpdate: TDateTime read Get_LastUpdate write Set_LastUpdate;

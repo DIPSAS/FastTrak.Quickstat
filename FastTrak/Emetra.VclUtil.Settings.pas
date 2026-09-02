@@ -8,10 +8,12 @@ uses
   {General}
   Emetra.Logging.Interfaces,
   Emetra.Settings.Interfaces,
+  {Emetra.Vcl}
+  Emetra.Vcl.ExtCtrls,
   {Standard}
   WinApi.Windows,
   Vcl.Forms, Vcl.Graphics, Vcl.ExtCtrls, Vcl.Controls,
-  System.Classes, System.SysUtils, System.TypInfo;
+  System.Classes, System.SysUtils, System.TypInfo, System.Math;
 
 type
   TGuiSettings = class( TInterfacedObject, IGuiSettings )
@@ -26,15 +28,23 @@ type
     { All methods are protected. Only usable through interface }
     function TryGetColor( out AColor: TColor ): boolean;
     function TryGetFont( out AFontName: string; out AFontSize: integer ): boolean;
+    function TryGetProperyValue( AProperty: string; out AValue: integer; AIniKey: string = '' ): boolean;
     procedure SaveFont( const AFontName: string; const AFontSize: integer );
     procedure SaveColor( const AColor: TColor );
+    procedure RestoreControlHeight( AControl: TControl; AIniKey: string = '' );
+    procedure RestoreControlWidth( AControl: TControl; AIniKey: string = '' );
     procedure RestorePanelHeight( APanel: TCustomPanel; AIniKey: string = '' );
     procedure RestorePanelWidth( APanel: TCustomPanel; AIniKey: string = '' );
     procedure RestoreSplitter( ASplitter: TComponent; AIniKey: string = '' );
+    procedure RestoreSlidein( ASlidein: TdcSlidein; AIniKey: string = '' );
     procedure RestoreFormState;
+    procedure SaveControlHeight( AControl: TControl; AIniKey: string = '' );
+    procedure SaveControlWidth( AControl: TControl; AIniKey: string = '' );
     procedure SavePanelHeight( APanel: TCustomPanel; AIniKey: string = '' );
     procedure SavePanelWidth( APanel: TCustomPanel; AIniKey: string = '' );
+    procedure SaveProperyValue( AProperty: string; AValue: integer; AIniKey: string = '' );
     procedure SaveSplitter( ASplitter: TComponent; AIniKey: string = '' );
+    procedure SaveSlidein( ASlidein: TdcSlidein; AIniKey: string = '' );
     procedure SaveFormState;
   public
     constructor Create( AMainForm: TForm; ASettings: IScopedSettingsReadWrite; ALog: ILog );
@@ -45,16 +55,18 @@ implementation
 
 const
   { Componennt property values }
-  PROP_LEFT   = 'Left';
-  PROP_TOP    = 'Top';
-  PROP_WIDTH  = 'Width';
-  PROP_SIZE   = 'Position';
-  PROP_HEIGHT = 'Height';
-  PROP_STATE  = 'State';
+  PROP_LEFT     = 'Left';
+  PROP_TOP      = 'Top';
+  PROP_WIDTH    = 'Width';
+  PROP_SIZE     = 'Position';
+  PROP_HEIGHT   = 'Height';
+  PROP_STATE    = 'State';
+  PROP_EXPANDED = 'Expanded';
   { Inifile keys }
-  KEY_WIDTH  = '.' + PROP_WIDTH;
-  KEY_HEIGHT = '.' + PROP_HEIGHT;
-  KEY_SIZE   = '.' + PROP_SIZE;
+  KEY_WIDTH    = '.' + PROP_WIDTH;
+  KEY_HEIGHT   = '.' + PROP_HEIGHT;
+  KEY_SIZE     = '.' + PROP_SIZE;
+  KEY_EXPANDED = '.' + PROP_EXPANDED;
   { Error messages }
   ERR_SAVE = '%s.Save: %s';
   ERR_LOAD = '%s.Load: %s';
@@ -90,6 +102,20 @@ begin
   Result := Assigned( FSettings );
 end;
 
+procedure TGuiSettings.RestoreSlidein( ASlidein: TdcSlidein; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    try
+      ASlidein.Expanded := FSettings.ReadBool( ssUser, AIniKey, ASlidein.Name + KEY_EXPANDED, true );
+      ASlidein.FullWidth := FSettings.ReadInteger( ssUser, AIniKey, ASlidein.Name + KEY_WIDTH, ASlidein.DefaultSize );
+    except
+      on E: Exception do
+        FLog.Event( ERR_LOAD, [ClassName, E.Message] );
+    end;
+end;
+
 procedure TGuiSettings.RestoreSplitter( ASplitter: TComponent; AIniKey: string = '' );
 var
   absoluteValue: integer;
@@ -104,6 +130,20 @@ begin
     except
       on E: Exception do
         FLog.Event( ERR_LOAD, [ClassName, E.Message] );
+    end;
+end;
+
+procedure TGuiSettings.SaveSlidein( ASlidein: TdcSlidein; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    try
+      FSettings.WriteBool( ssUser, AIniKey, ASlidein.Name + KEY_EXPANDED, ASlidein.Expanded );
+      FSettings.WriteInteger( ssUser, AIniKey, ASlidein.Name + KEY_WIDTH, IfThen( ASlidein.Expanded, ASlidein.Width, ASlidein.FullWidth ) );
+    except
+      on E: Exception do
+        FLog.Event( ERR_SAVE, [ClassName, E.Message] );
     end;
 end;
 
@@ -165,6 +205,19 @@ begin
     end;
 end;
 
+procedure TGuiSettings.SaveProperyValue( AProperty: string; AValue: integer; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    try
+      FSettings.WriteInteger( ssUser, AIniKey, AProperty, AValue );
+    except
+      on E: Exception do
+        FLog.Event( ERR_SAVE, [ClassName, E.Message] );
+    end;
+end;
+
 class function TGuiSettings.RectIsVisibleOnMonitors( const ARect: TRect ): boolean;
 var
   n: integer;
@@ -182,6 +235,22 @@ begin
   end;
 end;
 
+procedure TGuiSettings.RestoreControlHeight( AControl: TControl; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    AControl.Height := FSettings.ReadInteger( ssUser, AIniKey, AControl.Name + KEY_HEIGHT, AControl.Height );
+end;
+
+procedure TGuiSettings.RestoreControlWidth( AControl: TControl; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    AControl.Width := FSettings.ReadInteger( ssUser, AIniKey, AControl.Name + KEY_WIDTH, AControl.Width );
+end;
+
 procedure TGuiSettings.RestoreFormState;
 var
   boundsRect: TRect;
@@ -190,8 +259,7 @@ begin
     FMainForm.boundsRect := Screen.WorkareaRect
   else
     try
-      FMainForm.WindowState := TWindowState( FSettings.ReadInteger( ssUser, FormKey, PROP_STATE,
-        ord( TWindowState.wsNormal ) ) );
+      FMainForm.WindowState := TWindowState( FSettings.ReadInteger( ssUser, FormKey, PROP_STATE, ord( TWindowState.wsNormal ) ) );
       if FMainForm.WindowState <> TWindowState.wsNormal then
         exit;
       boundsRect.Left := FSettings.ReadInteger( ssUser, FormKey, PROP_LEFT, 0 );
@@ -210,12 +278,12 @@ begin
     end;
 end;
 
-function TGuiSettings.TryGetColor(out AColor: TColor): boolean;
+function TGuiSettings.TryGetColor( out AColor: TColor ): boolean;
 begin
-  Result := fSettings.Exists( ssUser, ScreenKey, 'Color' );
+  Result := FSettings.Exists( ssUser, ScreenKey, 'Color' );
   if Result then
   begin
-    AColor := FSettings.ReadInteger( ssUser, ScreenKey, 'Color', fMainForm.Color );
+    AColor := FSettings.ReadInteger( ssUser, ScreenKey, 'Color', FMainForm.Color );
     Result := AColor <> 0;
   end;
 end;
@@ -227,9 +295,48 @@ begin
   Result := ( AFontName <> '' ) and ( AFontSize > 7 );
 end;
 
-procedure TGuiSettings.SaveColor(const AColor: TColor);
+function TGuiSettings.TryGetProperyValue( AProperty: string; out AValue: integer; AIniKey: string ): boolean;
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+
+  Result := FSettings.Exists( ssUser, AIniKey, AProperty );
+  if Result then
+  begin
+    AValue := FSettings.ReadInteger( ssUser, AIniKey, AProperty, 0 );
+    Result := AValue <> 0;
+  end;
+end;
+
+procedure TGuiSettings.SaveColor( const AColor: TColor );
 begin
   FSettings.WriteInteger( ssUser, ScreenKey, 'Color', AColor );
+end;
+
+procedure TGuiSettings.SaveControlHeight( AControl: TControl; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    try
+      FSettings.WriteInteger( ssUser, AIniKey, AControl.Name + KEY_HEIGHT, AControl.Height );
+    except
+      on E: Exception do
+        FLog.Event( ERR_SAVE, [ClassName, E.Message] );
+    end;
+end;
+
+procedure TGuiSettings.SaveControlWidth( AControl: TControl; AIniKey: string );
+begin
+  if AIniKey = '' then
+    AIniKey := ScreenKey;
+  if HasFile then
+    try
+      FSettings.WriteInteger( ssUser, AIniKey, AControl.Name + KEY_WIDTH, AControl.Width );
+    except
+      on E: Exception do
+        FLog.Event( ERR_SAVE, [ClassName, E.Message] );
+    end;
 end;
 
 procedure TGuiSettings.SaveFont( const AFontName: string; const AFontSize: integer );

@@ -193,7 +193,13 @@ begin
   else if ACollectorName = QS_DRUG_ANTICHOLIN_AB then
     Result := TCustomDataCollector.Create( QS_DRUG_ANTICHOLIN_AB, StrTitleDrugStrongAnticholinergics, VAR_PREFIX_DRUG_SPAN, QRY_DRUGSET_ANTICHOLIN_AB, fDatapointFactory, fSQL, Log )
   else if ACollectorName = QS_DRUG_ANTIBIOTIC_RESISTANCE then
-    Result := TCustomDataCollector.Create( QS_DRUG_ANTIBIOTIC_RESISTANCE, StrTitleDrugRestistanceAntibiotic, VAR_PREFIX_DRUG_SPAN, SpDrugsetAntibiotic, fDatapointFactory, fSQL, Log )
+    Result := TCustomDataCollector.Create( QS_DRUG_ANTIBIOTIC_RESISTANCE, StrTitleDrugAntibioticResistance, VAR_PREFIX_DRUG_SPAN, SpDrugsetAntibioticResistance, fDatapointFactory, fSQL, Log )
+  else if ACollectorName = QS_DRUG_ANTIBIOTIC_RECOMMENDED then
+    Result := TCustomDataCollector.Create( QS_DRUG_ANTIBIOTIC_RECOMMENDED, StrTitleDrugAntibioticRecommended, VAR_PREFIX_DRUG_SPAN, SpDrugsetAntibioticRecommended, fDatapointFactory, fSQL, Log )
+  else if ACollectorName = QS_DRUG_ANTIBIOTIC_INTERMEDIATE then
+    Result := TCustomDataCollector.Create( QS_DRUG_ANTIBIOTIC_INTERMEDIATE, StrTitleDrugAntibioticIntermediate, VAR_PREFIX_DRUG_SPAN, SpDrugsetAntibioticIntermediate, fDatapointFactory, fSQL, Log )
+  else if ACollectorName = QS_DRUG_J01XX05  then
+    Result := TDrugCollector.CreateBasic( StrTitleDrugAntibioticMetenamine, ATC_J01XX05, fDatapointFactory, fSQL, Log )
     { Labset collectors }
   else if ACollectorName = QST_LAB_HIGH then
     Result := TLabHighTrustCollector.Create( QST_LAB_HIGH, StrTitleLabsetHigh, fDatapointFactory, fSQL, Log )
@@ -221,6 +227,8 @@ begin
     Result := TLabSetCollector.Create( QST_LAB_CRP, StrTitleLabsetCrp, LABCLASSES_CRP, fDatapointFactory, fSQL, Log )
   else if ACollectorName = QST_LAB_DIABETES then
     Result := TLabSetCollector.Create( QST_LAB_DIABETES, StrTitleVarsetDiabetes, LABCLASSES_DIABETES, fDatapointFactory, fSQL, Log )
+  else if ACollectorName = QST_LAB_INTERLEUKINS then
+    Result := TLabSetCollector.Create( QST_LAB_INTERLEUKINS, StrTitleLabsetInterleukins, LABCLASSES_INTERLEUKINS, fDatapointFactory, fSQL, Log )
   else if ACollectorName = QST_LAB_NDV_CORE then
     Result := TLabSetCollector.Create( QST_LAB_NDV_CORE, StrTitleLabsetNdvCore, LABCLASSES_DIABETES_NDV, fDatapointFactory, fSQL, Log )
   else if ACollectorName = QST_LAB_BDR_CORE then
@@ -309,6 +317,8 @@ begin
     Result := TVarSetCollector.CreateForNumeric( QS_ROAS_POI_ORD, 'POI Diagnoser', SET_POI_ORD, fDatapointFactory, fSQL, Log )
   else if ACollectorName = QS_ROAS_POI_QN then
     Result := TVarSetCollector.CreateForNumeric( QS_ROAS_POI_QN, 'POI Diagnoseår', SET_POI_QN, fDatapointFactory, fSQL, Log )
+  else if ACollectorName = QS_ROAS_BASE then
+    Result := TVarSetCollector.CreateForNumeric( QS_ROAS_BASE, 'Autommunitet', SET_ROAS_BASE, fDatapointFactory, fSQL, Log )
   else if ACollectorName = QS_DOGFOOD_DATABASE_VERSION then
     Result := TVarSetCollector.CreateForNumeric( QS_DOGFOOD_DATABASE_VERSION, 'Dogfood: Databaseversjoner', [3812, 5117], fDatapointFactory, fSQL, Log )
   else

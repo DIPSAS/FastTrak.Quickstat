@@ -84,7 +84,7 @@ const
   SET_INSULINPUMPE: array [0 .. 1] of integer      = ( 5166, 5162 );
   SET_BDR_DIAGNOSE: array [0 .. 1] of integer      = ( 3196, 3843 );
   SET_BDR_DIAGNOSE_YEAR: array [0 .. 0] of integer = ( 3486 );
-  SET_BDR_COMORBID: array [0 .. 6] of integer      = ( 3410, 6312, 6313, 3364, 3355, 3356, 3357 );
+  SET_BDR_COMORBID: array [0 .. 6] of integer      = ( 6312, 6313, 3364, 3355, 3356, 3357, 9478 );
 
   { Shared varsets }
   SET_BP_ALL: array [0 .. 9] of integer            = ( 185, 207, 573, 600, 3145, 3146, 3230, 3231, 3555, 3556 );
@@ -99,6 +99,10 @@ const
 
   SET_POI_ORD: array [0 .. 19] of integer = ( 2143, 6299, 6090, 6314, 6321, 6663, 6312, 6313, 6318, 6806, 3410, 7977, 3411, 6320, 6322, 7978, 6317, 6316, 8543, 6050 );
   SET_POI_QN: array [0 .. 12] of integer  = ( 6089, 3486, 6332, 6323, 6324, 6334, 6328, 6330, 6331, 6333, 6327, 6326, 8544 );
+
+  SET_ROAS_BASE: array [0 .. 67] of integer  = ( 4255, 6314, 3486, 6312, 6323, 6313, 6324, 6299, 6089, 6090, 6321, 6332, 3410, 6328, 6317, 6327, 6316, 6326,8594,
+  { } 8595, 6318, 6334, 6329, 3411, 6330, 6320, 6331, 6322, 6333, 8543, 8544, 6669, 6670, 6671, 6607, 5069, 3982, 6633, 6634, 6635, 6636, 6637, 6638, 6639, 6640,
+  { } 6808, 6641, 5170, 9996, 3983, 7135, 4002, 6682, 3985, 8797, 6605, 2143, 9477, 10643, 3846, 3981, 6804, 6805, 6802, 6803, 7977, 7979, 6807 );
 
 type
   TLabClassSet = array of integer;
@@ -115,6 +119,7 @@ const
   LABCLASSES_GERIATRIC: TLabClassSet       = [22, 50, 51, 52, 53, 91, 140, 575, 995, 1075];
   LABCLASSES_HEART_FAILURE: TLabClassSet   = [6, 22, 49, 50, 51, 52, 53, 90, 91, 124, 140, 171, 575, 995, 1075];
   LABCLASSES_HYPERPARA: TLabClassSet       = [94, 95, 332, 576, 770];
+  LABCLASSES_INTERLEUKINS: TLabClassSet    = [1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104];
   LABCLASSES_INR: TLabClassSet             = [18, 20];
   LABCLASSES_KIDNEY: TLabClassSet          = [3, 4, 5, 6, 7, 53, 54, 50, 49, 90, 91, 995, 1075];
   LABCLASSES_LIPIDS: TLabClassSet          = [34, 35, 36, 37, 38, 39, 40];

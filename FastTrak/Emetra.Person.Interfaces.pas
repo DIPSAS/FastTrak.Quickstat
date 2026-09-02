@@ -61,6 +61,15 @@ type
     property VisualId: string read Get_VisualId;
   end;
 
+  IDigitalPerson = interface
+    ['{B39A4FCF-780D-4EA3-B950-087838B1A0F2}']
+    { Property accessors }
+    function Get_DigitallyActive: integer;
+    procedure Set_DigitallyActive( const AValue: integer );
+    { Properties }
+    property DigitallyActive: integer read Get_DigitallyActive write Set_DigitallyActive;
+  end;
+
   IPersonDead = interface
     ['{3F9B2C5F-981B-4BA7-BEED-985A64774004}']
     function IsDead: boolean;

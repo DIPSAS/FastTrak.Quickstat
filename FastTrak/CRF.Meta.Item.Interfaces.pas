@@ -13,12 +13,14 @@ type
 
   { Do NOT insert item types, only add them after itMSG, ORD(TCRFItemType) has meaning }
 
-  TCRFItemType = ( itUNDEF, lsQN, lsORD, lsNOM, lsNAR, itDATE, itH1, itCHECKLIST, itMSG );
+  TCRFItemType = ( itUNDEF, lsQN, lsORD, lsNOM, lsNAR, itDATE, itH1, itCHECKLIST, itMSG, itFORM );
 
   { Do NOT insert item types, only add them }
   TCRFItemClearStrategy = ( clrNone, clrAfterHide, clrBeforeSave, clrNever );
 
   TCRFRowType = ( rtStandard, rtThreaded );
+
+  TCRFDisplayFormat = ( dfDefault, dfCheckBox, dfRadioButtons, dfSlider, dfVertical, dfPointList, dfNoCode, dfFullWidth );
 
   ICRFMetaItem = interface( ICRFClickable )
     ['{F191B912-1867-4747-9333-CA5098394BDA}']
@@ -35,9 +37,11 @@ type
     function Get_MinNormal: double;
     function Get_MinOrder: integer;
     function Get_OpenEHRProperty: integer;
+    function Get_ProcId: integer;
     function Get_ThreadTypeId: integer;
     function Get_UnitStr: string;
     function Get_UpperBound: double;
+    function Get_ValidationPattern: string;
     function Get_VarName: string;
     procedure Set_Enum( const AValue: ICRFEnum );
     procedure Set_ThreadTypeId( const AValue: integer );
@@ -63,7 +67,9 @@ type
     property MaxNormal: double read Get_MaxNormal write Set_MaxNormal;
     property MinNormal: double read Get_MinNormal write Set_MinNormal;
     property OpenEHRProperty: integer read Get_OpenEHRProperty;
+    property ProcId: integer read Get_ProcId;
     property UnitStr: string read Get_UnitStr write Set_UnitStr;
+    property ValidationPattern: string read Get_ValidationPattern;
     property VarName: string read Get_VarName;
     property ThreadTypeId: integer read Get_ThreadTypeId write Set_ThreadTypeId;
   end;
@@ -77,6 +83,8 @@ type
     function Get_ClearStrategy: TCRFItemClearStrategy;
     function Get_Decimals: integer;
     function Get_DefaultValue: string;
+    function Get_DetailFormId: integer;
+    function Get_DisplayFormat: TCRFDisplayFormat;
     function Get_Enum: ICRFEnum;
     function Get_ExcludeCaption: boolean;
     function Get_ExcludeFromPrint: boolean;
@@ -134,6 +142,8 @@ type
     property ClearStrategy: TCRFItemClearStrategy read Get_ClearStrategy write Set_ClearStrategy;
     property Decimals: integer read Get_Decimals write Set_Decimals;
     property DefaultValue: string read Get_DefaultValue;
+    property DetailFormId: integer read Get_DetailFormId;
+    property DisplayFormat: TCRFDisplayFormat read Get_DisplayFormat;
     property ExcludeCaption: boolean read Get_ExcludeCaption write Set_ExcludeCaption;
     property ExcludeFromPrint: boolean read Get_ExcludeFromPrint;
     property ExcludeFromText: boolean read Get_ExcludeFromText write Set_ExcludeFromText;
@@ -168,7 +178,7 @@ type
   end;
 
 const
-  CRF_ITEMS_WITH_DATA    = [lsORD, lsQN, lsNOM, lsNAR, itDATE];
+  CRF_ITEMS_WITH_DATA    = [lsORD, lsQN, lsNOM, lsNAR, itDATE, itFORM];
   CRF_ITEMS_NUMERIC      = [lsORD, lsQN, itDATE];
   CRF_ITEMS_WITHOUT_DATA = [itUNDEF, itH1, itMSG, itCHECKLIST];
 

@@ -12,6 +12,7 @@ interface
 
 uses
   Emetra.Interfaces.Observer,
+  Emetra.TemplateVariable.Interfaces,
   Emetra.Dictionary.Interfaces,
   Emetra.Logging.Interfaces,
   {VCL}
@@ -30,10 +31,8 @@ type
   strict private
     FAfterConstructionCalled: boolean;
     FBeforeDestructionCalled: boolean;
-{$IFDEF Audit}
   private
     procedure CheckForMultipleSingletons;
-{$ENDIF}
   protected
     FSingleton: boolean;
     function Get_Persistent: boolean;
@@ -145,10 +144,8 @@ type
 implementation
 
 uses
-{$IFDEF Audit}
   Emetra.Classes.Auditing,
-{$ENDIF}
-  System.SysUtils, System.TypInfo, System.Math;
+  SysUtils, TypInfo, Math;
 
 resourcestring
   SMultipleSingletons = 'Class %s should be Singleton';
@@ -189,25 +186,18 @@ begin
   inherited;
   Assert( FAfterConstructionCalled = false );
   FAfterConstructionCalled := true;
-{$IFDEF Audit}
   CheckForMultipleSingletons;
-{$ENDIF}
   VerifyConstructorParameters;
-{$IFDEF Audit}
   GlobalClassCounter.AddInstance( Self.QualifiedClassName );
-{$ENDIF}
 end;
 
 procedure TExposed.BeforeDestruction;
-{$IFDEF Audit}
 var
   preExistingInstances: integer;
-{$ENDIF}
 begin
   Assert( FAfterConstructionCalled = true, Format( 'AfterConstruction not called for %s', [ClassName] ) );
   Assert( FBeforeDestructionCalled = false, Format( 'BeforeDestruction called already for %s', [ClassName] ) );
   FBeforeDestructionCalled := true;
-{$IFDEF Audit}
   preExistingInstances := GlobalClassCounter[Self.QualifiedClassName];
   GlobalClassCounter.RemoveInstance( Self.QualifiedClassName );
   if preExistingInstances = 0 then
@@ -217,7 +207,6 @@ begin
     else
       raise EInstanceMissing.CreateFmt( SInstanceNotFound, [Self.QualifiedClassName] );
   end;
-{$ENDIF}
   inherited;
 end;
 
@@ -243,8 +232,6 @@ begin
   end;
 end;
 
-{$IFDEF Audit}
-
 procedure TExposed.CheckForMultipleSingletons;
 var
   preExistingInstances: integer;
@@ -261,7 +248,6 @@ begin
     end;
   end;
 end;
-{$ENDIF}
 
 function TExposed.TryGetValue( const AVarName: string; var AValue: variant ): boolean;
 begin
@@ -292,11 +278,7 @@ begin
     if ( FObservers.Count > 0 ) and Assigned( GlobalLog ) then
       GlobalLog.SilentWarning( SObserversStillAttached, [Controller.QualifiedClassName, FObservers.Count] );
 {$ENDIF}
-{$IFDEF Audit}
     SafeFree( FObservers );
-{$ELSE}
-    FObservers.Free;
-{$ENDIF}
   end;
   inherited;
 end;
@@ -396,6 +378,8 @@ begin
 {$ENDIF}
           Notify( thisObserver );
         except
+          on E: EAccessViolation do
+            raise E;
           on E: Exception do
             Log.SilentError( LOG_CALL, [Controller.ClassName, observerIndex, E.Message] );
         end;
@@ -510,6 +494,9 @@ begin
   FOwnedObjects.Sort( ACompareProc );
 end;
 
-{$ENDREGION}
+{$ENDREGION]
+
+{$REGION 'Singleton versions of objects' }
+{ TDatabaseSubject }
 
 end.

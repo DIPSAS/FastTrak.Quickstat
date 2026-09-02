@@ -1,4 +1,4 @@
-unit EPR.QA.Collector.Base;
+﻿unit EPR.QA.Collector.Base;
 
 interface
 
@@ -11,7 +11,7 @@ uses
   Emetra.Database.Interfaces,
   Emetra.Logging.Interfaces,
   {Standard}
-  System.Classes, System.Generics.Collections;
+  System.Classes, Generics.Collections;
 
 type
   TDataCollector = class( TInterfacedPersistent, IGridDataCollector )
@@ -20,6 +20,7 @@ type
     FVarCount: integer;
     FFactory: TDataPointFactory;
     FVarList: TStringList;
+    FVarOrder: TStringList;
     FBatch: TDictionary<integer, TObject>;
     function CreateDatapoint( const AVarName: string; const AValue: double; const ATimestamp: TDateTime; const ARowId: integer ): TDataPoint; dynamic;
   protected
@@ -81,10 +82,12 @@ begin
   FVarList := TStringList.Create;
   FVarList.Sorted := true;
   FVarList.Duplicates := dupIgnore;
+  FVarOrder := TStringList.Create;
 end;
 
 destructor TDataCollector.Destroy;
 begin
+  FreeAndNil( FVarOrder );
   FreeAndNil( FVarList );
   FreeAndNil( FBatch );
   inherited;
@@ -156,6 +159,8 @@ begin
         begin
           variableName := FVarPrefix + dataset.Fields[1].AsString;
           FVarList.Add( variableName );
+          if FVarList.Count > FVarOrder.Count then
+            FVarOrder.Add( variableName );
           newDatapoint := CreateDatapoint( variableName, dataset.Fields[2].AsFloat, dataset.Fields[3].AsDateTime, dataset.Fields[4].AsInteger );
           if Assigned( fldItemId ) then
             newDatapoint.ItemId := fldItemId.AsInteger;
@@ -208,7 +213,7 @@ end;
 
 function TDataCollector.VarNames;
 begin
-  Result := FVarList;
+  Result := FVarOrder;
 end;
 
 { TCustomDrugCollector }

@@ -294,7 +294,7 @@ begin
     AddCollector( fCollectorFactory.CreateCollector( QST_LAB_INR ) );
     AddCollector( fCollectorFactory.CreateCollector( QST_LAB_HYPERPARA ) );
     AddCollector( fCollectorFactory.CreateCollector( QST_LAB_HEART_FAILURE ) );
-//    AddCollector( fCollectorFactory.CreateCollector( QST_LAB_INTERLEUKINS ) );
+    AddCollector( fCollectorFactory.CreateCollector( QST_LAB_INTERLEUKINS ) );
     AddCollector( fCollectorFactory.CreateCollector( QST_LAB_CRP ) );
     { All labdata }
     AddCollector( fCollectorFactory.CreateCollector( QST_LAB_HIGH ) );
@@ -378,9 +378,9 @@ begin
   AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTICHOLIN_N05 ) );
   AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTICHOLIN_AB ) );
   AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTIBIOTIC_RESISTANCE ) );
-//  AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTIBIOTIC_INTERMEDIATE ) );
-//  AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTIBIOTIC_RECOMMENDED ) );
-//  AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_J01XX05 ) );
+  AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTIBIOTIC_INTERMEDIATE ) );
+  AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_ANTIBIOTIC_RECOMMENDED ) );
+  AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_J01XX05 ) );
   AddCollector( fCollectorFactory.CreateCollector( QS_DRUG_NorGeP ) );
 end;
 
@@ -477,7 +477,7 @@ begin
       { ROAS POI Collectors }
       AddCollector( fCollectorFactory.CreateCollector( QS_ROAS_POI_ORD ) );
       AddCollector( fCollectorFactory.CreateCollector( QS_ROAS_POI_QN ) );
-//      AddCollector( fCollectorFactory.CreateCollector( QS_ROAS_BASE ) );
+      AddCollector( fCollectorFactory.CreateCollector( QS_ROAS_BASE ) );
     end;
     if TRegEx.IsMatch( fStudyId.StudyName, 'DOGFOOD', [roIgnoreCase] ) then
     begin

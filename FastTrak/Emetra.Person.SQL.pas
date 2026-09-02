@@ -15,10 +15,11 @@ const
   QRY_PERSON_BY_NATID     = SELECT_PERSON + 'WHERE p.NationalId = :NationalId' + TAIL_ORDER_BY;
   QRY_PERSON_BY_LAST_NAME = SELECT_PERSON + 'WHERE p.LstName LIKE :SearchFor' + TAIL_ORDER_BY;
 
-  QRY_PERSON_ID             = 'SELECT PersonId FROM dbo.Person WHERE NationalId=:NationalId';
-  QRY_PERSON_ID_BY_DOB_NAME = 'SELECT PersonId FROM dbo.Person WHERE DOB=:DOB AND FstName=:FstName AND LstName=:LstName ORDER BY PersonId DESC';
-  QRY_PERSON_NATIONAL_ID    = 'SELECT NationalId FROM dbo.Person WHERE PersonId=:PersonId';
-  QRY_PERSON_BY_USERNAME    = 'SELECT PersonId FROM dbo.Person WHERE UserName = :UserName';
+  QRY_PERSON_ID                = 'SELECT PersonId FROM dbo.Person WHERE NationalId=:NationalId';
+  QRY_PERSON_ID_BY_DOB_NAME    = 'SELECT PersonId FROM dbo.Person WHERE DOB=:DOB AND FstName=:FstName AND LstName=:LstName ORDER BY PersonId DESC';
+  QRY_PERSON_NATIONAL_ID       = 'SELECT NationalId FROM dbo.Person WHERE PersonId=:PersonId';
+  QRY_PERSON_BY_USERNAME       = 'SELECT PersonId FROM dbo.Person WHERE UserName = :UserName';
+  QRY_PERSON_LIST_NATIONAL_IDS = 'SELECT PersonId, NationalId FROM dbo.Person WHERE PersonId IN ( %s ) AND NOT NationalId IS NULL';
 
   { Table dbo.Person fields }
   TBL_PERSON    = 'Person';

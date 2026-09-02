@@ -14,6 +14,7 @@ type
     fCodeColor: TColor;
     fTextColor: TColor;
     fFocusedSelectionColor: TColor;
+    fHyperlinkColor: TColor;
     fUnfocusedSelectionColor: TColor;
     fFirstInfoColor: TColor;
     fSecondInfoColor: TColor;
@@ -23,6 +24,7 @@ type
     function Get_CodeColor: TColor;
     function Get_TextColor: TColor;
     function Get_FirstInfoColor: TColor;
+    function Get_HyperlinkColor: TColor;
     function Get_SecondInfoColor: TColor;
     function Get_FocusedSelectionColor: TColor;
     function Get_StatusTextColor: TColor;
@@ -35,6 +37,7 @@ type
     property CodeColor: TColor read Get_CodeColor;
     property TextColor: TColor read Get_TextColor write fTextColor;
     property FirstInfoColor: TColor read Get_FirstInfoColor;
+    property HyperlinkColor: TColor read Get_HyperlinkColor;
     property SecondInfoColor: TColor read Get_SecondInfoColor;
     property FocusedSelectionColor: TColor read Get_FocusedSelectionColor;
     property StatusTextColor: TColor read Get_StatusTextColor;
@@ -58,6 +61,8 @@ type
     function Get_CurrentCellColor: TColor;
     function Get_Dark: string;
     function Get_DarkColor: TColor;
+    function Get_DialogColor: TColor;
+    function Get_HeaderColor: TColor;
     function Get_Light: string;
     function Get_LightColor: TColor;
     function Get_Medium: string;
@@ -74,6 +79,9 @@ type
     property clDark: TColor read FDarkColor;
     property clVeryLight: TColor read FVeryLight;
   published
+    { Arena Colors }
+    property DialogColor: TColor read Get_DialogColor;
+    property HeaderColor: TColor read Get_HeaderColor;
     { GUI colors }
     property BaseColor: TColor read Get_BaseColor;
     property CurrentCellColor: TColor read Get_CurrentCellColor default clSkyBlue;
@@ -103,6 +111,9 @@ const
 
 implementation
 
+uses
+  Emetra.Vcl.Consts;
+
 { TBasicColorSet }
 
 constructor TBasicColorSet.Create;
@@ -110,7 +121,8 @@ begin
   inherited Create;
   fCodeColor := clCodeColor;
   fTextColor := clTextColor;
-  fFocusedSelectionColor := clFocusedSelectionColor;
+  fFocusedSelectionColor := clSelectedBk;// clFocusedSelectionColor;
+  fHyperlinkColor := clHyperlinkForeground;
   fUnfocusedSelectionColor := clUnfocusedSelectionColor;
   fStatusTextColor := clStatusTextColor;
   fFirstInfoColor := clFirstInfoColor;
@@ -130,6 +142,11 @@ end;
 function TBasicColorSet.Get_FocusedSelectionColor: TColor;
 begin
   Result := fFocusedSelectionColor;
+end;
+
+function TBasicColorSet.Get_HyperlinkColor: TColor;
+begin
+  Result := fHyperlinkColor;
 end;
 
 function TBasicColorSet.Get_SecondInfoColor: TColor;
@@ -228,6 +245,16 @@ end;
 function TGuiColorSet.Get_DarkColor;
 begin
   Result := FDarkColor;
+end;
+
+function TGuiColorSet.Get_DialogColor: TColor;
+begin
+  Result := clDlgFace;
+end;
+
+function TGuiColorSet.Get_HeaderColor: TColor;
+begin
+  Result := clHeaderBk;
 end;
 
 function TGuiColorSet.Get_TextColor: TColor;

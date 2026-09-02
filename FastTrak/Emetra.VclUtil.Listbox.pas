@@ -352,7 +352,6 @@ begin
       rctOriginal := ARect;
       iCalcRect := 1 - ORD( AItemOperation );
       paintSettings.ExtractDataElements( Index, itemCode, itemHeader, itemDescripton, itemStatus, itemInfoFirst, itemInfoSecond );
-      Font.Style := [fsBold];
       if itemHeader <> EmptyStr then
         Result := TextHeight( itemHeader )
       else
@@ -382,7 +381,7 @@ begin
         else
           SetColor( clStatusTextColor );
         Font.Style := [];
-        Font.Size := savedFontSize - 1;
+        Font.Size := savedFontSize;
         maroonWidth := TextWidth( itemStatus );
         if maroonWidth > 0 then
           DrawText( Handle, pChar( itemStatus ), Length( itemStatus ), ARect, DT_RIGHT );
@@ -395,7 +394,6 @@ begin
         if itemHeader <> EmptyStr then
         begin
           ARect.Right := ARect.Right - maroonWidth;
-          Font.Style := [fsBold];
           DrawText( Handle, pChar( itemHeader ), Length( itemHeader ), ARect, DT_END_ELLIPSIS );
           ARect.Right := ARect.Right + maroonWidth;
           { Move down a bit }
@@ -465,6 +463,8 @@ begin
         ASettings.Canvas.Brush.Color := ColorSet.FocusedSelectionColor
       else
         ASettings.Canvas.Brush.Color := ColorSet.UnfocusedSelectionColor;
+      if odDisabled in AState then
+        ASettings.Canvas.Brush.Color := clFocusedSelectionColorDiabled;
     end
     else if ASettings.Control.Focused then
       ASettings.Canvas.Brush.Color := clFocusedSelectionColor

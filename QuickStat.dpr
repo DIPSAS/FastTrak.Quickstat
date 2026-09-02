@@ -5,10 +5,9 @@ uses
   Emetra.Logging.SmartInspect,
   {$ELSE}
   Emetra.Logging.PlainText,
-  {$ENDIF }
+  {$ENDIF}
   Vcl.Forms,
-  MainQuickStat in 'MainQuickStat.pas' {frmQuickStat},
-  QuickStat.Collectors in 'QuickStat.Collectors.pas';
+  MainQuickStat in 'MainQuickStat.pas' {frmQuickStat};
 
 {$R *.res}
 

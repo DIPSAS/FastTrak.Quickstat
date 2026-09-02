@@ -3,7 +3,7 @@
 interface
 
 uses
-  Vcl.ExtCtrls, Vcl.Graphics, System.Classes;
+  Vcl.ExtCtrls, Vcl.Graphics, Vcl.Controls, Emetra.Vcl.ExtCtrls, System.Classes;
 
 type
   /// <summary>
@@ -14,15 +14,23 @@ type
     ['{D6043F62-4A7A-4A58-8187-A34602636CEC}']
     function TryGetFont( out AFontName: string; out AFontSize: integer ): boolean;
     function TryGetColor( out AColor: TColor ): boolean;
+    function TryGetProperyValue( AProperty: string; out AValue: integer; AIniKey: string = '' ): boolean;
     procedure SaveFont( const AFontName: string; const AFontSize: integer );
     procedure SaveColor( const AColor: TColor );
     procedure RestoreFormState;
     procedure SaveFormState;
+    procedure RestoreControlHeight( AControl: TControl; AIniKey: string = '' );
+    procedure RestoreControlWidth( AControl: TControl; AIniKey: string = '' );
     procedure RestorePanelHeight( APanel: TCustomPanel; AIniKey: string = '' );
     procedure RestorePanelWidth( APanel: TCustomPanel; AIniKey: string = '' );
     procedure RestoreSplitter( ASplitter: TComponent; AIniKey: string = '' );
+    procedure RestoreSlidein( ASlidein: TdcSlidein; AIniKey: string = '' );
+    procedure SaveControlHeight( AControl: TControl; AIniKey: string = '' );
+    procedure SaveControlWidth( AControl: TControl; AIniKey: string = '' );
     procedure SavePanelHeight( APanel: TCustomPanel; AIniKey: string = '' );
     procedure SavePanelWidth( APanel: TCustomPanel; AIniKey: string = '' );
+    procedure SaveProperyValue( AProperty: string; AValue: integer; AIniKey: string = '' );
+    procedure SaveSlidein( ASlidein: TdcSlidein; AIniKey: string = '' );
     procedure SaveSplitter( ASplitter: TComponent; AIniKey: string = '' );
   end;
 

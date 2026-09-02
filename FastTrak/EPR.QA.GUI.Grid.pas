@@ -93,7 +93,7 @@ implementation
 uses
   Forms, Math, SysUtils;
 
-{ TMDrawGrid }
+{ TPersonGrid }
 
 {$REGION 'Initialization'}
 

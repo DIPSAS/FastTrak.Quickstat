@@ -46,6 +46,7 @@ type
     function Get_Title: string;
     function Get_ThreadTypeId: integer;
     procedure Set_Repeatable( const Value: boolean );
+    procedure Set_ThreadTypeId( const AValue: integer );
     procedure Set_Title( const AValue: string );
     { Other members }
     function AddMetaItem( const AMetaFormItem: ICRFMetaFormItem ): ICRFMetaFormItem;
@@ -71,7 +72,7 @@ type
     property Repeatable: boolean read Get_Repeatable write Set_Repeatable;
     property Subtitle: string read Get_Subtitle;
     property SurveyStatus: string read Get_SurveyStatus;
-    property ThreadTypeId: integer read Get_ThreadTypeId;
+    property ThreadTypeId: integer read Get_ThreadTypeId write Set_ThreadTypeId;
     property Title: string read Get_Title write Set_Title;
   end;
 
@@ -83,6 +84,11 @@ type
     function IsRepeatable( const AFormId: integer ): boolean;
     function IsObsolete( const AFormId: integer ): boolean;
     function TryGetForm( const AFormId: integer; out AMetaForm: ICRFMetaForm ): boolean;
+  end;
+
+  ICRFFormClearObserver = interface
+    ['{158340C3-6F63-4D92-8972-5E398971DB29}']
+    procedure BeforeFormClear( const Sender: ICRFMetaForm );
   end;
 
 implementation

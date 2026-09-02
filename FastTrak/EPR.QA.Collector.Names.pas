@@ -1,4 +1,4 @@
-ï»¿unit EPR.QA.Collector.Names;
+unit EPR.QA.Collector.Names;
 
 interface
 
@@ -8,17 +8,17 @@ resourcestring
   { Shared }
   { General titles }
   StrTitleDemographicsAge = '^ Alder';
-  StrTitleDemographicsSex = '^ KjÃ¸nn';
-  StrTitleDemographicsYob = '^ FÃ¸dselsÃ¥r';
-  StrTitleDemographicsYod = '^ DÃ¸dsÃ¥r';
-  StrTitleDemographicsMob = '^ FÃ¸dselmÃ¥ned';
+  StrTitleDemographicsSex = '^ Kjønn';
+  StrTitleDemographicsYob = '^ Fødselsår';
+  StrTitleDemographicsYod = '^ Dødsår';
+  StrTitleDemographicsMob = '^ Fødselmåned';
   StrTitleDemographicsPostCode = '^ Postnummer';
   StrTitleStudyCenter = '^ Institusjon / sted';
-  StrTitleStudyGroup = '^ Gruppe / avdeling nÃ¥';
-  StrTitleStudyGroupDeath = '^ Gruppe / avdeling ved dÃ¸d';
-  StrTitleStudyCenterDeath = '^ Institusjon / sted ved dÃ¸d';
+  StrTitleStudyGroup = '^ Gruppe / avdeling nå';
+  StrTitleStudyGroupDeath = '^ Gruppe / avdeling ved død';
+  StrTitleStudyCenterDeath = '^ Institusjon / sted ved død';
   StrTitleStudyStatus = '^ Statuskode';
-  StrTitleAntropometrics = 'Antropometri: HÃ¸yde og vekt';
+  StrTitleAntropometrics = 'Antropometri: Høyde og vekt';
 
   { General }
   StrTitleFormCount24m = 'Skjema: Antall siste 24 mnd per type';
@@ -28,10 +28,10 @@ resourcestring
   StrTitleFormFrequencies = 'Skjema: Antall totalt per type';
 
   { NDV }
-  StrTitleVarsetNdvAntropometry = 'NDV: HÃ¸yde og vekt';
+  StrTitleVarsetNdvAntropometry = 'NDV: Høyde og vekt';
   StrTitleVarsetNdvBasicData = 'NDV: Basisdata';
   StrTitleVarsetNdvBloodPressure = 'NDV: Blodtrykk';
-  StrTitleVarsetNdvSmoking = 'NDV: RÃ¸yking';
+  StrTitleVarsetNdvSmoking = 'NDV: Røyking';
   StrTitleLabsetNdvCore = 'NDV: Labdata';
 
   { BDR }
@@ -53,13 +53,13 @@ resourcestring
 
   { GBD }
   StrTitleVarSetAgeWeightDays = 'GBD: Tid siden siste veiing';
-  StrTitleLabsetNutrition = 'GBD: ErnÃ¦ringsrelaterte labdata';
-  StrTitleVarsetNutrition = 'GBD: ErnÃ¦ringsdata';
+  StrTitleLabsetNutrition = 'GBD: Ernæringsrelaterte labdata';
+  StrTitleVarsetNutrition = 'GBD: Ernæringsdata';
   StrTitleVarsetDementia = 'GBD: Demens';
-  StrTitleVarsetAntropometry = 'GBD: HÃ¸yde og vekt';
+  StrTitleVarsetAntropometry = 'GBD: Høyde og vekt';
   StrTitleVarsetFallRisk = 'GBD: Fallrisiko';
   StrTitleVarsetHeartFailure = 'Hjertesvikt';
-  StrTitleVarsetWarfarin = 'INR og mÃ¥l';
+  StrTitleVarsetWarfarin = 'INR og mål';
   StrTitleGbdTvangsvedtak = 'GBD: Aktivt tvangsvedtak';
   StrTitleGbdInnleggelser12m = 'GBD: Innleggelser siste 12 mnd';
   StrTitleGbdLmg6m = 'GBD: Skjema "Legemiddelgjennomgang" siste 6 mnd (kompletthet)';
@@ -67,7 +67,7 @@ resourcestring
   StrTitleVarsetGbdScores = 'GBD: Viktigste scores';
   StrTitleVarsetGbdBloodPressure = 'GBD: Blodtrykk fra kurve';
   StrTitleGbdFormLege3m = 'GBD: Legenotater siste 3 mnd';
-  StrTitleVarSetPrimaryContactDays = 'GBD: PrimÃ¦rkontakt registrert';
+  StrTitleVarSetPrimaryContactDays = 'GBD: Primærkontakt registrert';
   StrTitleVarSetAgeMNAPart1Days = 'GBD: Tid siden MNA del 1 utfylt';
   StrTitleGbdWeight2m = 'GBD: Vekt fra siste 2 mnd';
   StrTitleGbdSbp2m = 'GBD: Blodtrykk fra siste 2 mnd';
@@ -77,16 +77,16 @@ resourcestring
   StrTitleGbdKdv6m = 'GBD: KDV siste 6 mnd';
   StrTitleGbdBarthel6m = 'GBD: Barthel ADL-Indeks siste 6 mnd';
   StrTitleGbdStratify6m = 'GBD: Stratify fallrisiko siste 6 mnd';
-  StrTitleGbdMna6m = 'GBD: MNA ernÃ¦ringsvurdering siste 6 mnd';
+  StrTitleGbdMna6m = 'GBD: MNA ernæringsvurdering siste 6 mnd';
   StrTitleGbdAntiHypertensivesLowBp = 'GBD: Blodtrykk < 120 og blodtrykksbehandling';
   StrTitleGbdLowBp = 'GBD: Blodtrykk < 120 (siste)';
-  StrTitleGbdAceLowGFR = 'GBD: ACE/A2 og eGFR < 35';
-  StrTitleGbdMetforminLowGFR = 'GBD: Metformin og eGFR < 50 ';
+  StrTitleGbdAceLowGFR = 'GBD: ACE/A2 og GFR < 35';
+  StrTitleGbdMetforminLowGFR = 'GBD: Metformin og GFR < 50 ';
   StrTitleGbdFlackerDeath = 'GBD: Flacker-Kiely og levedager';
 
   { Diabetes }
   StrTitleVarsetDiabetes = 'Diabetes';
-  StrTitleVarsetSmoking = 'RÃ¸yking';
+  StrTitleVarsetSmoking = 'Røyking';
   StrTitleVarsetDiabetesBasic = 'Basisdata';
 
   { Templates for form collectors }
@@ -114,14 +114,14 @@ resourcestring
   StrTitleDiagnoseAtrialFibrillation = 'Diagnoser: I48 - Atrieflimmer/flutter';
 
   { Short fragments that go into TXT_LAB_SET }
-  StrTitleLabsetHigh = 'Labdata: Alle med hÃ¸y konfidens';
+  StrTitleLabsetHigh = 'Labdata: Alle med høy konfidens';
   StrTitleLabsetMedium = 'Labdata: Alle med middels konfidens';
   StrTitleLabsetLow = 'Labdata: Alle med lav konfidens';
-  StrTitleLabCount3m = 'Labdata: Antall prÃ¸ver siste 3 mnd';
-  StrTitleLabCount6m = 'Labdata: Antall prÃ¸ver siste 6 mnd';
-  StrTitleLabCount12m = 'Labdata: Antall prÃ¸ver siste 12 mnd';
-  StrTitleLabCount24m = 'Labdata: Antall prÃ¸ver siste 24 mnd (2 Ã¥r)';
-  StrTitleLabCount60m = 'Labdata: Antall prÃ¸ver siste 60 mnd (5 Ã¥r)';
+  StrTitleLabCount3m = 'Labdata: Antall prøver siste 3 mnd';
+  StrTitleLabCount6m = 'Labdata: Antall prøver siste 6 mnd';
+  StrTitleLabCount12m = 'Labdata: Antall prøver siste 12 mnd';
+  StrTitleLabCount24m = 'Labdata: Antall prøver siste 24 mnd (2 år)';
+  StrTitleLabCount60m = 'Labdata: Antall prøver siste 60 mnd (5 år)';
   StrTitleLabsetHeartFailure = 'Hjertesviktrelaterte labdata';
   StrTitleLabsetTemplate = 'Labdata: %s (siste)';
   StrTitleLabsetAnemia = 'Anemi';
@@ -130,6 +130,7 @@ resourcestring
   StrTitleLabsetGlucose = 'Glukose';
   StrTitleLabsetHyperparatyreoidism = 'Hyperparatyreoidisme';
   StrTitleLabsetInr = 'INR fra labarket';
+  StrTitleLabsetInterleukins = 'Interleukiner';
   StrTitleVarsetINR = 'INR';
   StrTitleLabsetKidney = 'Nyrefunksjon';
   StrTitleLabsetLipids = 'Lipider';
@@ -139,7 +140,7 @@ resourcestring
 
   { Form titles }
   StrTitleFormWarfarin = 'Marevanskjema';
-  StrTitleFormHulten = 'HultÃ©n';
+  StrTitleFormHulten = 'Hultén';
   StrTitleFormQualid = 'Livskvalitet';
   StrTitleFormKdv = 'Demensvurdering';
   StrTitleFormBarthel = 'Barthel';
@@ -184,13 +185,17 @@ resourcestring
   StrTitleDrugMetformin = 'Medisin: Metformin inkl. kombinasjoner';
   StrTitleDrugCountTreatType = 'Medisin: Antall per behandlingstype';
   StrTitleDrugCountNoAtc = 'Medisin: Antall uten ATC-kode';
-  StrTitleDrugCountGroup = 'Medisin: Antall pÃ¥ utvalgte ATC-grupper';
-  StrTitleDrugRestistanceAntibiotic = 'Medisin: Resistensdrivende antibiotika';
+  StrTitleDrugCountGroup = 'Medisin: Antall på utvalgte ATC-grupper';
+  StrTitleDrugAntibioticResistance = 'Antibiotika: Resistendrivende';
+  StrTitleDrugAntibioticIntermediate = 'Antibiotika: Intermediære';
+  StrTitleDrugAntibioticRecommended = 'Antibiotika: Anbefalte';
+  StrTitleDrugAntibioticMetenamine = 'Antibiotika: Metenamin / Hiprex';
+
   StrTitleDrugStrongAnticholinergics = 'Medisin: Sterke antikolinergika (AB)';
   StrTitleDrugStrongAnticholinergicsN05A = 'Medisin: N05A - Nevroleptika med sterk antikolinerg effekt (AB)';
 
   { Drug interactions }
-  StrTitleDruidCountPerLevel = 'Interaksjoner: Antall per nivÃ¥';
+  StrTitleDruidCountPerLevel = 'Interaksjoner: Antall per nivå';
   StrTitleDruidSpecific = 'Interaksjoner: Spesifisert i detalj';
 
 {$ENDREGION}
@@ -275,6 +280,7 @@ const
   LAB_GERIATRIC     = 'GERIATRIC';
   LAB_GLUCOSE       = 'GLUCOSE';
   LAB_HEART_FAILURE = 'HEART_FAILURE';
+  LAB_INTERLEUKINS  = 'INTERLEUKINS';
   LAB_HYPERPARA     = 'HYPERPARA';
   LAB_INR           = 'INR';
   LAB_KIDNEY        = 'KIDNEY';
@@ -300,6 +306,7 @@ const
   QST_LAB_GERIATRIC     = PREFIX_LAB_COLLECTOR + LAB_GERIATRIC;
   QST_LAB_GLUCOSE       = PREFIX_LAB_COLLECTOR + LAB_GLUCOSE;
   QST_LAB_HEART_FAILURE = PREFIX_LAB_COLLECTOR + LAB_HEART_FAILURE;
+  QST_LAB_INTERLEUKINS  = PREFIX_LAB_COLLECTOR + LAB_INTERLEUKINS;
   QST_LAB_HYPERPARA     = PREFIX_LAB_COLLECTOR + LAB_HYPERPARA;
   QST_LAB_INR           = PREFIX_LAB_COLLECTOR + LAB_INR;
   QST_LAB_KIDNEY        = PREFIX_LAB_COLLECTOR + LAB_KIDNEY;
@@ -321,6 +328,8 @@ const
   QS_DRUG_C10  = PREFIX_DRUG_COLLECTOR + 'C10';
   QS_DRUG_M01A = PREFIX_DRUG_COLLECTOR + 'M01A';
 
+  QS_DRUG_J01XX05 = PREFIX_DRUG_COLLECTOR + 'J01XX05';
+
   { Custom drug collector variable names }
   VAR_ANTICHOLIN_AB  = 'ANTICHOLIN_AB';
   VAR_ANTICHOLIN_N05 = 'ANTICHOLIN_N05';
@@ -328,10 +337,13 @@ const
 
   { Custom drug collectors }
   { Collector names }
+  { Collector names }
   QS_DRUG_COUNT                 = PREFIX_DRUG_COLLECTOR + 'COUNT';
   QS_DRUG_COUNT_NOATC           = PREFIX_DRUG_COLLECTOR + 'NOATC';
   QS_DRUG_COUNT_GROUP           = PREFIX_DRUG_COLLECTOR + 'GROUPCOUNT';
   QS_DRUG_ANTIBIOTIC_RESISTANCE = PREFIX_DRUG_COLLECTOR + 'RESISTANCE_DRIVING';
+  QS_DRUG_ANTIBIOTIC_INTERMEDIATE = PREFIX_DRUG_COLLECTOR + 'INTERMEDIATE';
+  QS_DRUG_ANTIBIOTIC_RECOMMENDED= PREFIX_DRUG_COLLECTOR + 'RECOMMENDED';
   QS_DRUG_METFORMIN             = PREFIX_DRUG_COLLECTOR + VAR_METFORMIN;
   QS_DRUG_ANTICHOLIN_AB         = PREFIX_DRUG_COLLECTOR + VAR_ANTICHOLIN_AB;
   QS_DRUG_ANTICHOLIN_N05        = PREFIX_DRUG_COLLECTOR + VAR_ANTICHOLIN_N05;
@@ -451,6 +463,7 @@ const
   QS_ROAS_GWAS_AB_APS1 = 'ROAS.GWAS.AB.APS1';
   QS_ROAS_POI_ORD      = 'ROAS.POI.ORD';
   QS_ROAS_POI_QN       = 'ROAS.POI.QN';
+  QS_ROAS_BASE         = 'ROAS.BASE';
 {$ENDREGION}
 {$REGION 'DOGFOOD collectors'}
   QS_DOGFOOD_DATABASE_VERSION = 'DOGFOOD.DATABASE.VERSION';

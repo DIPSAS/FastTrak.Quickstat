@@ -3,7 +3,7 @@
 interface
 
 uses
-  Graphics;
+  Vcl.Graphics, Emetra.Vcl.Consts;
 
 type
   IHtmlColorSet = interface
@@ -28,6 +28,7 @@ type
     function Get_CodeColor: TColor;
     function Get_FirstInfoColor: TColor;
     function Get_FocusedSelectionColor: TColor;
+    function Get_HyperlinkColor: TColor;
     function Get_SecondInfoColor: TColor;
     function Get_StatusTextColor: TColor;
     function Get_TextColor: TColor;
@@ -36,6 +37,7 @@ type
     property CodeColor: TColor read Get_CodeColor;
     property FirstInfoColor: TColor read Get_FirstInfoColor;
     property FocusedSelectionColor: TColor read Get_FocusedSelectionColor;
+    property HyperlinkColor: TColor read Get_HyperlinkColor;
     property SecondInfoColor: TColor read Get_SecondInfoColor;
     property StatusTextColor: TColor read Get_StatusTextColor;
     property TextColor: TColor read Get_TextColor;
@@ -45,6 +47,7 @@ type
   IGuiColorSet = interface( IGuiListBoxColorSet )
     ['{59484EAF-B22B-4734-AE6B-C019363096CF}']
     { Property accessors }
+    function Get_DialogColor: TColor;
     function Get_BaseColor: TColor;
     function Get_CurrentCellColor: TColor;
     function Get_DarkColor: TColor;
@@ -55,6 +58,7 @@ type
     function Get_VeryDarkColor: TColor;
     function Get_VeryLightColor: TColor;
     { Properties }
+    property DialogColor: TColor read Get_DialogColor;
     property BaseColor: TColor read Get_BaseColor;
     property DarkColor: TColor read Get_DarkColor;
     property LightColor: TColor read Get_LightColor;
@@ -66,13 +70,14 @@ type
 
 const
   { Some default colors }
-  clTextColor               = $00333333; // Dark Gray
-  clUnfocusedSelectionColor = $00FCF2E7; // Very pale blue
-  clFocusedSelectionColor   = $00D4FBFF; // Pale yellow
-  clStatusTextColor         = $00822EB8; // Dark fuchsia
-  clCodeColor               = $00A4294B; // Dark purple
-  clFirstInfoColor          = $00AC6D2B; // Dark blue
-  clSecondInfoColor         = $007BB02C; // Dark green
+  clTextColor                    = $00333333; // Dark Gray
+  clUnfocusedSelectionColor      = $00FCF2E7; // Very pale blue
+  clFocusedSelectionColor        = clSelectedBk;
+  clFocusedSelectionColorDiabled = clSelectedBkDisabled;
+  clStatusTextColor              = clMandatoryGeometryFill; // Dark fuchsia
+  clCodeColor                    = $00888888; // Gray
+  clFirstInfoColor               = $00AC6D2B; // Dark blue
+  clSecondInfoColor              = $00A87E23; // Dark green
   { BergSoft colors }
   clSelectedFill          = $00FCEBDC;
   clModernBlue            = $00FBDF82;

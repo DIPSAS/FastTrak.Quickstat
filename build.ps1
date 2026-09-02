@@ -3,9 +3,12 @@
     Bygger QuickStat.dpr med Delphi-kompilatoren (dcc32).
 
 .DESCRIPTION
-    PowerShell-versjon av build.bat. Kompilerer QuickStat mot kildekoden i
-    FastTrak- og Spring-mappene i repoet, uten behov for at IDE-pakker er
-    installert. Skriver ferdig QuickStat.exe til repo-roten.
+    Kompilerer QuickStat mot kildekoden i FastTrak- og Spring-mappene i repoet,
+    uten behov for at IDE-pakker er installert. Skriver ferdig QuickStat.exe til
+    repo-roten.
+
+    Kildefilene under FastTrak\ er hentet fra FastTrak-repoet
+    (grenen tarmscreening/develop) og finnes automatisk via søkestien.
 
 .PARAMETER StudioVersion
     RAD Studio-versjon (mappenavn under Embarcadero\Studio). Standard: 37.0.
@@ -25,7 +28,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Kjør fra mappen der scriptet ligger, slik at relative stier stemmer.
 $RepoRoot = $PSScriptRoot
 Push-Location $RepoRoot
 try {
@@ -35,27 +37,18 @@ try {
     $DelphiLib  = Join-Path $DelphiRoot 'lib\win32\release'
     $RaizePath  = "C:\Users\Public\Documents\Embarcadero\Studio\$StudioVersion\CatalogRepository\BonusKSVC\8.0.1\Source"
 
-    if (-not (Test-Path $Dcc32)) {
-        throw "Fant ikke Delphi-kompilatoren: $Dcc32. Angi riktig versjon med -StudioVersion."
-    }
-    if (-not (Test-Path $Project)) {
-        throw "Fant ikke prosjektfilen: $Project"
-    }
+    if (-not (Test-Path $Dcc32))    { throw "Fant ikke dcc32: $Dcc32" }
+    if (-not (Test-Path $Project))  { throw "Fant ikke prosjektfil: $Project" }
 
     Write-Host "Bygger $Project med RAD Studio $StudioVersion ..." -ForegroundColor Cyan
-
-    # dcc32 trenger $(BDS) for å finne standardbibliotekene.
     $env:BDS = $DelphiRoot
 
-    # {$R *.res} krever en ressursfil som normalt genereres av IDE-en og er
-    # git-ignorert. Generer den fra prosjektikonet hvis den mangler.
     $ProjectName = [System.IO.Path]::GetFileNameWithoutExtension($Project)
     $ResFile     = "$ProjectName.res"
     $IconFile    = "$ProjectName`_Icon.ico"
     if (-not (Test-Path $ResFile)) {
         if (Test-Path $IconFile) {
             Write-Host "Genererer $ResFile fra $IconFile ..." -ForegroundColor Cyan
-            # brcc32 skriver som standard <input>.res, så .rc-filen navngis likt.
             $RcFile = "$ProjectName.rc"
             "MAINICON ICON `"$IconFile`"" | Set-Content -Path $RcFile -Encoding Ascii
             & $Brcc32 $RcFile
@@ -65,12 +58,11 @@ try {
                 throw "Klarte ikke å generere $ResFile."
             }
         }
-        else {
-            throw "Mangler $ResFile og fant ikke ikonet $IconFile for å generere den."
-        }
+        else { throw "Mangler $ResFile og fant ikke $IconFile." }
     }
 
-    $namespaces = 'System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;VCLTee;Winapi'
+    $namespaces = 'System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;VCLTee;' +
+                  'Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win'
     $unitPaths  = "FastTrak;Spring;$RaizePath;$DelphiLib"
     $resPaths   = "FastTrak;$RaizePath"
 
@@ -81,9 +73,7 @@ try {
         "-R$resPaths" `
         $Project
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "Bygging feilet med feilkode $LASTEXITCODE."
-    }
+    if ($LASTEXITCODE -ne 0) { throw "Bygging feilet med feilkode $LASTEXITCODE." }
 
     Write-Host 'Bygging fullført.' -ForegroundColor Green
 }

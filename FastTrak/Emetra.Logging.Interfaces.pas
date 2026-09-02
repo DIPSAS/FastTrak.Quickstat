@@ -257,6 +257,11 @@ type
     property ThresholdForDialog: TLogLevel read Get_ThresholdForDialog write Set_ThresholdForDialog;
   end;
 
+  IClearableLog = interface
+    ['{C006C5A5-3041-408C-8225-5E852931EDC2}']
+    procedure Clear;
+  end;
+
   ILogXmlData = interface
     ['{F3904ABE-673E-4405-AC79-506F518BE8C4}']
     procedure LogXmlData( const ALevel: TLogLevel; const ATitle, AXmlData: string );
