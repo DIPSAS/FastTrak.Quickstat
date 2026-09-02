@@ -149,7 +149,8 @@ public static class DrugSql
     /// - match no antibiotic collector at all, because view 2's <c>EXCEPT</c> removes them for
     /// being in view 3. The fix is to delegate to <c>KB.AntibioticResistance3</c> the way
     /// <see cref="DrugSetAntibioticIntermediate"/> delegates to view 2; PORT-PLAN.md §8.4 carries
-    /// the proposal.
+    /// the proposal. <see cref="RecommendedAntibioticAtcCodes"/> has the same gap against view 1,
+    /// and a wider one - 52 codes - so the two are one decision, not two.
     /// </para>
     /// <para>
     /// It stays a named array because a clinical definition can be revised again: one line plus a
@@ -203,6 +204,16 @@ public static class DrugSql
     /// <see cref="QaSql.Collation"/> - the only drug query in the subsystem that omits it. Order is
     /// observable in the generated list, so it is the source order
     /// (<c>EPR.QA.SQL.pas:441</c>).
+    /// </para>
+    /// <para>
+    /// <b>It has the same coverage gap as <see cref="ResistanceDrivingAtcPatterns"/>, and a wider
+    /// one.</b> All nine are inside <c>KB.AntibioticResistance1</c>, so the collector never emits a
+    /// code the knowledge base disagrees with - but the view holds 61, and these nine stopped
+    /// growing in 2020 while the view kept following <c>FEST.AtcIndex</c>. The 52 it misses match no
+    /// antibiotic collector at all, because view 2's <c>EXCEPT</c> removes them for being in view 1.
+    /// The fix is to delegate to view 1 the way <see cref="DrugSetAntibioticIntermediate"/>
+    /// delegates to view 2, at the cost of an R7 gate; PORT-PLAN.md §8.4 carries the proposal and
+    /// the whole-universe measurement (246 of 333 covered, 87 by nothing, 0 twice).
     /// </para>
     /// <para>
     /// A named array for the same reason as <see cref="ResistanceDrivingAtcPatterns"/>: it is a

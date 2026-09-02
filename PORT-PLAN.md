@@ -1136,15 +1136,31 @@ Not blocking; each has a working default so implementation can proceed.
    non-fluoroquinolone quinolone (`J01MB`); 29 of the 35 are substance-level codes. None appears in
    `OngoingTreatment` on the one test database, which is weak evidence either way.
 
-   **Recommended, not done — and now a single port-side change.** Repoint the collector at
-   `KB.AntibioticResistance3`, exactly as `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` points at view 2. That
-   closes the 35-code gap, keeps `J01FF` out by construction because it is not in view 3, and leaves
-   the resistance collector unable to drift from the knowledge base again. **No database change is
-   needed** — an earlier revision of this paragraph proposed adding `J01FF%` to view 3 first, which
-   the 2026-09-02 ruling makes unnecessary. The cost is R7: view 3 would need the same
-   `CollectorAvailability` gate view 2 has, so a second collector would vanish on databases without
-   the `KB` schema. If someone wants "on any antibiotic" as well, that is a new `ATC_J01` collector,
-   not a redefinition of this one.
+   **And the same gap is open twice — measured across the whole universe, 2026-09-02.** Scoring all
+   333 codes against all three collectors at once: **246 are covered, 87 by nothing, and 0 by more
+   than one.** The zero is the 2026-09-02 ruling landing correctly, no longer an argument but a
+   count. The 87 split cleanly, and the larger half is the collector nobody had been looking at:
+
+   | Collector | Its list | View it should agree with | Missed |
+   |---|--:|--:|--:|
+   | `QS_DRUG_ANTIBIOTIC_RESISTANCE` | 84 | `KB.AntibioticResistance3`, 119 | **35** |
+   | `QS_DRUG_ANTIBIOTIC_RECOMMENDED` | 9 | `KB.AntibioticResistance1`, 61 | **52** |
+
+   The recommended collector's nine literal codes are all inside view 1, so it never emits a code the
+   knowledge base disagrees with; it simply stopped growing in 2020 while the view kept following
+   `FEST.AtcIndex`. Neither set of missing codes falls through to the intermediate collector, for the
+   same reason in both cases: view 2's `EXCEPT` removes them for being in view 1 or view 3.
+
+   **Recommended, not done — and now one port-side change made twice.** Repoint each collector at its
+   view, exactly as `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` points at view 2. That closes both gaps, keeps
+   `J01FF` out of the resistance set by construction because it is not in view 3, and leaves neither
+   collector able to drift from the knowledge base again. **No database change is needed** — an
+   earlier revision of this paragraph proposed adding `J01FF%` to view 3 first, which the 2026-09-02
+   ruling makes unnecessary. The cost is R7: views 1 and 3 would need the same `CollectorAvailability`
+   gate view 2 has, so all three antibiotic collectors would vanish together on databases without the
+   `KB` schema — today two of the three survive there. The two halves can be decided separately. If
+   someone wants "on any antibiotic" as well, that is a new `ATC_J01` collector, not a redefinition of
+   any of these.
 
    `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
    `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,
@@ -1201,12 +1217,12 @@ Not blocking; each has a working default so implementation can proceed.
    | Concept | Collector | `KB` view | Divergence |
    |---|---|---|---|
    | Resistance-driving | `J01CR%`, `J01D[CDH]%`, `J01MA%` | `J01CR%`, `J01D[ABCDEHI]%`, `J01M%` | the view is **broader** — the collector misses `J01D[ABEI]%` and `J01M` outside `J01MA` |
-   | Recommended | nine literal codes | `J01CA08`, `J01CA11`, `J01XE01`, `J01C[EF]%`, `J01E%` | the collector is a **snapshot enumeration**; any newer `J01CE`/`J01CF`/`J01E` code in `FEST.AtcIndex` is in the view and not in the collector |
+   | Recommended | nine literal codes | `J01CA08`, `J01CA11`, `J01XE01`, `J01C[EF]%`, `J01E%` | the collector is a **snapshot enumeration** and reaches 9 of the view's 61; any newer `J01CE`/`J01CF`/`J01E` code in `FEST.AtcIndex` is in the view and not in the collector |
    | Intermediate | *joins the view directly* | — | the only one of the three that cannot drift |
 
    Not a Phase 4 change — the collectors are what shipped, and rewriting two of them to join the
    views is a clinical decision, not a porting one. Recorded so the owner decides once, with the
-   whole picture.
+   whole picture. The 87-code measurement above is that whole picture in one number.
 5. **Drift items in `Docs/Port/03-collectors.md` §F — re-decided; §F now carries a correction
    block that overrides its own per-item verdicts.** Those verdicts were computed against
    `develop_old`; the shipping binaries were built against tarmscreening (§2.1), and all seven

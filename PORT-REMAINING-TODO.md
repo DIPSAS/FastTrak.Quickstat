@@ -69,14 +69,26 @@ they are `MetaFormItem.Expression` macros over two `NOT NULL` columns QuickStat 
 Root-caused; **parked by the product owner**. Listed only so it is not forgotten; the fix is three
 lines plus one policy decision.
 
-**11. The resistance-driving collector misses 35 of the 119 high-risk codes** — measured 2026-09-02
-while answering (5), and the more consequential finding of the two. The hand-written ATC list covers
-84 codes; the 35 it misses match **no** antibiotic collector at all, because view 2's `EXCEPT`
-removes them for being in view 3. All first-generation cephalosporins, all fourth-generation,
-`J01DI`, and every non-fluoroquinolone quinolone. The fix is one port-side change — delegate to
-`KB.AntibioticResistance3` the way the intermediate collector delegates to view 2 — but it is a
-**behaviour change**, so it needs the same owner who answered (5), plus an R7 availability gate on a
-second collector. Pre-existing in the Delphi; not introduced by the port. §8.4.
+**11. 87 of the 333 antibiotic codes match no collector at all** — measured 2026-09-02 while
+answering (5), and the more consequential finding of the two. The three collectors between them
+cover **246 of 333**, and they now overlap on **zero** codes, which is (5) landing correctly. The
+87 are two halves of one defect, both caused by a hand-written list standing in for a `KB` view:
+
+| Collector | Its list | The view it should agree with | Missed |
+|---|--:|--:|--:|
+| `QS_DRUG_ANTIBIOTIC_RESISTANCE` | 84 | `KB.AntibioticResistance3`, 119 | **35** |
+| `QS_DRUG_ANTIBIOTIC_RECOMMENDED` | 9 | `KB.AntibioticResistance1`, 61 | **52** |
+
+Neither set of missing codes falls through to the intermediate collector, because view 2's `EXCEPT`
+removes them for being in view 1 or 3. The resistance half is all first-generation cephalosporins,
+all fourth-generation, `J01DI`, and every non-fluoroquinolone quinolone; the recommended half is
+every `J01CE`/`J01CF`/`J01E` code added since the nine were enumerated in 2020.
+
+The fix is the same one twice — delegate to the view the way `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`
+delegates to view 2 — but it is a **behaviour change**, so it needs the same owner who answered (5),
+and it puts both collectors behind an R7 availability gate. They can be decided separately: the
+recommended half is the larger gap, the resistance half the one already written up. Pre-existing in
+the Delphi; not introduced by the port. §8.4.
 
 ---
 
