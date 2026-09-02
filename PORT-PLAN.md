@@ -1122,6 +1122,33 @@ Not blocking; each has a working default so implementation can proceed.
    membership fact — measured, `J01FF`/`J01FF01`/`J01FF02` do come out of view 2 — and not as an
    independent authority on what the tiers *mean*.
 
+   **Coverage, measured 2026-09-02, after the question "why not include tier 2 as well?"** The three
+   views partition the antibiotics exactly — 61 + 153 + 119 = 333, which is every `J01%` code plus
+   `A07AA09` and `P01AB01`. Against that denominator:
+
+   | Set | Codes | Share |
+   |---|--:|--:|
+   | `ResistanceDrivingAtcPatterns` as it ships | 87 | 26 % |
+   | `KB.AntibioticResistance3` (HIGH RISK) | 119 | 36 % |
+   | tiers 2 **and** 3 together | 272 | **82 %** |
+   | everything | 333 | 100 % |
+
+   That settles the boundary question on its own: a variable true for 82 % of antibiotic codes has
+   stopped discriminating, and the honest name for it would be "on any antibiotic". **The defect is
+   the 26 % → 36 % gap, not the boundary.** 35 tier-3 codes match no collector at all — the hand
+   list's `J01D[CDH]%` and `J01MA%` miss them, and view 2's `EXCEPT` removes them because they *are*
+   in view 3. They are all first-generation cephalosporins (`J01DB`, cefalexin, cefazolin), all
+   fourth-generation (`J01DE`, cefepime), `J01DI` (ceftaroline, faropenem, cefiderocol) and every
+   non-fluoroquinolone quinolone (`J01MB`); 29 of the 35 are substance-level codes. None appears in
+   `OngoingTreatment` on the one test database, which is weak evidence either way.
+
+   **Recommended, not done — two changes that only work together.** (1) Add `J01FF%` to
+   `KB.AntibioticResistance3`, which also removes it from view 2 through the `EXCEPT` and so retires
+   the double-count above. (2) Repoint the collector at view 3, exactly as
+   `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` points at view 2. Doing (2) alone would silently drop `J01FF`
+   again. (1) is a change to `C:\work\FastTrak.Database` with a different owner. If someone wants
+   "on any antibiotic" as well, that is a new `ATC_J01` collector, not a redefinition of this one.
+
    `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
    `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,
    not resistance-driving.** Dropping `J01FF%` therefore does not merely follow the buildable refs;
