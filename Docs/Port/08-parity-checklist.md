@@ -440,11 +440,11 @@ still waiting for an answer.
   are *intermediate*.** The pattern stays out and the collector emits `J01CR%`, `J01D[CDH]%`,
   `J01MA%`, which agrees with `KB.AntibioticResistance2`. The caption is unchanged. PORT-PLAN.md
   §8.4.
-- ❓ **87 of the 333 antibiotic codes match no collector at all** (§8.4, measured while answering the
-  above). Two halves of one defect: the resistance collector misses 35 of view 3's 119 high-risk
-  codes, and the recommended collector's nine literal codes reach 9 of view 1's 61, missing 52.
-  Delegating each to its `KB` view fixes both, but that is a behaviour change and needs the same
-  owner.
+- ✅ **87 of the 333 antibiotic codes match no collector at all — measured, and *not* a port
+  question** (§8.4). The resistance collector reaches 84 of view 3's 119 and the recommended
+  collector 9 of view 1's 61, but both lists are character-identical to the shipping Delphi at
+  `9f4a5ed4f`, so this checklist has nothing to decide. Delegating each to its `KB` view would close
+  the gap and change exported values; that is a product decision, recorded outside the port scope.
 - ✅ **`ATC_A11EA = 'A11EA'` with no trailing `%`** — **withdrawn on 2026-09-02, it was never a
   decision.** Unanimous across 119 of 120 refs, `'A11EA%'` has never existed, and `A11EA` has no
   level-5 children, so the exact match selects the same rows a wildcard would. PORT-PLAN.md §8.11.

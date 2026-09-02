@@ -1162,6 +1162,15 @@ Not blocking; each has a working default so implementation can proceed.
    someone wants "on any antibiotic" as well, that is a new `ATC_J01` collector, not a redefinition of
    any of these.
 
+   **And it is not port work — checked, not assumed.** Against the shipping Delphi at `9f4a5ed4f`
+   (`EPR/QA/EPR.QA.SQL.pas:401-402`, `:417`) the port's two lists are character-identical: the same
+   three patterns `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the same nine codes in the same order. The
+   golden files pin both. The gap is a property of the Delphi's hand-written lists standing in for
+   the `KB` views — it is in every lineage that carries these collectors — and closing it would
+   change exported values. **So it comes off `PORT-REMAINING-TODO.md`'s live list** and is recorded
+   there under "Observed, handed on, not port work". The scope of this project is porting; clear
+   bugs get fixed, and a faithfully reproduced clinical definition is not one.
+
    `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
    `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,
    not resistance-driving.** Dropping `J01FF%` therefore does not merely follow the buildable refs;

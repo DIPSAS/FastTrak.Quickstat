@@ -56,8 +56,8 @@ excluded. §8.14.
 **5. ~~`J01FF%`~~ — answered by the product owner on 2026-09-02: lincosamides are *intermediate*.**
 The pattern stays out, the set is `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the caption stays
 `Antibiotika: Resistendrivende`. The port and the database now agree, so the two antibiotic
-collectors cannot both fire for one treatment. What the exercise did surface is a coverage gap
-worth a decision of its own — see item 11. §8.4.
+collectors cannot both fire for one treatment. The exercise also surfaced a coverage gap in the
+shipped definitions, which the port reproduces exactly — recorded below as not-port-work. §8.4.
 
 **6. ~~`ATC_A11EA`~~ — answered 2026-09-02, and it never needed a person.** Not a branch
 disagreement: 119 of 120 refs define it identically and `'A11EA%'` has never existed in the history.
@@ -69,26 +69,22 @@ they are `MetaFormItem.Expression` macros over two `NOT NULL` columns QuickStat 
 Root-caused; **parked by the product owner**. Listed only so it is not forgotten; the fix is three
 lines plus one policy decision.
 
-**11. 87 of the 333 antibiotic codes match no collector at all** — measured 2026-09-02 while
-answering (5), and the more consequential finding of the two. The three collectors between them
-cover **246 of 333**, and they now overlap on **zero** codes, which is (5) landing correctly. The
-87 are two halves of one defect, both caused by a hand-written list standing in for a `KB` view:
+---
 
-| Collector | Its list | The view it should agree with | Missed |
-|---|--:|--:|--:|
-| `QS_DRUG_ANTIBIOTIC_RESISTANCE` | 84 | `KB.AntibioticResistance3`, 119 | **35** |
-| `QS_DRUG_ANTIBIOTIC_RECOMMENDED` | 9 | `KB.AntibioticResistance1`, 61 | **52** |
+## Observed, handed on, **not port work**
 
-Neither set of missing codes falls through to the intermediate collector, because view 2's `EXCEPT`
-removes them for being in view 1 or 3. The resistance half is all first-generation cephalosporins,
-all fourth-generation, `J01DI`, and every non-fluoroquinolone quinolone; the recommended half is
-every `J01CE`/`J01CF`/`J01E` code added since the nine were enumerated in 2020.
+**The antibiotic collectors miss 87 of the 333 antibiotic codes** — found 2026-09-02 while answering
+(5). The three collectors cover 246, overlap on 0, and the 87 fall in two halves:
+`QS_DRUG_ANTIBIOTIC_RESISTANCE` reaches 84 of view 3's 119, `QS_DRUG_ANTIBIOTIC_RECOMMENDED` reaches
+9 of view 1's 61. Neither remainder falls through to the intermediate collector, because view 2's
+`EXCEPT` removes them for being in view 1 or 3.
 
-The fix is the same one twice — delegate to the view the way `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`
-delegates to view 2 — but it is a **behaviour change**, so it needs the same owner who answered (5),
-and it puts both collectors behind an R7 availability gate. They can be decided separately: the
-recommended half is the larger gap, the resistance half the one already written up. Pre-existing in
-the Delphi; not introduced by the port. §8.4.
+**This is not a port difference, and it was checked rather than assumed.** Both lists are
+character-identical to the shipping Delphi at `9f4a5ed4f` — `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the
+same nine codes in the same order — and the golden files pin them. The gap is a property of the
+Delphi's hand-written lists standing in for the `KB` views, present in every lineage, and closing it
+would change exported values. **So it is a product decision, not porting, and it is off the list
+above**; §8.4 keeps the measurement and the proposed fix for whoever wants it.
 
 ---
 

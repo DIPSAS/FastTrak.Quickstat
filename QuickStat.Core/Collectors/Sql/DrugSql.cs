@@ -143,14 +143,17 @@ public static class DrugSql
     /// here is in <c>KB.AntibioticResistance3</c>, and view 2 excludes all of view 3.
     /// </para>
     /// <para>
-    /// <b>What is still wrong, and it is not the boundary.</b> This hand-written list covers 84 of
-    /// the 119 codes in <c>KB.AntibioticResistance3</c>. The 35 it misses - all first-generation
-    /// cephalosporins, all fourth-generation, <c>J01DI</c>, and every non-fluoroquinolone quinolone
-    /// - match no antibiotic collector at all, because view 2's <c>EXCEPT</c> removes them for
-    /// being in view 3. The fix is to delegate to <c>KB.AntibioticResistance3</c> the way
-    /// <see cref="DrugSetAntibioticIntermediate"/> delegates to view 2; PORT-PLAN.md §8.4 carries
-    /// the proposal. <see cref="RecommendedAntibioticAtcCodes"/> has the same gap against view 1,
-    /// and a wider one - 52 codes - so the two are one decision, not two.
+    /// <b>The list is narrower than the view it names, and that is inherited, not introduced.</b>
+    /// It covers 84 of the 119 codes in <c>KB.AntibioticResistance3</c>; the 35 it misses - all
+    /// first-generation cephalosporins, all fourth-generation, <c>J01DI</c>, and every
+    /// non-fluoroquinolone quinolone - match no antibiotic collector at all, because view 2's
+    /// <c>EXCEPT</c> removes them for being in view 3. These three patterns are
+    /// character-identical to the shipping Delphi, so closing the gap is a product decision and
+    /// <b>not</b> port work: it would mean delegating to <c>KB.AntibioticResistance3</c> the way
+    /// <see cref="DrugSetAntibioticIntermediate"/> delegates to view 2, and it would change
+    /// exported values. PORT-PLAN.md §8.4 keeps the measurement and the proposal.
+    /// <see cref="RecommendedAntibioticAtcCodes"/> has the same gap against view 1, and a wider one
+    /// - 52 codes - so the two are one decision, not two.
     /// </para>
     /// <para>
     /// It stays a named array because a clinical definition can be revised again: one line plus a
@@ -206,14 +209,15 @@ public static class DrugSql
     /// (<c>EPR.QA.SQL.pas:441</c>).
     /// </para>
     /// <para>
-    /// <b>It has the same coverage gap as <see cref="ResistanceDrivingAtcPatterns"/>, and a wider
-    /// one.</b> All nine are inside <c>KB.AntibioticResistance1</c>, so the collector never emits a
-    /// code the knowledge base disagrees with - but the view holds 61, and these nine stopped
-    /// growing in 2020 while the view kept following <c>FEST.AtcIndex</c>. The 52 it misses match no
-    /// antibiotic collector at all, because view 2's <c>EXCEPT</c> removes them for being in view 1.
-    /// The fix is to delegate to view 1 the way <see cref="DrugSetAntibioticIntermediate"/>
-    /// delegates to view 2, at the cost of an R7 gate; PORT-PLAN.md §8.4 carries the proposal and
-    /// the whole-universe measurement (246 of 333 covered, 87 by nothing, 0 twice).
+    /// <b>It has the same inherited coverage gap as <see cref="ResistanceDrivingAtcPatterns"/>, and
+    /// a wider one.</b> All nine are inside <c>KB.AntibioticResistance1</c>, so the collector never
+    /// emits a code the knowledge base disagrees with - but the view holds 61, and these nine
+    /// stopped growing in 2020 while the view kept following <c>FEST.AtcIndex</c>. The 52 it misses
+    /// match no antibiotic collector at all, because view 2's <c>EXCEPT</c> removes them for being
+    /// in view 1. The nine codes and their order are character-identical to the shipping Delphi, so
+    /// this is a product decision rather than port work; PORT-PLAN.md §8.4 carries the proposal
+    /// (delegate to view 1, at the cost of an R7 gate) and the whole-universe measurement - 246 of
+    /// 333 covered, 87 by nothing, 0 twice.
     /// </para>
     /// <para>
     /// A named array for the same reason as <see cref="ResistanceDrivingAtcPatterns"/>: it is a
