@@ -53,12 +53,22 @@ public sealed record SessionContext
     /// <param name="value">The resolved value.</param>
     /// <returns><see langword="true"/> when the name is one this session can supply.</returns>
     /// <remarks>
-    /// The complete vocabulary is the six published properties of <c>TCRFSimpleContext</c>
+    /// <para>
+    /// The vocabulary is the six published properties of <c>TCRFSimpleContext</c>
     /// (<c>CRF.Context.Facade.pas:97-104</c>): <c>StudyId</c>, <c>StudyName</c>, <c>UserId</c>,
     /// <c>SessId</c>, <c>CenterId</c>, <c>CaseId</c>. <c>CaseId</c> is always zero in QuickStat -
     /// it never selects a patient - but populations may still reference it, so it must resolve
     /// rather than fail. <c>StartDate</c> and <c>StopDate</c> are <em>not</em> handled here; they
     /// come from the period prompt and are the only pair that asks the user anything.
+    /// </para>
+    /// <para>
+    /// The Delphi resolves a name with <c>IsPublishedProp</c> (<c>TBusiness.TryGetValue</c>,
+    /// <c>Emetra.Classes.Business.pas:79-84</c>), and published properties are inherited, so its
+    /// vocabulary is strictly those six plus <c>Count</c> from <c>TObjectContainer</c>
+    /// (<c>Emetra.ObjectContainer.pas:39-41</c>). <c>Count</c> is the container's child count and
+    /// means nothing to a population; it is not reproduced. Nothing in either catalogue swept for
+    /// PORT-PLAN.md R2 uses it.
+    /// </para>
     /// </remarks>
     public bool TryGetParameterValue(string name, out object? value)
     {
