@@ -410,13 +410,12 @@ public static class CollectorTitles
     /// <summary><c>StrTitleDrugAntibioticResistance</c>.</summary>
     /// <remarks>
     /// PORT-PLAN.md §8.4: the shipping lineage renamed this from
-    /// <c>Medisin: Resistensdrivende antibiotika</c>, and the port takes the new caption because it
-    /// makes the four antibiotic titles one <c>Antibiotika: …</c> family. That lineage also dropped
-    /// <c>J01FF%</c>, and the port followed until the product owner ruled otherwise on 2026-09-02 -
-    /// so the caption and
-    /// <see cref="QuickStat.Collectors.Sql.DrugSql.ResistanceDrivingAtcPatterns"/> are <b>two</b>
-    /// decisions, not one, and they land on different sides. The missing <c>s</c> in
-    /// "Resistendrivende" is upstream and is preserved.
+    /// <c>Medisin: Resistensdrivende antibiotika</c>, and the port takes the new caption together
+    /// with dropping <c>J01FF%</c> from
+    /// <see cref="QuickStat.Collectors.Sql.DrugSql.ResistanceDrivingAtcPatterns"/>. They remain two
+    /// separate decisions - the caption for the <c>Antibiotika: …</c> family, the ATC set on the
+    /// product owner's 2026-09-02 ruling that lincosamides are intermediate - but both land on the
+    /// same side. The missing <c>s</c> in "Resistendrivende" is upstream and is preserved.
     /// </remarks>
     public const string DrugAntibioticResistance = "Antibiotika: Resistendrivende";
 

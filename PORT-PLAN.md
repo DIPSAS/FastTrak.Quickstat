@@ -147,12 +147,12 @@ Last updated: 2026-09-01
 > ported; the fix is three lines of policy and one decision, and it is not made.
 >
 > **No release-blocking question is open any more.** The `J01FF%` clinical definition was
-> **answered by the product owner on 2026-09-02: lincosamides do drive resistance**, so the pattern
-> is back in the set and the port emits four ATC groups (§8.4). `ATC_A11EA` was **withdrawn on the
-> same day** — it turned out to be a fact, not a decision (§8.11). And the spelling of
-> `KB.AntibioticResistance2` was settled on 2026-08-27: the object exists, as a view, under exactly
-> that name. The availability gate stays regardless; its job is the many customer databases that
-> have no such object at all.
+> **answered by the product owner on 2026-09-02: lincosamides are *intermediate*, not
+> resistance-driving**, so the pattern stays out and the port emits three ATC groups (§8.4).
+> `ATC_A11EA` was **withdrawn on the same day** — it turned out to be a fact, not a decision
+> (§8.11). And the spelling of `KB.AntibioticResistance2` was settled on 2026-08-27: the object
+> exists, as a view, under exactly that name. The availability gate stays regardless; its job is the
+> many customer databases that have no such object at all.
 >
 > **Six defects were found while integrating wave 2, five of them in code or contracts that earlier
 > phases had signed off.** Every one is fixed; they are listed here because they are the pattern to
@@ -779,12 +779,11 @@ Notes carried from analysis — read `Docs/Port/03-collectors.md` §E before wri
   functional regression, not a safety measure.
 - **The `J01FF%` question is answered — read §8.4, not an earlier revision of this bullet.** Commit
   `9f4a5ed4f` drops `J01FF%` (lincosamides / clindamycin) from the *existing* resistance-driving set
-  and renames its caption, and the port followed that lineage for four months. **On 2026-09-02 the
-  product owner ruled that lincosamides do drive resistance**, so `J01FF%` is back:
-  `DrugSql.ResistanceDrivingAtcPatterns` is `J01CR%`, `J01D[CDH]%`, `J01FF%`, `J01MA%`. **The
-  caption did not move with it** — `Antibiotika: Resistendrivende` stays, because the rename is a
-  naming decision that keeps the four antibiotic captions one family, and the owner answered the
-  clinical question only. Nothing here is release-blocking any more.
+  and renames its caption. **On 2026-09-02 the product owner ruled that lincosamides are
+  intermediate**, so the removal stands: `DrugSql.ResistanceDrivingAtcPatterns` is `J01CR%`,
+  `J01D[CDH]%`, `J01MA%` and the caption is `Antibiotika: Resistendrivende`. The two remain separate
+  decisions — the caption for the `Antibiotika: …` family, the ATC set on the clinical ruling — but
+  they land on the same side. Nothing here is release-blocking any more.
 - `9f4a5ed4f` is a **rebase commit** — its apparent deletions (BDR block, NEWS2, encoding mangling)
   are artefacts of the rebase, not intent. Do not reproduce them.
 - `SET_ROAS_BASE` is 68 IDs (count-verified) and `LABCLASSES_INTERLEUKINS` is exactly `[1094…1104]`,
@@ -1057,31 +1056,26 @@ Not blocking; each has a working default so implementation can proceed.
    than an omission, and so the earlier draft of this row — which claimed the port matched what
    every application already did — does not stand as a fact.
 3. **`Autommunitet` typo** — preserved for now.
-4. **`J01FF%` in the resistance-driving antibiotic set — ANSWERED 2026-09-02. Lincosamides drive
-   resistance; the pattern is in.**
+4. **`J01FF%` in the resistance-driving antibiotic set — ANSWERED 2026-09-02. Lincosamides are
+   *intermediate*; the pattern stays out.**
 
-   > **The decision.** The product owner ruled that `J01FF` (clindamycin, lincomycin) counts as
-   > resistance-driving. `DrugSql.ResistanceDrivingAtcPatterns` is now `J01CR%`, `J01D[CDH]%`,
-   > **`J01FF%`**, `J01MA%` — four groups, the pattern restored to third position so the generated
-   > statement is byte-identical to a `develop_old` or mainline trace again. The **caption did not
-   > change**: `Antibiotika: Resistendrivende` stays, because that rename is a separate, naming
-   > decision and the four antibiotic captions read as one family. Nothing in this item is
-   > release-blocking any more.
+   > **The decision.** The product owner ruled that `J01FF` (clindamycin, lincomycin) belongs to the
+   > intermediate tier, not the resistance-driving one, so `DrugSql.ResistanceDrivingAtcPatterns` is
+   > `J01CR%`, `J01D[CDH]%`, `J01MA%` — three groups. The caption is `Antibiotika: Resistendrivende`.
+   > Nothing in this item is release-blocking any more.
    >
-   > **The evidence below pointed the other way, and is kept rather than deleted.** All three lines
-   > of it — nine buildable refs, the `KB` tier views, the 2018-to-2020 chronology — described what
-   > *the code* had come to say. None of them was clinical sign-off, which is exactly why the item
-   > stayed open instead of being closed on the archaeology. Read it as the record of why the port
-   > shipped the other way for four months, not as a counter-argument.
+   > **What decided it was the tier assignment, not the archaeology.** The owner had not previously
+   > been told that the database defines three tiers; on seeing that `KB.AntibioticResistance2`
+   > holds `J01FF`, they judged that placement correct. So the three lines of evidence below are
+   > corroboration of a clinical judgement rather than a substitute for one — which is the right
+   > relationship, and the reason the item stayed open until a person answered it. Note the caveat
+   > two blocks down about how much the *naming* of those tiers can bear: the membership is
+   > measured, the labels rest on one comment.
    >
-   > ⚠ **One consequence to carry forward: the answer disagrees with the database.** `J01FF` is in
-   > neither `KB.AntibioticResistance1` nor `3`, so `KB.AntibioticResistance2` classifies it as
-   > *intermediate* — and `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` joins that view directly. A patient on
-   > clindamycin now produces a value from **both** that collector and
-   > `QS_DRUG_ANTIBIOTIC_RESISTANCE`, where the three tiers were evidently meant to partition.
-   > Reconciling them means editing `KB.AntibioticResistance2` and `3` in `C:\work\FastTrak.Database`
-   > — a database change with a different owner, and out of scope for this port. Recorded here so
-   > whoever meets the double-count knows it was foreseen.
+   > **The port and the database now agree.** Every code this collector matches is in
+   > `KB.AntibioticResistance3`, and view 2 excludes all of view 3, so
+   > `QS_DRUG_ANTIBIOTIC_RESISTANCE` and `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` cannot both fire for the
+   > same treatment. No double-count, and no database change is needed.
 
    Commit `9f4a5ed4f` bundles the two new antibiotic collectors together with
    *removing* `J01FF%` (lincosamides / clindamycin) from the existing resistance-driving set, and
@@ -1128,26 +1122,29 @@ Not blocking; each has a working default so implementation can proceed.
 
    | Set | Codes | Share |
    |---|--:|--:|
-   | `ResistanceDrivingAtcPatterns` as it ships | 87 | 26 % |
+   | `ResistanceDrivingAtcPatterns` as it ships | 84 | 25 % |
    | `KB.AntibioticResistance3` (HIGH RISK) | 119 | 36 % |
    | tiers 2 **and** 3 together | 272 | **82 %** |
    | everything | 333 | 100 % |
 
    That settles the boundary question on its own: a variable true for 82 % of antibiotic codes has
    stopped discriminating, and the honest name for it would be "on any antibiotic". **The defect is
-   the 26 % → 36 % gap, not the boundary.** 35 tier-3 codes match no collector at all — the hand
+   the 25 % → 36 % gap, not the boundary.** 35 tier-3 codes match no collector at all — the hand
    list's `J01D[CDH]%` and `J01MA%` miss them, and view 2's `EXCEPT` removes them because they *are*
    in view 3. They are all first-generation cephalosporins (`J01DB`, cefalexin, cefazolin), all
    fourth-generation (`J01DE`, cefepime), `J01DI` (ceftaroline, faropenem, cefiderocol) and every
    non-fluoroquinolone quinolone (`J01MB`); 29 of the 35 are substance-level codes. None appears in
    `OngoingTreatment` on the one test database, which is weak evidence either way.
 
-   **Recommended, not done — two changes that only work together.** (1) Add `J01FF%` to
-   `KB.AntibioticResistance3`, which also removes it from view 2 through the `EXCEPT` and so retires
-   the double-count above. (2) Repoint the collector at view 3, exactly as
-   `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` points at view 2. Doing (2) alone would silently drop `J01FF`
-   again. (1) is a change to `C:\work\FastTrak.Database` with a different owner. If someone wants
-   "on any antibiotic" as well, that is a new `ATC_J01` collector, not a redefinition of this one.
+   **Recommended, not done — and now a single port-side change.** Repoint the collector at
+   `KB.AntibioticResistance3`, exactly as `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` points at view 2. That
+   closes the 35-code gap, keeps `J01FF` out by construction because it is not in view 3, and leaves
+   the resistance collector unable to drift from the knowledge base again. **No database change is
+   needed** — an earlier revision of this paragraph proposed adding `J01FF%` to view 3 first, which
+   the 2026-09-02 ruling makes unnecessary. The cost is R7: view 3 would need the same
+   `CollectorAvailability` gate view 2 has, so a second collector would vanish on databases without
+   the `KB` schema. If someone wants "on any antibiotic" as well, that is a new `ATC_J01` collector,
+   not a redefinition of this one.
 
    `J01FF` is in neither the preferable nor the high-risk view, so by construction it falls into
    `AntibioticResistance2` — **the database classifies clindamycin and lincomycin as intermediate,

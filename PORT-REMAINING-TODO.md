@@ -53,12 +53,11 @@ excluded. §8.14.
 
 ## Questions for a person, not a machine
 
-**5. ~~`J01FF%`~~ — answered by the product owner on 2026-09-02: lincosamides *do* drive
-resistance.** `J01FF%` is back in the set, third, so the statement matches a mainline trace again.
-The caption stays `Antibiotika: Resistendrivende`. One consequence to know about rather than fix:
-the answer disagrees with `KB.AntibioticResistance2`, which counts `J01FF` as intermediate, so a
-patient on clindamycin now shows up in both antibiotic collectors. Reconciling the views is a
-database change with a different owner. §8.4.
+**5. ~~`J01FF%`~~ — answered by the product owner on 2026-09-02: lincosamides are *intermediate*.**
+The pattern stays out, the set is `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the caption stays
+`Antibiotika: Resistendrivende`. The port and the database now agree, so the two antibiotic
+collectors cannot both fire for one treatment. What the exercise did surface is a coverage gap
+worth a decision of its own — see item 11. §8.4.
 
 **6. ~~`ATC_A11EA`~~ — answered 2026-09-02, and it never needed a person.** Not a branch
 disagreement: 119 of 120 refs define it identically and `'A11EA%'` has never existed in the history.
@@ -69,6 +68,15 @@ correct. §8.11.
 they are `MetaFormItem.Expression` macros over two `NOT NULL` columns QuickStat already holds.
 Root-caused; **parked by the product owner**. Listed only so it is not forgotten; the fix is three
 lines plus one policy decision.
+
+**11. The resistance-driving collector misses 35 of the 119 high-risk codes** — measured 2026-09-02
+while answering (5), and the more consequential finding of the two. The hand-written ATC list covers
+84 codes; the 35 it misses match **no** antibiotic collector at all, because view 2's `EXCEPT`
+removes them for being in view 3. All first-generation cephalosporins, all fourth-generation,
+`J01DI`, and every non-fluoroquinolone quinolone. The fix is one port-side change — delegate to
+`KB.AntibioticResistance3` the way the intermediate collector delegates to view 2 — but it is a
+**behaviour change**, so it needs the same owner who answered (5), plus an R7 availability gate on a
+second collector. Pre-existing in the Delphi; not introduced by the port. §8.4.
 
 ---
 

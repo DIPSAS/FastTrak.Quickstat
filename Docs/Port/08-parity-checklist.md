@@ -437,8 +437,12 @@ Nothing to look at. Each needs somebody to choose, and four of them are §I of t
 still waiting for an answer.
 
 - ✅ **`J01FF%` in the resistance-driving antibiotic set** — **answered on 2026-09-02: lincosamides
-  drive resistance.** The pattern is back, third of four, and the collector emits
-  `J01CR%`, `J01D[CDH]%`, `J01FF%`, `J01MA%`. The caption is unchanged. PORT-PLAN.md §8.4.
+  are *intermediate*.** The pattern stays out and the collector emits `J01CR%`, `J01D[CDH]%`,
+  `J01MA%`, which agrees with `KB.AntibioticResistance2`. The caption is unchanged. PORT-PLAN.md
+  §8.4.
+- ❓ **The resistance-driving collector misses 35 of the 119 high-risk codes** (§8.4, measured while
+  answering the above). Delegating to `KB.AntibioticResistance3` fixes it, but that is a behaviour
+  change and needs the same owner.
 - ✅ **`ATC_A11EA = 'A11EA'` with no trailing `%`** — **withdrawn on 2026-09-02, it was never a
   decision.** Unanimous across 119 of 120 refs, `'A11EA%'` has never existed, and `A11EA` has no
   level-5 children, so the exact match selects the same rows a wildcard would. PORT-PLAN.md §8.11.

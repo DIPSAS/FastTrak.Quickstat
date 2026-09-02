@@ -1163,11 +1163,10 @@ SELECT PersonId, 'NOATC', COUNT(*) AS DpValue, MAX(StartAt) AS LastDate, MAX(Tre
 > Position 1 is still the literal `'NOATC'`, so `RunBatch` works. In C# give it an alias
 > (`AS VarName`) — that is safe and does not change behaviour.
 
-> ⚠ The next block is the **`develop_old`** wording, kept for comparison. Its **ATC clause is now
-> what the port emits** — the product owner ruled on 2026-09-02 that lincosamides drive resistance,
-> so `J01FF%` is back and `DrugSql.DrugSetAntibioticResistance()` has four groups. The **caption
-> differs**: the port keeps `Antibiotika: Resistendrivende`, not the `develop_old` wording. See
-> §E.2.1 and `PORT-PLAN.md` §8.4.
+> ⚠ The next block is the **`develop_old`** wording, kept for comparison. It is *not* what the port
+> emits: the product owner ruled on 2026-09-02 that lincosamides are intermediate, so `J01FF%` stays
+> out and `DrugSql.DrugSetAntibioticResistance()` has three groups, not four. The caption is
+> `Antibiotika: Resistendrivende`. See §E.2.1 and `PORT-PLAN.md` §8.4.
 
 ```sql
 -- SpDrugsetAntibiotic (develop_old, pre-recovery), prefix 'DRUG_'
@@ -1899,13 +1898,12 @@ and renames the function and the caption:
 | caption text | `Medisin: Resistensdrivende antibiotika` | `Antibiotika: Resistendrivende` |
 | ATC groups matched | `J01CR%`, `J01D[CDH]%`, **`J01FF%`**, `J01MA%` | `J01CR%`, `J01D[CDH]%`, `J01MA%` |
 
-**Behavioural change to document — and then reversed.** The tarmscreening commit **removed** `J01FF`
-(lincosamides — clindamycin, lincomycin) from the resistance-driving set, which would have meant
-patients on clindamycin alone producing no `DRUG_RESISTANCE_DRIVING` value and a cohort's
-resistance-driving count falling. **The product owner ruled otherwise on 2026-09-02**, so the port
-matches four groups: `J01CR` (penicillin + beta-lactamase inhibitor), `J01D[CDH]` (2nd/3rd-gen
-cephalosporins and carbapenems), **`J01FF`** (lincosamides) and `J01MA` (fluoroquinolones). Only the
-caption was taken from tarmscreening.
+**Behavioural change to document:** `J01FF` (lincosamides — clindamycin, lincomycin) is **removed**
+from the resistance-driving set, and the product owner confirmed that removal on 2026-09-02 —
+lincosamides belong to the intermediate tier. Patients on clindamycin alone produce no
+`DRUG_RESISTANCE_DRIVING` value; a cohort's resistance-driving count falls relative to a mainline
+build. The remaining three groups are `J01CR` (penicillin + beta-lactamase inhibitor), `J01D[CDH]`
+(2nd/3rd-gen cephalosporins and carbapenems) and `J01MA` (fluoroquinolones).
 
 The `VarName` emitted is unchanged (`RESISTANCE_DRIVING`), so the **column name stays
 `DRUG_RESISTANCE_DRIVING`** and old exports remain comparable in shape but not in content. The
@@ -1913,21 +1911,22 @@ The `VarName` emitted is unchanged (`RESISTANCE_DRIVING`), so the **column name 
 (`TCaptionRecord.Create('DRUG.RESISTANCE_DRIVING', 'Resist', 'Resistance-driving antibiotics')`)
 also keeps working.
 
-**Recommendation — settled; see `PORT-PLAN.md` §8.4.** This went round twice. The paragraph
-originally said to keep the **existing** `J01FF%` clause and caption. It was then re-checked against
-every ref capable of building the application — `J01FF` is absent from **all nine**, surviving only
-on mainline, which cannot build QuickStat — so §8.4 decided *"drop `J01FF%`, take the new caption"*
-and Phase 2 implemented that. **On 2026-09-02 the product owner answered the clinical question
-directly: lincosamides drive resistance.** The final split is the one thing neither earlier revision
-proposed — **the mainline clause with the tarmscreening caption**: `J01CR%`, `J01D[CDH]%`,
-`J01FF%`, `J01MA%` under `Antibiotika: Resistendrivende`, keeping the four antibiotic captions a
-consistent `Antibiotika: …` family.
+**Recommendation — settled; see `PORT-PLAN.md` §8.4.** This paragraph originally said to keep the
+**existing** `J01FF%` clause and caption. That was written before the question was re-checked
+against every ref capable of building the application: `J01FF` is absent from **all nine** of them
+and survives only on mainline, which cannot build QuickStat at all. §8.4 therefore decided
+*"drop `J01FF%`, take the new caption"*, and applied the whole tarmscreening version together —
+function name, caption and clause — so the four antibiotic captions read as a consistent
+`Antibiotika: …` family. **On 2026-09-02 the product owner confirmed the clinical half of that
+independently**, on seeing that the database places `J01FF` in the intermediate tier. Code
+archaeology and clinical judgement agree, which is the comfortable outcome and not the one that was
+guaranteed.
 
 That confirmation was the release-blocking part, and it has been given, so §8.4 is closed. Revising
 it again is one line in `DrugSql.ResistanceDrivingAtcPatterns` plus a regenerated golden file, which
-is why the list is a named array. One consequence is recorded rather than fixed: the answer
-disagrees with `KB.AntibioticResistance2`, which classifies `J01FF` as intermediate, so clindamycin
-now scores in both antibiotic collectors.
+is why the list is a named array. What the exercise *did* leave open is coverage rather than
+membership: the hand-written list reaches 84 of the 119 codes in `KB.AntibioticResistance3`, and the
+35 it misses match no antibiotic collector at all. §8.4 carries the proposal.
 
 #### E.2.2 `QS_DRUG_J01XX05` details
 
@@ -2199,7 +2198,7 @@ below are everything else, minus the four confirmed features.
 > | F.2 `FVarOrder` insertion order | keep alphabetical | **Port insertion (on-form) order.** Alphabetical would reorder every existing export. Still build it behind `ColumnOrder.FirstSeen \| Alphabetical`, now defaulting to `FirstSeen` |
 > | F.3 `RANK` → `ROW_NUMBER` | take it | Unchanged — take it, plus the deterministic tie-breaker. Also what ships |
 > | F.4 `SET_BDR_COMORBID` | port local `(3410, …)` | **Moot.** `QST_BDR_COMORBID` is one of the 39 names QuickStat never registers (§A.11) and is dropped from the port entirely (`PORT-PLAN.md` §7.1) |
-> | F.5 antibiotic rename + `J01FF%` | keep local title and `J01FF%` | **Split, and the clinical owner has now ruled (2026-09-02).** Take `'Antibiotika: Resistendrivende'`; **keep `J01FF%`** — lincosamides drive resistance (`PORT-PLAN.md` §8.4) |
+> | F.5 antibiotic rename + `J01FF%` | keep local title and `J01FF%` | **Flip, and the clinical owner has now confirmed it (2026-09-02).** Take `'Antibiotika: Resistendrivende'` and drop `J01FF%` — lincosamides are intermediate (`PORT-PLAN.md` §8.4) |
 > | F.6 `GFR` vs `eGFR` | keep local `eGFR` | **Flip to `GFR`** (both titles) for parity. The prose below has the direction backwards: `eGFR` is the *mainline* wording and never shipped in QuickStat. `eGFR` is more correct clinically — raise it as an improvement, don't apply it silently |
 > | F.7 mainline-only MNA→MST | out of scope | Unchanged — mainline-only, never shipped |
 >
@@ -2385,11 +2384,11 @@ of the recovery:
   `StrTitleDrugAntibioticResistance` = `'Antibiotika: Resistendrivende'` (**user-visible**)
 * `J01FF%` dropped from the resistance-driving ATC set (**clinically meaningful**)
 
-**Verdict — settled 2026-09-02, and the rename and the clause turned out to be two decisions, not
-one.** The clinical owner ruled that lincosamides drive resistance, so the ATC set **keeps
-`J01FF%`**; the caption independently takes the tarmscreening wording,
-`Antibiotika: Resistendrivende`, so the four antibiotic titles read as one family. Note that caption
-is misspelled upstream (`Resistendrivende`, missing an `s`) and is reproduced as-is.
+**Verdict — settled 2026-09-02.** The rename and the clause are two decisions that happen to land
+the same way: the caption takes the tarmscreening wording, `Antibiotika: Resistendrivende`, so the
+four antibiotic titles read as one family, and the ATC set **drops `J01FF%`** because the clinical
+owner placed lincosamides in the intermediate tier. Note that caption is misspelled upstream
+(`Resistendrivende`, missing an `s`) and is reproduced as-is.
 
 ### F.6 `StrTitleGbdAceLowGFR` / `StrTitleGbdMetforminLowGFR` — `GFR` vs `eGFR`
 
