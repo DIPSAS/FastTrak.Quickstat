@@ -224,10 +224,12 @@ public class CollectionsTabViewTests
         workspace.SetPopulation(ShellWorkspaceTests.NewPopulation());
 
         // The same shape as the check list in CollectionsTabView.xaml, minus the theme: one row per
-        // element, and a viewport far shorter than the content.
+        // element, and a viewport far shorter than the content.  VisibleDataElements, as the markup
+        // binds - with an empty filter it holds the same instances in the same order, so what these
+        // cases measure is unchanged, and a filter would now be visible to them if one were set.
         ListBox list = new()
         {
-            ItemsSource = viewModel.DataElements,
+            ItemsSource = viewModel.VisibleDataElements,
             DisplayMemberPath = nameof(DataElementViewModel.Title),
             Width = 260,
             Height = 160,

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -51,6 +52,38 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
         "Select data elements from the list below, and click \"Collect data\" at the bottom to start "
         + "the process.  Depending on what you select, this will take some time!";
 
+    /// <summary>Label above the filter box.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>ADDITION, on the product owner's request of 2026-09-02: the check list gets the same
+    /// filter the population list has.</b> The Delphi has nothing of the kind here -
+    /// <c>cbDataCollector</c> is a bare <c>TCheckListBox</c> - and with 530 data elements on the
+    /// largest study in the field, finding one means scrolling. PORT-PLAN.md §7.3.
+    /// </para>
+    /// <para>
+    /// The wording is <see cref="PopulationPickerViewModel.FilterHeader"/>'s, verbatim, and so is
+    /// <see cref="FilterPlaceholder"/>: the two boxes sit two tabs apart in one window, and a user
+    /// who has learnt one should recognise the other. They are not shared constants, because that
+    /// one is an English caption <c>TfrmQuickStat.FormCreate</c> writes over a Norwegian
+    /// <c>.dfm</c> at run time (<c>MainQuickStat.pas:289-292</c>) and this one is ours; if the
+    /// Delphi's ever changes, only its own should follow.
+    /// </para>
+    /// </remarks>
+    public const string FilterHeader = "Filter / search text";
+
+    /// <summary>Placeholder inside the filter box. See <see cref="FilterHeader"/>.</summary>
+    public const string FilterPlaceholder = "Type filter text here";
+
+    /// <summary>Shown in the list's place when the filter excludes every data element.</summary>
+    /// <remarks>
+    /// One state, not the population picker's three. The other two it distinguishes - no database,
+    /// and a database with an empty catalogue - are not reachable here in a way worth a sentence: a
+    /// study with no data elements at all does not exist, and before a connection the whole tab is
+    /// hidden. What <em>is</em> reachable, and looks exactly like a defect without a message, is
+    /// typing a filter that matches nothing.
+    /// </remarks>
+    public const string NoMatchesText = "No data elements match the filter.";
+
     /// <summary>Caption of the tall button at the bottom. Delphi <c>actCollectData</c>.</summary>
     public const string CollectDataCaption = "Collect data";
 
@@ -82,6 +115,30 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     [ObservableProperty]
     private DataElementViewModel? _currentlyCollecting;
 
+    /// <summary>
+    /// What the user has typed in the filter box, applied on every keystroke.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>It hides rows and nothing else.</b> <see cref="DataElements"/> is untouched, so a ticked
+    /// element the filter is hiding is still collected, still in check-list order, and still in the
+    /// same export column - see <see cref="VisibleDataElements"/>. That is the only defensible
+    /// behaviour for a filter over a <em>check</em> list: the alternative is a keystroke silently
+    /// dropping a column from an export, which is the class of failure PORT-PLAN.md §6 exists to
+    /// prevent.
+    /// </para>
+    /// <para>
+    /// The fold rule is <see cref="PopulationPickerViewModel"/>'s, deliberately: lowercase both
+    /// sides in the current culture, then an <b>ordinal</b> substring test, and <b>no trim</b>. Not
+    /// the Packages tab's, which trims and folds upward, because that one is a port of
+    /// <c>TSpotLightContext</c> and has a Delphi original to answer to. This one has no original at
+    /// all, so it copies the box the owner pointed at.
+    /// </para>
+    /// </remarks>
+    [ObservableProperty]
+    private string _filterText = "";
+
+    private string _foldedFilter = "";
     private bool _suspendCheckedNotifications;
     private bool _disposed;
 
@@ -156,6 +213,49 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
     /// <c>AfterLogin</c>. <b>This order is the column order of every export</b> (PORT-PLAN.md §6).
     /// </remarks>
     public ObservableCollection<DataElementViewModel> DataElements { get; } = [];
+
+    /// <summary>The subset of <see cref="DataElements"/> the check list actually shows.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A projection, and only ever written by <see cref="ApplyFilter"/>.</b> The same
+    /// <see cref="DataElementViewModel"/> instances in the same order, minus the ones the filter
+    /// excludes - so a tick is a tick whichever collection you reach it through, and there is no
+    /// second copy of any state.
+    /// </para>
+    /// <para>
+    /// <b>Nothing that decides what is collected or exported reads this.</b>
+    /// <see cref="CollectDataAsync"/> and <see cref="CanCollectData"/> both enumerate
+    /// <see cref="DataElements"/>, which is the whole point of filtering a projection rather than
+    /// the list: the run walks the check list from index 0 in
+    /// <see cref="DataElementViewModel.TitleOrder"/> order whatever the box says, and
+    /// <c>Collect data</c> stays enabled when the one ticked element happens to be hidden.
+    /// <c>TheFilterHidesRowsWithoutChangingWhatIsCollected</c> pins it.
+    /// </para>
+    /// <para>
+    /// <b>Why not an <c>ICollectionView</c>, which is how the other two filters in this application
+    /// are built</b> (<see cref="PopulationPickerViewModel.PopulationsView"/>,
+    /// <c>PackagesTabViewModel.PackagesView</c>)? Because a <c>CollectionView</c> captures
+    /// <c>Dispatcher.CurrentDispatcher</c> when it is created and throws
+    /// <c>NotSupportedException</c> - <i>"does not support changes to its SourceCollection from a
+    /// thread different from the Dispatcher thread"</i> - on any change raised elsewhere. This list
+    /// is the one that is filled from off the user-interface thread: <c>ICollectorRegistry.Rebuilt</c>
+    /// is raised from <em>inside</em> <c>BuildAsync</c>, which is what PORT-PLAN.md §8.10 (g) bought,
+    /// and <see cref="OnRegistryRebuilt"/> marshals with <see cref="IUiDispatcher"/>. That is correct
+    /// in the running application and it would make this view-model the only one in the shell that a
+    /// test cannot drive without a real <c>Dispatcher</c> - which is precisely the property
+    /// <c>InlineUiDispatcher</c> exists to preserve. A plain collection has no affinity at all, so it
+    /// costs an <c>ObservableCollection</c> and buys back both.
+    /// </para>
+    /// </remarks>
+    public ObservableCollection<DataElementViewModel> VisibleDataElements { get; } = [];
+
+    /// <summary>Whether the filter is hiding every data element there is.</summary>
+    /// <remarks>
+    /// Deliberately not "the list is empty": before a connection there is nothing to show and
+    /// nothing to explain, and a message there would be noise on a tab that is not reachable yet.
+    /// See <see cref="NoMatchesText"/>.
+    /// </remarks>
+    public bool ShowNoMatches => DataElements.Count > 0 && VisibleDataElements.Count == 0;
 
     /// <summary>
     /// The radio group, bound through <see cref="QuickStat.Converters.EnumToBooleanConverter"/>.
@@ -468,6 +568,10 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
                 OnElementCheckedChanged));
         }
 
+        // The filter text survives a project switch - the population box does the same - so a new
+        // study arrives under whatever is already in the box.
+        ApplyFilter();
+
         CollectDataCommand.NotifyCanExecuteChanged();
     }
 
@@ -476,6 +580,8 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
         CurrentlyCollecting = null;
 
         DataElements.Clear();
+
+        ApplyFilter();
 
         // Nothing is ticked any more, so neither Collect data nor the Dataset tab's package command
         // may stay enabled.  Delphi AfterLogin calls ValidateCollectorSelection for the same reason.
@@ -504,6 +610,57 @@ public sealed partial class CollectionsTabViewModel : ObservableObject, IDisposa
             DataElements.Where(static element => element.IsChecked).Select(static element => element.Name));
 
         CollectDataCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="VisibleDataElements"/> from <see cref="DataElements"/> and the filter.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rule is <see cref="PopulationPickerViewModel"/>'s, for the reason given on
+    /// <see cref="FilterText"/>: lowercase both sides in the current culture, then
+    /// <see cref="StringComparison.Ordinal"/> rather than <c>CurrentCultureIgnoreCase</c>, which is a
+    /// collation and folds more than a substring search should. The filter is not trimmed.
+    /// </para>
+    /// <para>
+    /// <b>Only <see cref="DataElementViewModel.Title"/> is matched</b>, where the population rows
+    /// match four fields. It is the one thing a row shows, so it is the one thing a user can be
+    /// filtering by. <see cref="DataElementViewModel.Name"/> is the persistence key - <c>DRUG_…</c>,
+    /// <c>QA_…</c> - and matching it would leave rows standing for a reason nothing on screen
+    /// explains.
+    /// </para>
+    /// <para>
+    /// The <c>^ </c> sort prefix is part of the title and therefore searchable, which is a small
+    /// bonus: typing <c>^</c> narrows the list to the eleven demographic elements.
+    /// </para>
+    /// <para>
+    /// Rebuilt whole rather than patched. It runs on a keystroke over at most a few hundred rows,
+    /// the alternative is index arithmetic against a sorted list, and getting that wrong would
+    /// reorder the check list - which is the export column order (PORT-PLAN.md §6).
+    /// </para>
+    /// </remarks>
+    private void ApplyFilter()
+    {
+        VisibleDataElements.Clear();
+
+        foreach (DataElementViewModel element in DataElements)
+        {
+            if (_foldedFilter.Length == 0 ||
+                element.Title.ToLower(CultureInfo.CurrentCulture).Contains(_foldedFilter, StringComparison.Ordinal))
+            {
+                VisibleDataElements.Add(element);
+            }
+        }
+
+        OnPropertyChanged(nameof(ShowNoMatches));
+    }
+
+    partial void OnFilterTextChanged(string value)
+    {
+        // Not trimmed: the population list's rule, PORT-PLAN.md §8.8 (i).
+        _foldedFilter = value.ToLower(CultureInfo.CurrentCulture);
+
+        ApplyFilter();
     }
 
     private void OnIdentificationModeChanged(object? sender, PersonIdentification mode)

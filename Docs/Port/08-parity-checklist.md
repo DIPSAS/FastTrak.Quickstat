@@ -176,6 +176,16 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 - [ ] **3.5** Progress advances per patient, not per collector — `100 × personIndex / count`. §G.6.
 - [ ] **3.6** A second *Collect data* on the same population works (this threw once — wave-2
   defect 2).
+- [ ] **3.7** Type in the filter box above the list: the list narrows on every keystroke,
+  case-insensitively, on the title. `^` alone leaves the eleven demographic elements. A filter that
+  matches nothing shows `No data elements match the filter.` inside the list's border. §B.2 item 2a.
+- ⚠ **The filter box is an addition, asked for on 2026-09-02**, and the Delphi's `cbDataCollector`
+  has nothing of the kind. It is the population tab's box — same label, same placeholder, same
+  untrimmed lowercase-and-`Contains` rule — because the two sit two tabs apart in one window. **It
+  hides rows and nothing else:** tick something, filter it out of sight, and *Collect data* stays
+  enabled and still collects it, in the same column. Worth doing once by hand, because it is the
+  one thing the addition could plausibly have broken —
+  `TheFilterHidesRowsWithoutChangingWhatIsCollected` pins it. PORT-PLAN.md §7.3.
 - ⚠ **A Cancel button appears on the busy overlay.** The Delphi has no cancel on the main form at
   all. Addition, PORT-PLAN.md §8.10 (c).
 - ⚠ **The shell is greyed under the scrim while busy.** `Screen.Cursor := crSqlWait` did not do

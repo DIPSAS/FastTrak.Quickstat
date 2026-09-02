@@ -28,6 +28,45 @@
                    Text="{x:Static vm:CollectionsTabViewModel.InfoParagraph}"
                    TextWrapping="Wrap" />
 
+        <!--
+            ADDITION, product owner 2026-09-02: the same filter the population tab has, immediately
+            above the list.  PORT-PLAN.md §7.3, 05-ui-spec.md §B.2 item 2a.  Label and placeholder
+            are PopulationPickerView's, down to the cue-banner behaviour - Windows hides an
+            EM_SETCUEBANNER hint while the control has focus, so the placeholder does the same.
+
+            It drives CollectionsTabViewModel.VisibleDataElements, which hides rows and nothing else:
+            a ticked element the filter is hiding is still collected, in the same export column.
+        -->
+        <StackPanel DockPanel.Dock="Top" Margin="3,0,3,3">
+            <TextBlock Margin="0,0,0,2" Text="{x:Static vm:CollectionsTabViewModel.FilterHeader}" />
+
+            <Grid>
+                <TextBox x:Name="FilterBox"
+                         Style="{StaticResource QsFlatTextBox}"
+                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Margin="7,4"
+                           Foreground="{StaticResource QsMutedTextBrush}"
+                           IsHitTestVisible="False"
+                           Text="{x:Static vm:CollectionsTabViewModel.FilterPlaceholder}">
+                    <TextBlock.Style>
+                        <Style TargetType="{x:Type TextBlock}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Text, ElementName=FilterBox}" Value="" />
+                                        <Condition Binding="{Binding IsKeyboardFocusWithin, ElementName=FilterBox}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </StackPanel>
+
         <StackPanel DockPanel.Dock="Bottom" Margin="3,0,3,3">
             <q:SectionHeader Margin="0,3" Header="Export options" />
 
@@ -65,59 +104,81 @@
             </StackPanel>
         </Button>
 
-        <ListBox x:Name="ElementsList"
-                 Margin="3,0,3,3"
-                 BorderBrush="{StaticResource QsBorderBrush}"
-                 BorderThickness="1"
-                 HorizontalContentAlignment="Stretch"
-                 ItemsSource="{Binding DataElements}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-            <ListBox.ItemContainerStyle>
-                <!--
-                    QsCheckListItem's own Padding is moved onto the row's Border below, so the
-                    collecting highlight spans the whole row rather than stopping 4 px short of each
-                    edge.  The theme is not touched: this is BasedOn it and overrides one setter.
-                -->
-                <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsCheckListItem}">
-                    <Setter Property="Padding" Value="0" />
+        <Grid Margin="3,0,3,3">
+            <!--
+                VisibleDataElements, not DataElements: the filtered projection.  Same instances, same
+                order, minus what the box excludes - and everything that asks the view-model what to
+                collect still reads DataElements, so a hidden tick is still a column.
+            -->
+            <ListBox x:Name="ElementsList"
+                     BorderBrush="{StaticResource QsBorderBrush}"
+                     BorderThickness="1"
+                     HorizontalContentAlignment="Stretch"
+                     ItemsSource="{Binding VisibleDataElements}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemContainerStyle>
+                    <!--
+                        QsCheckListItem's own Padding is moved onto the row's Border below, so the
+                        collecting highlight spans the whole row rather than stopping 4 px short of
+                        each edge.  The theme is not touched: this is BasedOn it and overrides one
+                        setter.
+                    -->
+                    <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource QsCheckListItem}">
+                        <Setter Property="Padding" Value="0" />
 
-                    <!--
-                        Without this the row announces "QuickStat.ViewModels.DataElementViewModel",
-                        213 times over - measured on the running build.  The tick inside the row does
-                        carry its title, because a CheckBox is a ContentControl and the title is its
-                        Content; the row that wraps it is what a screen reader lands on first, and it
-                        had no name of its own.  DataElementViewModel.ToString is the backstop for
-                        the paths that reach an item without a container to read this from.
-                    -->
-                    <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
-                </Style>
-            </ListBox.ItemContainerStyle>
-            <ListBox.ItemTemplate>
-                <DataTemplate DataType="{x:Type vm:DataElementViewModel}">
-                    <!--
-                        §G.4.  The Delphi sets ItemIndex := n for the element it is collecting, so
-                        the run reads as a highlight travelling down the list; the port marks
-                        IsCollecting instead and leaves SelectedItem where the user left it.  The
-                        colours are the theme's selection pair, which is what the highlight looks
-                        like in Docs/Screenshots/QuickStat bilde 2.png.
-                    -->
-                    <Border x:Name="CollectingHighlight" Background="Transparent" Padding="4,2">
-                        <CheckBox x:Name="ElementBox"
-                                  Content="{Binding Title}"
-                                  IsChecked="{Binding IsChecked, Mode=TwoWay}" />
-                    </Border>
-                    <DataTemplate.Triggers>
-                        <DataTrigger Binding="{Binding IsCollecting}" Value="True">
-                            <Setter TargetName="CollectingHighlight"
-                                    Property="Background"
-                                    Value="{StaticResource QsTealBrush}" />
-                            <Setter TargetName="ElementBox"
-                                    Property="Foreground"
-                                    Value="{StaticResource QsOnAccentBrush}" />
-                        </DataTrigger>
-                    </DataTemplate.Triggers>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+                        <!--
+                            Without this the row announces
+                            "QuickStat.ViewModels.DataElementViewModel", 213 times over - measured on
+                            the running build.  The tick inside the row does carry its title, because
+                            a CheckBox is a ContentControl and the title is its Content; the row that
+                            wraps it is what a screen reader lands on first, and it had no name of
+                            its own.  DataElementViewModel.ToString is the backstop for the paths
+                            that reach an item without a container to read this from.
+                        -->
+                        <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:DataElementViewModel}">
+                        <!--
+                            §G.4.  The Delphi sets ItemIndex := n for the element it is collecting,
+                            so the run reads as a highlight travelling down the list; the port marks
+                            IsCollecting instead and leaves SelectedItem where the user left it.  The
+                            colours are the theme's selection pair, which is what the highlight looks
+                            like in Docs/Screenshots/QuickStat bilde 2.png.
+                        -->
+                        <Border x:Name="CollectingHighlight" Background="Transparent" Padding="4,2">
+                            <CheckBox x:Name="ElementBox"
+                                      Content="{Binding Title}"
+                                      IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsCollecting}" Value="True">
+                                <Setter TargetName="CollectingHighlight"
+                                        Property="Background"
+                                        Value="{StaticResource QsTealBrush}" />
+                                <Setter TargetName="ElementBox"
+                                        Property="Foreground"
+                                        Value="{StaticResource QsOnAccentBrush}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!--
+                Inside the list's own border, so the rectangle does not vanish - the same shape the
+                population list uses for its empty states, and the same reason.
+            -->
+            <TextBlock Margin="16"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource QsMutedTextBrush}"
+                       IsHitTestVisible="False"
+                       Text="{x:Static vm:CollectionsTabViewModel.NoMatchesText}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding ShowNoMatches, Converter={conv:BoolToVisibilityConverter}}" />
+        </Grid>
     </DockPanel>
 </UserControl>

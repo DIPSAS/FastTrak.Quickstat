@@ -217,6 +217,7 @@ Top-to-bottom:
 |---|---|---|---|---|
 | 1 | `panHdrElements` + `hdrElements` | teal section header | `Select data elements` | static |
 | 2 | `lblDataElementInfo` | wrapped paragraph, `Margins 6,·,6,6` | see verbatim below | static |
+| 2a | *(none in the Delphi)* | label + `TextBox` | `Filter / search text`, placeholder `Type filter text here` | **ADDITION, product owner 2026-09-02.** The population tab's filter, immediately above the check list — same wording, same cue-banner behaviour, same rule (lowercase both sides in the current culture, ordinal `Contains`, **not** trimmed). It matches the **title only**, and it filters `CollectionsTabViewModel.VisibleDataElements`, a projection: `DataElements` is untouched, so a ticked element the filter is hiding is still collected and still occupies the same export column. When the filter excludes everything the list shows `No data elements match the filter.` PORT-PLAN.md §7.3 |
 | 3 | `cbDataCollector` | `CheckedListBox` (fills remaining height) | *(Norwegian data-element titles)* | `Sorted := true` at `FormShow`; `OnClickCheck = ValidateCollectorSelection` |
 | 4 | `btnCollectData` | wide flat button, Height 43, docked bottom, icon + caption centred | `Collect data` (from `actCollectData`) | disabled until ≥ 1 element is checked |
 | 5 | `panHdrExportOptions` + `hdrExportOptions` | teal section header | `Export options` | static |

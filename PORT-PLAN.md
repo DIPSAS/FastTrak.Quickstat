@@ -1008,6 +1008,28 @@ that is the colouring users actually see, and it is ported as-is.
     Sizes and the 4 + 4 + 16 spacing are still §E's; only the order moved. All three dialogs now
     pin it — `TheButtonBarPutsOkFirst` in both `SaveSpecDialogTests` and `PeriodDialogTests`, and
     the pre-existing `Yes`/`No` case in `NotificationDialogTests`.
+- **A filter box on the Collections tab, on the product owner's request of 2026-09-02** —
+  `05-ui-spec.md` §B.2 item 2a, `08-parity-checklist.md` 3.7. `cbDataCollector` has no filter, and
+  the largest study in the field puts **530** data elements in it, so finding one means scrolling.
+  It is deliberately the *population tab's* box rather than a new design: same label
+  `Filter / search text`, same placeholder, same rule — lowercase both sides in the current culture,
+  ordinal `Contains`, **not** trimmed (§8.8 (i)) — because the two sit two tabs apart in one window.
+  It matches the title only, which is the one thing a row shows; the collector name is a persistence
+  key and matching it would leave rows standing for a reason nothing on screen explains.
+  - **It hides rows and nothing else**, and that is the whole design. `DataElements` is the check
+    list, and the check list is the export column order (§6); the box drives
+    `VisibleDataElements`, a projection holding the same instances in the same order. So a ticked
+    element the filter is hiding is still collected, still in the same column, and `Collect data`
+    stays enabled for it. The alternative — filtering the list itself — would make a keystroke
+    silently drop a column from an export, with the evidence hidden by the very filter that caused
+    it. `TheFilterHidesRowsWithoutChangingWhatIsCollected`.
+  - **A projection and not an `ICollectionView`**, which is how the other two filters in the shell
+    are built. A `CollectionView` captures `Dispatcher.CurrentDispatcher` at creation and throws on
+    any change raised from another thread, and this is the one list filled from off the UI thread:
+    `ICollectorRegistry.Rebuilt` is raised inside `BuildAsync` — §8.10 (g) — and marshalled with
+    `IUiDispatcher`. Correct in the running application, but it would have made this the only shell
+    view-model a test cannot drive without a real `Dispatcher`, which is what `InlineUiDispatcher`
+    exists to avoid. It cost one `ObservableCollection`; `ConnectionCoordinatorTests` found it.
 
 ---
 

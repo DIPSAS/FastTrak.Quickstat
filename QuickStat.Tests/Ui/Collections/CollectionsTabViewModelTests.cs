@@ -247,6 +247,213 @@ public class CollectionsTabViewModelTests
         Assert.Empty(harness.ViewModel.DataElements);
     }
 
+    // ------------------------------------------------------------------------- the filter box
+
+    // ADDITION, product owner 2026-09-02, PORT-PLAN.md §7.3. The Delphi's cbDataCollector has no
+    // filter at all, so there is no original to compare against; what these pin is that the filter
+    // is the population tab's rule, and that it hides rows without touching the run.
+
+    [Fact]
+    public async Task AnEmptyFilterShowsEveryDataElement()
+    {
+        using Harness harness = new();
+
+        harness.Registry.With("A", "Anemi").With("N", "Nyrefunksjon");
+
+        await harness.LoginAsync();
+
+        harness.ViewModel.FilterText = "";
+
+        Assert.Equal(["Anemi", "Nyrefunksjon"], VisibleTitles(harness));
+        Assert.False(harness.ViewModel.ShowNoMatches);
+    }
+
+    [Fact]
+    public async Task TheProjectionHoldsTheSameInstancesAndNotCopies()
+    {
+        // The one thing a projection can get wrong that a CollectionView cannot: two objects per
+        // element, so a tick made through the list on screen is invisible to the run.
+        using Harness harness = new();
+
+        harness.Registry.With("A", "Anemi").With("N", "Nyrefunksjon");
+
+        await harness.LoginAsync();
+
+        Assert.Equal(harness.ViewModel.DataElements, harness.ViewModel.VisibleDataElements);
+
+        harness.ViewModel.VisibleDataElements[0].IsChecked = true;
+
+        Assert.True(harness.ViewModel.DataElements[0].IsChecked);
+        Assert.True(harness.ViewModel.CollectDataCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task TheFilterIsACaseInsensitiveSubstringOfTheTitle()
+    {
+        using Harness harness = new();
+
+        harness.Registry
+            .With("D1", "Diabetes: Behandling (siste)")
+            .With("D2", "Diabetes: Mosjon (siste)")
+            .With("L1", "Labdata: Alle med høg konfidens");
+
+        await harness.LoginAsync();
+
+        harness.ViewModel.FilterText = "DIABETES";
+
+        Assert.Equal(["Diabetes: Behandling (siste)", "Diabetes: Mosjon (siste)"], VisibleTitles(harness));
+    }
+
+    [Fact]
+    public async Task TheCollectorNameIsNotSearchable()
+    {
+        // Only the title is matched, because the title is the only thing the row shows. A row left
+        // standing because its DRUG_/QA_ name happened to match would have no visible reason to be
+        // there.
+        using Harness harness = new();
+
+        harness.Registry.With("DRUG_WARFARIN", "Antikoagulasjon").With("QA_ANEMI", "Anemi");
+
+        await harness.LoginAsync();
+
+        harness.ViewModel.FilterText = "drug";
+
+        Assert.Empty(VisibleTitles(harness));
+    }
+
+    [Fact]
+    public async Task TheFilterIsNotTrimmed()
+    {
+        // The population list's rule, PORT-PLAN.md §8.8 (i) - not the Packages tab's, which trims
+        // because TSpotLightContext did.
+        using Harness harness = new();
+
+        harness.Registry.With("A", "Anemi");
+
+        await harness.LoginAsync();
+
+        harness.ViewModel.FilterText = "anemi ";
+
+        Assert.Empty(VisibleTitles(harness));
+    }
+
+    [Fact]
+    public async Task TheSortPrefixIsSearchable()
+    {
+        using Harness harness = new();
+
+        harness.Registry.With("K", "^ Kjønn").With("A", "^ Alder").With("N", "Nyrefunksjon");
+
+        await harness.LoginAsync();
+
+        harness.ViewModel.FilterText = "^";
+
+        Assert.Equal(["^ Alder", "^ Kjønn"], VisibleTitles(harness));
+    }
+
+    [Fact]
+    public async Task TheEmptyStateAppearsOnlyWhenTheFilterHidesEverything()
+    {
+        using Harness harness = new();
+
+        // Nothing loaded yet: an empty list is not a filter that matched nothing, and saying so
+        // would be a message on a tab that is not reachable.
+        Assert.False(harness.ViewModel.ShowNoMatches);
+
+        harness.Registry.With("A", "Anemi");
+
+        await harness.LoginAsync();
+
+        Assert.False(harness.ViewModel.ShowNoMatches);
+
+        harness.ViewModel.FilterText = "ingenting";
+
+        Assert.True(harness.ViewModel.ShowNoMatches);
+
+        harness.ViewModel.FilterText = "";
+
+        Assert.False(harness.ViewModel.ShowNoMatches);
+    }
+
+    [Fact]
+    public async Task ADisconnectTakesTheEmptyStateWithTheList()
+    {
+        // The filter text survives a project switch - the population box does the same - so the
+        // message has to be re-evaluated when the list changes underneath it, not only on a
+        // keystroke.
+        using Harness harness = new();
+
+        harness.Registry.With("A", "Anemi");
+
+        await harness.LoginAsync();
+
+        harness.ViewModel.FilterText = "ingenting";
+
+        Assert.True(harness.ViewModel.ShowNoMatches);
+
+        harness.Session.Raise(null);
+
+        Assert.False(harness.ViewModel.ShowNoMatches);
+        Assert.Equal("ingenting", harness.ViewModel.FilterText);
+    }
+
+    [Fact]
+    public async Task TheFilterHidesRowsWithoutChangingWhatIsCollected()
+    {
+        // The reason the filter is an ICollectionView and not a second collection. A keystroke that
+        // dropped a ticked element from the run would silently drop a column from the export, which
+        // is the failure PORT-PLAN.md §6 exists to prevent - and the user would have no way to see
+        // it, because the element it lost is the one the filter is hiding.
+        using Harness harness = new();
+
+        harness.Registry
+            .With("A", "^ Alder")
+            .With("K", "^ Kjønn")
+            .With("N", "Nyrefunksjon");
+
+        await harness.LoginAsync();
+        harness.LoadPopulation(1, 2);
+        harness.Tick("A", "K", "N");
+
+        harness.ViewModel.FilterText = "Kjønn";
+
+        // One row on screen, three still ticked, and Collect data still enabled.
+        Assert.Equal(["^ Kjønn"], VisibleTitles(harness));
+        Assert.Equal(3, harness.ViewModel.DataElements.Count(element => element.IsChecked));
+        Assert.True(harness.ViewModel.CollectDataCommand.CanExecute(null));
+
+        await harness.ViewModel.CollectDataCommand.ExecuteAsync(null);
+
+        // All three ran, in check-list order, which is the export column order.
+        Assert.Equal(["A", "K", "N"], harness.Runner.Ran);
+        Assert.Equal(["A", "K", "N"], harness.Matrix.Columns.Select(column => column.VarName));
+    }
+
+    [Fact]
+    public async Task AFilterThatMatchesNothingStillLeavesTheRunIntact()
+    {
+        using Harness harness = new();
+
+        harness.Registry.With("A", "^ Alder");
+
+        await harness.LoginAsync();
+        harness.LoadPopulation(1);
+        harness.Tick("A");
+
+        harness.ViewModel.FilterText = "ingenting";
+
+        Assert.True(harness.ViewModel.ShowNoMatches);
+        Assert.True(harness.ViewModel.CollectDataCommand.CanExecute(null));
+
+        await harness.ViewModel.CollectDataCommand.ExecuteAsync(null);
+
+        Assert.Equal(["A"], harness.Runner.Ran);
+    }
+
+    /// <summary>The titles the check list is actually showing, in list order.</summary>
+    private static List<string> VisibleTitles(Harness harness) =>
+        [.. harness.ViewModel.VisibleDataElements.Select(element => element.Title)];
+
     // ---------------------------------------------------------- ValidateCollectorSelection
 
     [Fact]
