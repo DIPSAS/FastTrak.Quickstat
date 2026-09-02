@@ -62,9 +62,10 @@ views in 2019, and removed it in 2020 as a surgical edit. But the branch carryin
 in 2023 while mainline, which never received it, is still developed. Neither archaeology nor a view
 definition is clinical sign-off. §8.4.
 
-**6. `ATC_A11EA` has no trailing `%`** (`EPR.QA.Collector.Drug.pas:44`), so `DRUG.A11EA` matches one
-exact code while its title calls it a group. Same shape as (5), same owner, cheap to ask together.
-§8.11 "Left open by Phase 5".
+**6. ~~`ATC_A11EA`~~ — answered 2026-09-02, and it never needed a person.** Not a branch
+disagreement: 119 of 120 refs define it identically and `'A11EA%'` has never existed in the history.
+The rule is `%` iff the code has level-5 children, and `A11EA` has none, so the exact match is
+correct. §8.11.
 
 **7. §8.13, the 2023 SWEET field report** — date of birth and sex vanish from the extract because
 they are `MetaFormItem.Expression` macros over two `NOT NULL` columns QuickStat already holds.

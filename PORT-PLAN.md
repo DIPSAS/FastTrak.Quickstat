@@ -1886,11 +1886,23 @@ gets all the way past login — the 262 is a post-authentication permission chec
   named. It also produced two more defects, one in the colour blend and one in the packages list.
 - ~~**`clFocusedSelectionColor` is still unmeasured.**~~ **Measured** — §8.9 (a). It needed the grid
   to be *collected*, not merely loaded, which is why the first attempt saw nothing.
-- **`ATC_A11EA = 'A11EA'` has no trailing `%`** (`EPR.QA.Collector.Drug.pas:44`), so `DRUG.A11EA`
-  matches one exact code while its title calls it a group ("Vitamin B-kompleks"). Every other
-  group-level constant carries `%`; the ones without it are all full 7-character codes. Reproduced
-  faithfully. **A second question for whoever answers the `J01FF%` one in §8.4** — same shape, same
-  owner, and cheap to ask at the same time.
+- ~~**`ATC_A11EA = 'A11EA'` has no trailing `%`.**~~ **Answered on 2026-09-02, and it is not a typo.
+  It needed a check, not a clinician.** Asked whether this was a branch disagreement like `J01FF%`:
+  it is not. A tip sweep of `EPR/QA/EPR.QA.Collector.Drug.pas` over every ref in `C:\work\FastTrak`
+  finds **119 of 120 defining `ATC_A11EA = 'A11EA'` byte-identically** (the 120th has no such file),
+  and `git log --all -S "A11EA%"` finds **nothing** — the `%` form has never existed anywhere in the
+  history. Against `J01FF`'s 92-to-28 split, that is unanimity.
+
+  The convention in that constant block is not "group codes get `%`" but **"`%` iff the code has
+  level-5 children"**. Checked against `dbo.KBAtcIndex`: `A10BA` has 3 children, `B01AF` 5, `B03BA`
+  7, `C08DA` 4 — all four carry `%`. `A11EA` has **zero**; `A11E`'s children are `A11EA`, `A11EB`,
+  `A11EC`, `A11ED`, `A11EX` and none of them has a substance code below it. So `LIKE 'A11EA'` and
+  `LIKE 'A11EA%'` select the same rows, and `dbo.OngoingTreatment.ATC` is `varchar(7)`, not `char`,
+  so there is no trailing-space trap defeating the exact match. The title is right too: `A11EA` is a
+  group, just a terminal one.
+
+  Residual risk, and it is the whole of it: if FEST ever assigns an `A11EA01`, the collector drops
+  it silently. One character to fix, in `AtcPatterns.A11Ea`. Not raised for sign-off.
 - ~~**Unverified lead, worth one look:** `Docs/Port/01-data-access.md` §7.5 says `PiiRedactor.ForLog`
   is applied in the logger provider. A subagent reported it is not.~~ **Checked, and the lead was
   right — closed in commit `6e6b974`.** Nothing applied the redactor on the way to the log file, so

@@ -18,6 +18,14 @@ public static class AtcPatterns
     public const string A10Ba02 = "A10BA02";
 
     /// <summary><c>ATC_A11EA</c> - vitamin B complex. Exact match, and unusually has no <c>%</c>.</summary>
+    /// <remarks>
+    /// Checked on 2026-09-02 and it is deliberate (PORT-PLAN.md §8.11). The rule in the Delphi's
+    /// constant block is <c>%</c> iff the code has level-5 children - <c>A10BA</c> has 3,
+    /// <c>B01AF</c> 5, <c>B03BA</c> 7, <c>C08DA</c> 4, and all four carry it. <c>A11EA</c> has none,
+    /// so <c>LIKE 'A11EA'</c> selects what <c>LIKE 'A11EA%'</c> would. 119 of 120 refs in the
+    /// library history define it exactly this way and <c>'A11EA%'</c> has never existed. If FEST
+    /// ever assigns an <c>A11EA01</c>, this line is the one to change.
+    /// </remarks>
     public const string A11Ea = "A11EA";
 
     /// <summary><c>ATC_B01AA03</c> - warfarin. Exact match.</summary>

@@ -438,8 +438,9 @@ still waiting for an answer.
 
 - ❓ **`J01FF%` in the resistance-driving antibiotic set.** Release-blocking, and clinical rather
   than technical. PORT-PLAN.md §8.4.
-- ❓ **`ATC_A11EA = 'A11EA'` with no trailing `%`.** Same owner, same shape, cheap to ask at the
-  same time. PORT-PLAN.md §8.11.
+- ✅ **`ATC_A11EA = 'A11EA'` with no trailing `%`** — **withdrawn on 2026-09-02, it was never a
+  decision.** Unanimous across 119 of 120 refs, `'A11EA%'` has never existed, and `A11EA` has no
+  level-5 children, so the exact match selects the same rows a wildcard would. PORT-PLAN.md §8.11.
 - ❓ **SWEET: date of birth and sex** — three candidate policies, and the choice changes values in a
   national-registry extract. Parked by the product owner on 2026-08-27. PORT-PLAN.md §8.13.
 - ❓ **Left-pane width, 293 or ~330** (§I.1). The port ships 293, faithful to the `.dfm`.
