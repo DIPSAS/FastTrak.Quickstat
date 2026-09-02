@@ -479,6 +479,18 @@ passed through to OLE DB verbatim.
 | `Auto Translate`, `Tag with column collation when possible`, `Use Procedure for Prepare`, `OLE DB Services`, `General Timeout`, `Prompt`, `Window Handle`, `Mode`, `Asynchronous Processing`, `Extended Properties`, `Locale Identifier`, `Replication` | **DROP** (log at Debug) | — |
 | anything else | try `builder[key] = value`; on `ArgumentException` → drop + log **Warning** | — |
 
+**⚠ Unquote the value, and drop it when what is left is empty.** The Windows data link dialog writes
+*every* property the provider knows about, and spells an unset one as two quote characters:
+`User ID="";Initial File Name="";Server SPN="";Authentication="";Access Token=""`. The Delphi never
+had to care — it handed the whole initialisation string to OLE DB, which knows its own quoting rules
+— but a port that re-emits keyword by keyword does. Taken literally, `Initial File Name=""` becomes
+an `AttachDBFilename` two characters long, and `Microsoft.Data.SqlClient` attaches a database file
+for **any** non-empty value: the login then runs an implicit `CREATE DATABASE … FOR ATTACH` and the
+server answers error 262, which §3.1's privilege list turns into "you are not a member of the
+QuickStat database role". `OleDbKeywords.Unquote` strips one matching pair of `"` or `'` and
+collapses a doubled inner quote; `MapKeyword` then drops the keyword rather than setting it to
+nothing. See `PORT-PLAN.md` §8.11 (16).
+
 ### 3.5 ⚠ The `Encrypt` compatibility trap — read this before writing code
 
 **The legacy strings contain no `Encrypt` keyword at all.** OLE DB `SQLOLEDB`/`SQLNCLI` defaulted

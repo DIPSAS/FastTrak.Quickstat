@@ -1795,6 +1795,38 @@ Two lessons, both cheap to state and neither obvious from a passing suite: an in
 mistakes it is attached to, and *the first screen of the application is not covered by 2 588 tests*
 unless something looks at it.
 
+**(16) A data link file written by the Windows dialog sent the port at `master`.** The product owner
+staged a second test installation against another server and the login failed with *"Du mangler
+rettigheter til å utføre denne operasjonen: CREATE DATABASE permission denied in database
+'master'"*. Nothing in this repository issues a `CREATE DATABASE`, and the log said why:
+
+```
+Connection <name> translated to Data Source=…;AttachDbFilename='""';…;User ID='""';…;Server SPN='""'
+```
+
+The difference from every `FastTrak.UDL` used so far is that this one was **written by the Data Link
+Properties dialog** rather than by hand. The dialog emits every property the provider knows about and
+spells the unset ones as two quote characters — `User ID="";Initial File Name="";Server SPN="";
+Authentication="";Access Token=""` — and `Initial File Name` maps to `AttachDBFilename`. The parser
+did no unquoting, so the value was the two-character string `""`;
+`Microsoft.Data.SqlClient` attaches a database file for any non-empty `AttachDBFilename`; the login
+therefore ran an implicit `CREATE DATABASE … FOR ATTACH`; the server answered **error 262**, which is
+one of the seven numbers in the Delphi's own `TPrivilegeErrors`, so `SqlErrorClassifier` reported it —
+faithfully, and very confusingly — as a missing QuickStat database role.
+
+The Delphi never met this: it handed the whole initialisation string to the OLE DB provider, which
+knows its own quoting rules. A port that re-emits keyword by keyword into
+`SqlConnectionStringBuilder` has to unquote for itself. `OleDbKeywords.Unquote` now strips one
+matching pair of `"` or `'` and collapses a doubled inner quote, and `MapKeyword` drops a keyword
+whose value is empty afterwards instead of setting it — an empty `AttachDBFilename` is still an
+`AttachDBFilename`. Thirteen tests, including the dialog's exact output as a regression case.
+
+Two things worth keeping. **Any customer UDL is a candidate**: this is simply what the dialog
+produces, and the hand-written files in this repository happen to have no empty properties, which is
+the only reason it took until now to appear. And the same run is the first evidence that the injected
+`Encrypt=True;TrustServerCertificate=True` default (§8 (2), R1) reaches a **non-local** server and
+gets all the way past login — the 262 is a post-authentication permission check.
+
 **Left open by Phase 5**
 
 - ~~**The Delphi half of the CSV comparison.**~~ **Done** — §8.14. Same cohort, same 213 elements,

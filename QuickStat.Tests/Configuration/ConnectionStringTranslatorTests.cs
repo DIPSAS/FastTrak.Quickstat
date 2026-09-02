@@ -254,6 +254,59 @@ public sealed class ConnectionStringTranslatorTests : IDisposable
     }
 
     [Fact]
+    public void AnEmptyKeywordFromTheDataLinkDialogNeverReachesTheConnectionString()
+    {
+        // The regression this exists for, observed 2026-09-02 against a real server. The Windows data
+        // link dialog writes every property it knows about and spells the unset ones "", so
+        // Initial File Name="" arrived as AttachDbFilename='""'; SqlClient attaches a database file
+        // for any non-empty AttachDbFilename, so the login ran an implicit CREATE DATABASE … FOR
+        // ATTACH and the server answered error 262, which SqlErrorClassifier reports - correctly, and
+        // very confusingly - as a missing QuickStat database role.
+        // Keyword for keyword what the dialog wrote, with the site's own server and catalog replaced.
+        const string dataLinkDialogOutput =
+            "Provider=MSOLEDBSQL.1;Integrated Security=SSPI;Persist Security Info=False;User ID=\"\";"
+            + "Initial Catalog=db;Data Source=srv;Initial File Name=\"\";"
+            + "Server SPN=\"\";Authentication=\"\";Access Token=\"\"";
+
+        ResolvedConnectionString resolved = Translate(Connection(dataLinkDialogOutput));
+
+        Assert.Null(Value(resolved.Value, "AttachDbFilename", "AttachDBFilename", "Initial File Name"));
+        Assert.Null(Value(resolved.Value, "User ID", "UserID"));
+        Assert.Null(Value(resolved.Value, "Server SPN", "ServerSPN"));
+
+        // And what the file is actually for still arrives.
+        Assert.Equal("srv", Value(resolved.Value, "Data Source"));
+        Assert.Equal("db", Value(resolved.Value, "Initial Catalog"));
+        Assert.Equal("True", Value(resolved.Value, "Integrated Security"));
+    }
+
+    [Theory]
+    [InlineData("Application Name=\"Report tool\"", "Application Name", "Report tool")]
+    [InlineData("Application Name='Report tool'", "Application Name", "Report tool")]
+    [InlineData(@"Initial File Name=""C:\db.mdf""", "AttachDbFilename", @"C:\db.mdf")]
+    public void AQuotedValueArrivesWithoutItsQuotes(string keyword, string expectedName, string expectedValue)
+    {
+        // Not a new liberty: the Delphi handed the whole initialisation string to the OLE DB
+        // provider, which unquoted it. This port re-emits keyword by keyword, so it has to.
+        ResolvedConnectionString resolved = Translate(Connection($"{TrustedLocal};{keyword}"));
+
+        Assert.Equal(expectedValue, Value(resolved.Value, expectedName, Spaced(expectedName), Unspaced(expectedName)));
+    }
+
+    [Theory]
+    [InlineData("\"\"", "")]
+    [InlineData("''", "")]
+    [InlineData("\"p@ss\"", "p@ss")]
+    [InlineData("'p@ss'", "p@ss")]
+    [InlineData("\"a\"\"b\"", "a\"b")]
+    [InlineData("plain", "plain")]
+    [InlineData("\"mismatched'", "\"mismatched'")]
+    [InlineData("\"", "\"")]
+    [InlineData("", "")]
+    public void UnquotingFollowsTheOleDbRule(string value, string expected) =>
+        Assert.Equal(expected, OleDbKeywords.Unquote(value));
+
+    [Fact]
     public void UserIdAndPasswordSurviveUnderBothSpellings()
     {
         ResolvedConnectionString resolved =

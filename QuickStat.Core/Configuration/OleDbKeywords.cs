@@ -13,11 +13,17 @@ namespace QuickStat.Configuration;
 /// <c>Microsoft.Data.SqlClient</c> accepts.
 /// </para>
 /// <para>
-/// Parsing matches the legacy exactly: the Delphi held the connection string in a
+/// Splitting matches the legacy exactly: the Delphi held the connection string in a
 /// <c>TStringList</c> with <c>Delimiter := ';'</c> and <c>StrictDelimiter := true</c>
 /// (<c>:147-148</c>), which disables quote handling entirely. So a value cannot contain a semicolon,
 /// then or now, and keys with embedded spaces - <c>Initial Catalog</c>, <c>Data Source</c> - survive
 /// intact.
+/// </para>
+/// <para>
+/// <strong>Values are unquoted, which the Delphi did not do</strong> (<see cref="Unquote"/>). It did
+/// not have to: it handed the whole initialisation string to the OLE DB provider, which knows its own
+/// quoting rules. This port re-emits keyword by keyword into <c>SqlConnectionStringBuilder</c>, so
+/// whatever the provider would have unquoted has to be unquoted here instead.
 /// </para>
 /// </remarks>
 internal static class OleDbKeywords
@@ -109,7 +115,8 @@ internal static class OleDbKeywords
     /// <para>
     /// Tokens without an <c>=</c>, and tokens whose key is empty, are skipped - the Delphi's
     /// <c>Values[]</c> lookup ignored them in the same way. Keys and values are trimmed, which the
-    /// Delphi did not do; it only ever helps, because an untrimmed key never matched anything.
+    /// Delphi did not do; it only ever helps, because an untrimmed key never matched anything. Values
+    /// then pass through <see cref="Unquote"/>.
     /// </para>
     /// <para>
     /// <strong>A value cannot contain a semicolon.</strong> No quoting is recognised, matching
@@ -150,10 +157,56 @@ internal static class OleDbKeywords
                 continue;
             }
 
-            pairs.Add(new KeyValuePair<string, string>(key, trimmed[(separator + 1)..].TrimStart()));
+            pairs.Add(new KeyValuePair<string, string>(key, Unquote(trimmed[(separator + 1)..].TrimStart())));
         }
 
         return pairs;
+    }
+
+    /// <summary>
+    /// Removes OLE DB quoting from a value: a matching pair of enclosing <c>"</c> or <c>'</c>, with
+    /// any doubled inner quote of the same character collapsed to one.
+    /// </summary>
+    /// <param name="value">The raw text to the right of the <c>=</c>.</param>
+    /// <returns>The value the OLE DB provider would have seen.</returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>Why this exists.</strong> The Windows data link dialog writes <em>every</em> property
+    /// it knows about, and spells an unset one as two quote characters:
+    /// <c>Initial File Name="";Server SPN="";User ID=""</c>. Read literally, that
+    /// <c>Initial File Name</c> becomes <c>AttachDBFilename</c> with a two-character value, which
+    /// makes <c>Microsoft.Data.SqlClient</c> attach a database file - so the login runs an implicit
+    /// <c>CREATE DATABASE … FOR ATTACH</c> and the server answers error 262, <c>CREATE DATABASE
+    /// permission denied in database 'master'</c>. Which
+    /// <see cref="QuickStat.Data.SqlErrorClassifier"/> then reports, correctly and very confusingly,
+    /// as a missing QuickStat database role.
+    /// </para>
+    /// <para>
+    /// Observed on a data link file written by the dialog for <c>MSOLEDBSQL.1</c>; the hand-written
+    /// files in this repository carry no empty properties and never hit it.
+    /// </para>
+    /// <para>
+    /// Quoting cannot rescue a value containing a semicolon: <see cref="Parse(string?)"/> has already
+    /// split on it, exactly as the Delphi did.
+    /// </para>
+    /// </remarks>
+    internal static string Unquote(string value)
+    {
+        if (value.Length < 2)
+        {
+            return value;
+        }
+
+        char quote = value[0];
+
+        if (quote is not ('"' or '\'') || value[^1] != quote)
+        {
+            return value;
+        }
+
+        string doubled = new(quote, 2);
+
+        return value[1..^1].Replace(doubled, doubled[..1], StringComparison.Ordinal);
     }
 
     /// <summary>

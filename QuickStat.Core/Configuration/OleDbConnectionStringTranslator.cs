@@ -22,7 +22,11 @@ namespace QuickStat.Configuration;
 /// string. That replacement is legacy behaviour (<c>Emetra.Database.ConnectionString.pas:184-198</c>,
 /// <c>:261-268</c>): any keyword written next to <c>FILE NAME=</c> is silently discarded.
 /// </description></item>
-/// <item><description>Map each OLE DB keyword; see <see cref="OleDbKeywords"/>.</description></item>
+/// <item><description>
+/// Map each OLE DB keyword; see <see cref="OleDbKeywords"/>. Keywords whose value is empty once
+/// unquoted are dropped rather than set, because the data link dialog writes every property it knows
+/// about and spells the unset ones <c>""</c> (<see cref="OleDbKeywords.Unquote"/>).
+/// </description></item>
 /// <item><description>
 /// Apply <see cref="QuickStatConnection.SqlOptions"/>, then the
 /// <see cref="OptionsEnvironmentVariable"/> environment variable. Both overwrite. This is the stage
@@ -348,6 +352,20 @@ public sealed class OleDbConnectionStringTranslator : IConnectionStringTranslato
     private void MapKeyword(SqlConnectionStringBuilder builder, string key, string value, QuickStatConnection connection)
     {
         string normalised = OleDbKeywords.Normalise(key);
+
+        if (value.Length == 0)
+        {
+            // An unset property, not a property set to nothing. The data link dialog writes every
+            // keyword it knows and spells the empty ones "" - which OleDbKeywords.Unquote has just
+            // turned into this. Setting them would be actively harmful: an empty AttachDBFilename is
+            // still an AttachDBFilename, and SqlClient attaches a file for it.
+            _logger.LogDebug(
+                "Connection {ConnectionName}: dropped the empty keyword {Keyword}.",
+                connection.Name,
+                key);
+
+            return;
+        }
 
         if (OleDbKeywords.IsFileName(normalised))
         {
