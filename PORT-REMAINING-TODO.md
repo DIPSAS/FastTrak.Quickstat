@@ -8,6 +8,10 @@ that carries the detail.
 Build and tests are green: `dotnet build QuickStat.slnx` and `dotnet test QuickStat.slnx` pass with
 **2 622 tests** and zero warnings, so acceptance criterion 1 is met.
 
+**The scope is porting.** Clear bugs get fixed; beyond that the port reproduces the Delphi. Anything
+found to behave identically in both is not work — it goes under "Observed, handed on" below, so the
+live list stays a list of things that actually stand between this and a release.
+
 ---
 
 ## Blocking
@@ -28,17 +32,12 @@ Build and tests are green: `dotnet build QuickStat.slnx` and `dotnet test QuickS
 Criteria 2, 3, 5, 6 and 7 close along the way, and everything already settled by test or
 measurement is marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.
 
-**2. ~~R2~~ — discharged 2026-09-02, see the "Closed" section. It left one product question
-behind:** seven live populations pass a parameter name no session can resolve, so they fail to load
-— in the Delphi too. Somebody has to decide whether to supply the values, hide the populations, or
-leave them. `PORT-PLAN.md` §9 R2a.
-
-**3. Acceptance criterion 5 has never been shown end to end.** "Fully identified patients" recovers
+**2. Acceptance criterion 5 has never been shown end to end.** "Fully identified patients" recovers
 280 of 281 national IDs through the port's own services (§8.11 (3)), but has not been driven through
 the running application to a file. It is the criterion most entangled with R6 (privacy), so a
 services-level proof is weaker than it looks.
 
-**4. Acceptance criterion 6 needs a sign-off decision, not more work.** 0 differing cells in 12 462
+**3. Acceptance criterion 6 needs a sign-off decision, not more work.** 0 differing cells in 12 462
 stands. *Byte-identical* is unreachable while a dataset contains the form-instance collector: the
 Delphi orders its ten `FORM.*` columns by a hash-dictionary walk, and it repeats two column names
 the port de-duplicates. Accept the two exceptions, or ask for a literal comparison with that element
@@ -49,56 +48,47 @@ excluded. §8.14.
 > FULL recovery with no backups. The evidence is recorded, but a *repeat* run needs a different
 > cohort or a restored database. Promise accordingly.
 
----
-
-## Questions for a person, not a machine
-
-**5. ~~`J01FF%`~~ — answered by the product owner on 2026-09-02: lincosamides are *intermediate*.**
-The pattern stays out, the set is `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the caption stays
-`Antibiotika: Resistendrivende`. The port and the database now agree, so the two antibiotic
-collectors cannot both fire for one treatment. The exercise also surfaced a coverage gap in the
-shipped definitions, which the port reproduces exactly — recorded below as not-port-work. §8.4.
-
-**6. ~~`ATC_A11EA`~~ — answered 2026-09-02, and it never needed a person.** Not a branch
-disagreement: 119 of 120 refs define it identically and `'A11EA%'` has never existed in the history.
-The rule is `%` iff the code has level-5 children, and `A11EA` has none, so the exact match is
-correct. §8.11.
-
-**7. §8.13, the 2023 SWEET field report** — date of birth and sex vanish from the extract because
-they are `MetaFormItem.Expression` macros over two `NOT NULL` columns QuickStat already holds.
-Root-caused; **parked by the product owner**. Listed only so it is not forgotten; the fix is three
-lines plus one policy decision.
-
----
-
-## Observed, handed on, **not port work**
-
-**The antibiotic collectors miss 87 of the 333 antibiotic codes** — found 2026-09-02 while answering
-(5). The three collectors cover 246, overlap on 0, and the 87 fall in two halves:
-`QS_DRUG_ANTIBIOTIC_RESISTANCE` reaches 84 of view 3's 119, `QS_DRUG_ANTIBIOTIC_RECOMMENDED` reaches
-9 of view 1's 61. Neither remainder falls through to the intermediate collector, because view 2's
-`EXCEPT` removes them for being in view 1 or 3.
-
-**This is not a port difference, and it was checked rather than assumed.** Both lists are
-character-identical to the shipping Delphi at `9f4a5ed4f` — `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the
-same nine codes in the same order — and the golden files pin them. The gap is a property of the
-Delphi's hand-written lists standing in for the `KB` views, present in every lineage, and closing it
-would change exported values. **So it is a product decision, not porting, and it is off the list
-above**; §8.4 keeps the measurement and the proposed fix for whoever wants it.
+That is the whole blocking list: one pass of manual work, one demonstration, one decision.
 
 ---
 
 ## Deployment-time, undischargeable here
 
-**8. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
+**4. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
 non-cohort rows client-side. Harmless on 25 patients, unknown on production volumes. Preserved
 deliberately for parity; recorded as a performance follow-up.
 
-**9. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
+**5. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
 where re-checked against the pinned ref. Confirm before relying on one.
 
-**10. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
+**6. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
 five-minute check for whoever has access; it would either confirm the row or overturn it.
+
+---
+
+## Observed, handed on — **not port work**
+
+Three findings that are real, measured, and reproduce the Delphi exactly. Each would change
+behaviour to fix, so each belongs to the product, not to this port. Listed so they are not lost, and
+kept off the list above so it does not read as unfinished porting.
+
+**The antibiotic collectors miss 87 of the 333 antibiotic codes.** The three cover 246 and overlap
+on 0; the 87 fall in two halves — `QS_DRUG_ANTIBIOTIC_RESISTANCE` reaches 84 of view 3's 119,
+`QS_DRUG_ANTIBIOTIC_RECOMMENDED` reaches 9 of view 1's 61 — and neither remainder falls through to
+the intermediate collector, because view 2's `EXCEPT` removes them for being in view 1 or 3.
+**Checked, not assumed:** both lists are character-identical to the shipping Delphi at `9f4a5ed4f`
+(`EPR/QA/EPR.QA.SQL.pas:401-402`, `:417`), and the golden files pin them. The gap comes from the
+Delphi writing the lists by hand instead of pointing at the `KB` views. §8.4 keeps the measurement
+and the proposed fix.
+
+**Seven live populations pass a parameter name no session can resolve**, so they fail to load — in
+the Delphi too, for the same reason: `TBusiness.TryGetValue` is `IsPublishedProp` over a fixed
+vocabulary, and these names are not in it. Somebody has to decide whether to supply the values, hide
+the populations, or leave them. §9 R2a.
+
+**§8.13, the 2023 SWEET field report** — date of birth and sex vanish from the extract because they
+are `MetaFormItem.Expression` macros over two `NOT NULL` columns QuickStat already holds.
+Root-caused, **parked by the product owner**; the fix is three lines plus one policy decision.
 
 ---
 
@@ -114,6 +104,13 @@ recorded SHA-256 — it is the only thing tying the banner picture to the build 
 
 ## Closed on 2026-09-02
 
+- **`J01FF%` — answered by the product owner: lincosamides are *intermediate*.** The pattern stays
+  out, the set is `J01CR%`, `J01D[CDH]%`, `J01MA%`, and the caption stays
+  `Antibiotika: Resistendrivende`. The port and the database now agree, so the two antibiotic
+  collectors cannot both fire for one treatment — measured across all 333 codes, 0 overlaps. §8.4.
+- **`ATC_A11EA` — answered, and it never needed a person.** Not a branch disagreement: 119 of 120
+  refs define it identically and `'A11EA%'` has never existed in the history. The rule is `%` iff the
+  code has level-5 children, and `A11EA` has none, so the exact match is correct. §8.11.
 - **R2 — the `:Name` → `@Name` rewriter has now met real data.** The population catalogue was swept
   on two independent test databases: 518 and 520 rows, 319 and 322 distinct statements, and both
   reduce to the **same 44 argument lists**. 319 of 319 rewrote with zero invariant violations.
