@@ -186,6 +186,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   enabled and still collects it, in the same column. Worth doing once by hand, because it is the
   one thing the addition could plausibly have broken —
   `TheFilterHidesRowsWithoutChangingWhatIsCollected` pins it. PORT-PLAN.md §7.3.
+- ✅ **The whole row ticks.** A `Border` with a transparent background — which is hit-testable — used
+  to own 6 of every 21 px of row height, so a click in the 6 px band between two rows selected and
+  toggled nothing; the row was also 21.098 px, so that band fell on a different device pixel on every
+  row down the list. Both fixed, and the row is still 21 px.
+  `Ui/Collections/CheckListHitTargetTests.cs` hit-tests every pixel down a row through the shipped
+  markup. PORT-PLAN.md §8.11 (17).
 - ⚠ **A Cancel button appears on the busy overlay.** The Delphi has no cancel on the main form at
   all. Addition, PORT-PLAN.md §8.10 (c).
 - ⚠ **The shell is greyed under the scrim while busy.** `Screen.Cursor := crSqlWait` did not do

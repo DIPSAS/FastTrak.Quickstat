@@ -147,8 +147,26 @@
                             colours are the theme's selection pair, which is what the highlight looks
                             like in Docs/Screenshots/QuickStat bilde 2.png.
                         -->
-                        <Border x:Name="CollectingHighlight" Background="Transparent" Padding="4,2">
+                        <!--
+                            The 2 px of vertical padding used to be on this Border, which has a
+                            transparent background and is therefore hit-testable: those pixels
+                            belonged to the border and not to the box, so 6 of every 21 px of row
+                            height toggled nothing and only moved the selection - and two adjacent
+                            rows made a 6 px dead band.  The border keeps the horizontal inset, so
+                            the collecting highlight still spans the full width; MinHeight makes the
+                            box fill the row instead.
+
+                            MinHeight also pins the row at exactly 21 px.  It used to be 21.098,
+                            taken from the text's natural height, so with item scrolling every row
+                            below the first sat at a fractional offset and the dead band landed
+                            somewhere different on each one.  CheckListHitTargetTests measures all
+                            of this by hit-testing every pixel down the row, and fails on the old
+                            markup with three dead pixels at each end instead of one.
+                        -->
+                        <Border x:Name="CollectingHighlight" Background="Transparent" Padding="4,0">
                             <CheckBox x:Name="ElementBox"
+                                      MinHeight="19"
+                                      VerticalContentAlignment="Center"
                                       Content="{Binding Title}"
                                       IsChecked="{Binding IsChecked, Mode=TwoWay}" />
                         </Border>

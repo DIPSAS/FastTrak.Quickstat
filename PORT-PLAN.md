@@ -1258,7 +1258,7 @@ build is only useful if the subscribers have run too.
 
 ### 8.11 What Phase 5 found by running things
 
-Fourteen entries, and the list grew as the phase went on: the first three came out of finally having
+Seventeen entries, and the list grew as the phase went on: the first three came out of finally having
 a server, the later ones out of the product owner's manual parity pass, one out of being
 allowed to write to that server, and the last out of measuring what that pass could only squint at.
 Each defect is fixed and each
@@ -1842,6 +1842,36 @@ knows its own quoting rules. A port that re-emits keyword by keyword into
 matching pair of `"` or `'` and collapses a doubled inner quote, and `MapKeyword` drops a keyword
 whose value is empty afterwards instead of setting it — an empty `AttachDBFilename` is still an
 `AttachDBFilename`. Thirteen tests, including the dialog's exact output as a regression case.
+
+**(17) A quarter of every check-list row did not tick, and it took a hit test to see it.** The owner
+reported, right after the filter box landed in §7.3, that ticking felt *"slightly more sluggish /
+more likely to miss"*. It was not the filter: the tick path is byte-identical across that commit —
+`OnElementCheckedChanged` → `PublishCheckedCollectors` → two `NotifyCanExecuteChanged` calls — and
+measured at **8–16 µs for the worst single tick** with 530 elements ticked, which nothing can
+perceive. But the second half of the report was exact, and pre-existing.
+
+The row template wrapped its `CheckBox` in a `Border` carrying `Padding="4,2"` and
+`Background="Transparent"`. A transparent background is *hit-testable*, so those pixels answered to
+the border rather than to the box. Hit-testing every pixel down a row through the shipped markup:
+
+```
+before   ---###############---      6 of 21 px dead        (~29 % of the row)
+after    -###################-      2 of 21 px dead        (the ListBoxItem's own 1 px border)
+```
+
+Two adjacent rows therefore presented a **6 px band in which a click selected and toggled nothing** —
+and with the tick being the entire purpose of the list, a miss looks exactly like a slow tick. The
+fix moves the vertical padding off the border and gives the box a `MinHeight` that fills the row; the
+horizontal inset stays, so the collecting highlight still spans the full width.
+
+Two things fell out of measuring rather than reasoning. The row was **21.098 px**, not 21, because
+its height came from the text's natural height — so under item scrolling every row below the first
+sat at a fractional offset and the dead band landed on a different device pixel on each one, which is
+why the misses would have felt random rather than positional. `MinHeight` pins it at exactly 21. And
+the *horizontal* answer was the opposite of the guess: the whole width already toggles, because the
+default `CheckBox` template's root is a stretched transparent `Border` — one `Padding` away from not
+being true, so `TheWholeWidthOfARowTogglesTheBox` now holds it. `CheckListHitTargetTests` fails on
+the old markup with three dead pixels at each end and a height of 21.098.
 
 Two things worth keeping. **Any customer UDL is a candidate**: this is simply what the dialog
 produces, and the hand-written files in this repository happen to have no empty properties, which is
