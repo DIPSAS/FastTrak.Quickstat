@@ -2433,9 +2433,28 @@ down:
    why it could not have worked on any real database until the table-type default was fixed, and why
    the failure was invisible — the recovery degrades rather than throwing, so the symptom was the
    blank column the feature exists to fill. The statement it now issues recovers 342 ids for the
-   first 500 patients of `EFT00028_TEST_020`. **Not yet demonstrated end to end through the running
-   application**, though Phase 5 got most of the way: through the port's own services against
-   `EFT00028_TEST_020`, **280 of 281** patients came back with a national id (§8.11 (3)).
+   first 500 patients of `EFT00028_TEST_020`.
+
+   **Two halves are proved and they do not quite meet.** The recovery path ran on a real cohort:
+   through the port's own services against `EFT00028_TEST_020`, **280 of 281** patients came back
+   with a national id (§8.11 (3)) — the 281st has none on file, which the statement's
+   `NationalId IS NOT NULL` filter makes the expected outcome, not a miss
+   (`NationalIdRecovery.cs:111-114`). And a *fully identified* file was written and compared: §8.14's
+   third variant put `Født`, `Fødselsnummer` and `Navn` in the header and matched the shipped build
+   cell for cell, **0 differing of 3 193**. Since only this repository has
+   `AddNationalIds` commented out (§10.5), the Delphi side of that comparison had a populated
+   national-id column, so the port's did too.
+
+   What is missing is the join between them. §8.11 (3)'s run exercised the recovery but exported only
+   the two PID-only variants; §8.14's run exported the fully identified variant on a 31-patient cohort
+   without recording whether the ids came from the recovery query or from the population procedure
+   itself. And **the port's side of both runs was the headless harness** at `C:\work\qs-harness`,
+   composing the same services `App.xaml.cs` does — nobody has selected *Fully identified patients* in
+   the running window and saved a file. The untested span is the window itself: radio →
+   `IIdentificationPolicy.ModeChanged` → grid columns → export options → writer, every link of which
+   has unit tests on fabricated data and none of which has carried a real national id. It is a parity
+   pass item, not development, and under R6 it must be verified by counting non-empty cells
+   programmatically and deleting the file.
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
 
    **Met, with two named exceptions — §8.14 has the evidence.** Both sides exported the same 31-patient

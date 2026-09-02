@@ -32,10 +32,15 @@ live list stays a list of things that actually stand between this and a release.
 Criteria 2, 3, 5, 6 and 7 close along the way, and everything already settled by test or
 measurement is marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.
 
-**2. Acceptance criterion 5 has never been shown end to end.** "Fully identified patients" recovers
-280 of 281 national IDs through the port's own services (§8.11 (3)), but has not been driven through
-the running application to a file. It is the criterion most entangled with R6 (privacy), so a
-services-level proof is weaker than it looks.
+**2. Acceptance criterion 5 has never been shown end to end.** Two halves are proved and they do not
+meet: the recovery ran on a real cohort — 280 of 281, the 281st having none on file (§8.11 (3)) —
+and a *fully identified* file was written and matched the shipped build cell for cell, 0 differing of
+3 193 (§8.14). But the first run exported only PID-only variants, and **the port's side of both was
+the headless harness**, not the window. Nobody has selected *Fully identified patients* in the
+running application and saved a file. The untested span is radio → `IIdentificationPolicy` → grid
+columns → export options → writer: unit-tested on fabricated data, never carrying a real national id.
+A parity-pass item rather than development, but the criterion most entangled with R6, so it must be
+checked by counting non-empty cells programmatically and deleting the file.
 
 **3. Acceptance criterion 6 needs a sign-off decision, not more work.** 0 differing cells in 12 462
 stands. *Byte-identical* is unreachable while a dataset contains the form-instance collector: the
