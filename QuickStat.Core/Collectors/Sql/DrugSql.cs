@@ -131,24 +131,32 @@ public static class DrugSql
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>This list is release-blocking pending a protocol owner</b> (PORT-PLAN.md §8.4). It is a
-    /// clinical definition, not a code detail, and "the code has been this way" is not clinical
-    /// sign-off.
+    /// <b>Settled on 2026-09-02 by the product owner: lincosamides drive resistance</b>, so
+    /// <c>J01FF%</c> is <b>in</b> (PORT-PLAN.md §8.4). It sits third, which is where commit
+    /// <c>9f4a5ed4f</c> removed it from, so the generated statement is byte-identical to a
+    /// <c>develop_old</c> or mainline trace again - including the two-per-source-line layout that
+    /// puts the extra indent on this pattern rather than on <c>J01MA%</c>.
     /// </para>
     /// <para>
-    /// <c>J01FF%</c> (lincosamides - clindamycin, lincomycin) is <b>absent</b>. Commit
-    /// <c>9f4a5ed4f</c> removed it, and it is missing from all nine refs capable of building this
-    /// application; it survives only on mainline, which cannot. Patients on clindamycin alone
-    /// therefore produce no <c>DRUG_RESISTANCE_DRIVING</c> value and a cohort's resistance-driving
-    /// count falls relative to a <c>develop_old</c> build.
+    /// The archaeology had pointed the other way and is kept in §8.4 because it explains why the
+    /// tarmscreening lineage disagrees: one author added the pattern in 2018 and removed it in 2020
+    /// on a branch that later died. A clinical definition is the owner's to set, and they set it.
     /// </para>
     /// <para>
-    /// It is a named array precisely so that reversing that decision is one line plus a regenerated
-    /// golden file.
+    /// <b>Known consequence, recorded rather than fixed.</b> This disagrees with the database's own
+    /// tiers: <c>J01FF</c> is in neither <c>KB.AntibioticResistance1</c> nor <c>3</c>, so
+    /// <c>KB.AntibioticResistance2</c> counts it as <em>intermediate</em>. A patient on clindamycin
+    /// now produces a value from both <c>QS_DRUG_ANTIBIOTIC_RESISTANCE</c> and
+    /// <c>QS_DRUG_ANTIBIOTIC_INTERMEDIATE</c>. Reconciling the views is a database change with a
+    /// different owner - see PORT-PLAN.md §8.4.
+    /// </para>
+    /// <para>
+    /// It stays a named array because a clinical definition can be revised again: one line plus a
+    /// regenerated golden file.
     /// </para>
     /// </remarks>
     public static IReadOnlyList<string> ResistanceDrivingAtcPatterns { get; } =
-        ["J01CR%", "J01D[CDH]%", "J01MA%"];
+        ["J01CR%", "J01D[CDH]%", "J01FF%", "J01MA%"];
 
     /// <summary><c>SpDrugsetAntibioticResistance</c>.</summary>
     /// <returns>The statement, with <see cref="QaSql.PidList"/> still in place.</returns>

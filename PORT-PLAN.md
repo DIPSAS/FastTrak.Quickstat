@@ -146,10 +146,13 @@ Last updated: 2026-09-01
 > copy of two `NOT NULL` columns it already holds in memory. Pre-existing product behaviour, faithfully
 > ported; the fix is three lines of policy and one decision, and it is not made.
 >
-> **One release-blocking question still needs an owner, and it is not code:** the `J01FF%` clinical
-> definition (§8.4). The other — the spelling of `KB.AntibioticResistance2` — was **settled on
-> 2026-08-27: the object exists, as a view, under exactly that name.** The availability gate stays
-> regardless; its job is the many customer databases that have no such object at all.
+> **No release-blocking question is open any more.** The `J01FF%` clinical definition was
+> **answered by the product owner on 2026-09-02: lincosamides do drive resistance**, so the pattern
+> is back in the set and the port emits four ATC groups (§8.4). `ATC_A11EA` was **withdrawn on the
+> same day** — it turned out to be a fact, not a decision (§8.11). And the spelling of
+> `KB.AntibioticResistance2` was settled on 2026-08-27: the object exists, as a view, under exactly
+> that name. The availability gate stays regardless; its job is the many customer databases that
+> have no such object at all.
 >
 > **Six defects were found while integrating wave 2, five of them in code or contracts that earlier
 > phases had signed off.** Every one is fixed; they are listed here because they are the pattern to
@@ -774,15 +777,14 @@ Notes carried from analysis — read `Docs/Port/03-collectors.md` §E before wri
   `QS_DRUG_ANTIBIOTIC_RECOMMENDED` is registered unconditionally. Gating it as well would make a
   perfectly working collector vanish on every database without the knowledge-base schema — a
   functional regression, not a safety measure.
-- **The `J01FF%` question is settled in §8.4 — read that, not an earlier revision of this bullet.**
-  Commit `9f4a5ed4f` also drops `J01FF%` (lincosamides / clindamycin) from the *existing*
-  resistance-driving set and renames its caption. An earlier revision of this bullet said "do not
-  take the removal"; that was written before the question was re-checked across all nine refs
-  capable of building the application, every one of which lacks `J01FF%`. §8.4 supersedes it and
-  Phase 2 implemented §8.4, so `DrugSql.ResistanceDrivingAtcPatterns` is `J01CR%`, `J01D[CDH]%`,
-  `J01MA%` and the caption is `Antibiotika: Resistendrivende`. **It stays release-blocking for this
-  one collector** until a protocol owner signs off on the clinical definition; Phase 4 did not
-  touch it.
+- **The `J01FF%` question is answered — read §8.4, not an earlier revision of this bullet.** Commit
+  `9f4a5ed4f` drops `J01FF%` (lincosamides / clindamycin) from the *existing* resistance-driving set
+  and renames its caption, and the port followed that lineage for four months. **On 2026-09-02 the
+  product owner ruled that lincosamides do drive resistance**, so `J01FF%` is back:
+  `DrugSql.ResistanceDrivingAtcPatterns` is `J01CR%`, `J01D[CDH]%`, `J01FF%`, `J01MA%`. **The
+  caption did not move with it** — `Antibiotika: Resistendrivende` stays, because the rename is a
+  naming decision that keeps the four antibiotic captions one family, and the owner answered the
+  clinical question only. Nothing here is release-blocking any more.
 - `9f4a5ed4f` is a **rebase commit** — its apparent deletions (BDR block, NEWS2, encoding mangling)
   are artefacts of the rebase, not intent. Do not reproduce them.
 - `SET_ROAS_BASE` is 68 IDs (count-verified) and `LABCLASSES_INTERLEUKINS` is exactly `[1094…1104]`,
@@ -1055,8 +1057,33 @@ Not blocking; each has a working default so implementation can proceed.
    than an omission, and so the earlier draft of this row — which claimed the port matched what
    every application already did — does not stand as a fact.
 3. **`Autommunitet` typo** — preserved for now.
-4. **`J01FF%` in the resistance-driving antibiotic set — needs a protocol owner, blocking for this
-   collector only.** Commit `9f4a5ed4f` bundles the two new antibiotic collectors together with
+4. **`J01FF%` in the resistance-driving antibiotic set — ANSWERED 2026-09-02. Lincosamides drive
+   resistance; the pattern is in.**
+
+   > **The decision.** The product owner ruled that `J01FF` (clindamycin, lincomycin) counts as
+   > resistance-driving. `DrugSql.ResistanceDrivingAtcPatterns` is now `J01CR%`, `J01D[CDH]%`,
+   > **`J01FF%`**, `J01MA%` — four groups, the pattern restored to third position so the generated
+   > statement is byte-identical to a `develop_old` or mainline trace again. The **caption did not
+   > change**: `Antibiotika: Resistendrivende` stays, because that rename is a separate, naming
+   > decision and the four antibiotic captions read as one family. Nothing in this item is
+   > release-blocking any more.
+   >
+   > **The evidence below pointed the other way, and is kept rather than deleted.** All three lines
+   > of it — nine buildable refs, the `KB` tier views, the 2018-to-2020 chronology — described what
+   > *the code* had come to say. None of them was clinical sign-off, which is exactly why the item
+   > stayed open instead of being closed on the archaeology. Read it as the record of why the port
+   > shipped the other way for four months, not as a counter-argument.
+   >
+   > ⚠ **One consequence to carry forward: the answer disagrees with the database.** `J01FF` is in
+   > neither `KB.AntibioticResistance1` nor `3`, so `KB.AntibioticResistance2` classifies it as
+   > *intermediate* — and `QS_DRUG_ANTIBIOTIC_INTERMEDIATE` joins that view directly. A patient on
+   > clindamycin now produces a value from **both** that collector and
+   > `QS_DRUG_ANTIBIOTIC_RESISTANCE`, where the three tiers were evidently meant to partition.
+   > Reconciling them means editing `KB.AntibioticResistance2` and `3` in `C:\work\FastTrak.Database`
+   > — a database change with a different owner, and out of scope for this port. Recorded here so
+   > whoever meets the double-count knows it was foreseen.
+
+   Commit `9f4a5ed4f` bundles the two new antibiotic collectors together with
    *removing* `J01FF%` (lincosamides / clindamycin) from the existing resistance-driving set, and
    renaming its caption from `Medisin: Resistensdrivende antibiotika` to
    `Antibiotika: Resistendrivende`.

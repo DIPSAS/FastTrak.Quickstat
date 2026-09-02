@@ -96,8 +96,10 @@ public static partial class CollectorCatalog
             CollectorNames.DrugSetVariablePrefix,
             DrugSql.AnticholinergicsAb),
 
-        // PORT-PLAN.md §8.4: the caption is the shipping lineage's "Antibiotika: Resistendrivende"
-        // and the ATC set has no J01FF%. The three antibiotic collectors that follow are Phase 4's,
+        // PORT-PLAN.md §8.4: the caption is the shipping lineage's "Antibiotika: Resistendrivende",
+        // but the ATC set keeps J01FF% - the product owner ruled on 2026-09-02 that lincosamides
+        // drive resistance, so the caption and the clause came from different lineages after all.
+        // The three antibiotic collectors that follow are Phase 4's,
         // registered in the order the commented-out lines sat in
         // (QuickStat.Collectors.pas:381-383) - position is the column order of every export.
         // Exactly one of them, QS_DRUG_ANTIBIOTIC_INTERMEDIATE, needs CollectorAvailability for

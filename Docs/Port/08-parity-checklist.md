@@ -436,8 +436,9 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
 Nothing to look at. Each needs somebody to choose, and four of them are §I of the specification
 still waiting for an answer.
 
-- ❓ **`J01FF%` in the resistance-driving antibiotic set.** Release-blocking, and clinical rather
-  than technical. PORT-PLAN.md §8.4.
+- ✅ **`J01FF%` in the resistance-driving antibiotic set** — **answered on 2026-09-02: lincosamides
+  drive resistance.** The pattern is back, third of four, and the collector emits
+  `J01CR%`, `J01D[CDH]%`, `J01FF%`, `J01MA%`. The caption is unchanged. PORT-PLAN.md §8.4.
 - ✅ **`ATC_A11EA = 'A11EA'` with no trailing `%`** — **withdrawn on 2026-09-02, it was never a
   decision.** Unanimous across 119 of 120 refs, `'A11EA%'` has never existed, and `A11EA` has no
   level-5 children, so the exact match selects the same rows a wildcard would. PORT-PLAN.md §8.11.

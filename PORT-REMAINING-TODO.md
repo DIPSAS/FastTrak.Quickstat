@@ -53,14 +53,12 @@ excluded. §8.14.
 
 ## Questions for a person, not a machine
 
-**5. `J01FF%` — release-blocking, and the only one that is.** Does lincosamide (clindamycin,
-lincomycin) count as *resistance-driving*? The port follows the shipping lineage and excludes it.
-Two independent lines support that — every ref capable of building the application lacks it, and the
-database's own `KB.AntibioticResistance*` tiers put it in *intermediate* — and the git chronology
-settles the direction: one author created the collector **with** `J01FF%` in 2018, wrote the tier
-views in 2019, and removed it in 2020 as a surgical edit. But the branch carrying the removal died
-in 2023 while mainline, which never received it, is still developed. Neither archaeology nor a view
-definition is clinical sign-off. §8.4.
+**5. ~~`J01FF%`~~ — answered by the product owner on 2026-09-02: lincosamides *do* drive
+resistance.** `J01FF%` is back in the set, third, so the statement matches a mainline trace again.
+The caption stays `Antibiotika: Resistendrivende`. One consequence to know about rather than fix:
+the answer disagrees with `KB.AntibioticResistance2`, which counts `J01FF` as intermediate, so a
+patient on clindamycin now shows up in both antibiotic collectors. Reconciling the views is a
+database change with a different owner. §8.4.
 
 **6. ~~`ATC_A11EA`~~ — answered 2026-09-02, and it never needed a person.** Not a branch
 disagreement: 119 of 120 refs define it identically and `'A11EA%'` has never existed in the history.

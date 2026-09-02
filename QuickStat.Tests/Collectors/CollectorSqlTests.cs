@@ -156,11 +156,13 @@ public class CollectorSqlTests
             "AND ot.ATC COLLATE Latin1_General_CI_AI LIKE 'A10%' COLLATE Latin1_General_CI_AI ");
 
     [Fact]
-    public void ResistanceDrivingStatementHasThreeAtcGroupsAndNoJ01Ff()
+    public void ResistanceDrivingStatementHasFourAtcGroupsIncludingJ01Ff()
     {
-        // PORT-PLAN.md §8.4. Release-blocking for this collector until a protocol owner confirms,
-        // but the evidence is that J01FF is absent from all nine baselines capable of building the
-        // application. Pinned as an exact string so that changing it back is a visible diff.
+        // PORT-PLAN.md §8.4, answered by the product owner on 2026-09-02: lincosamides drive
+        // resistance, so J01FF% is in, third, where commit 9f4a5ed4f had removed it from. Note where
+        // the extra indent falls - the layout is two patterns per Delphi source line, so the third
+        // pattern opens a line and J01MA% no longer does. Pinned as an exact string because that
+        // detail is what makes the statement byte-comparable with a Delphi trace.
         AssertSql(
             CollectorNames.DrugAntibioticResistance,
             "SELECT PersonId, 'RESISTANCE_DRIVING' AS VarName, ABS(CHECKSUM(DrugName)) % 100000 AS DpValue, StartAt, TreatId, ai.AtcName AS Caption " +
@@ -169,10 +171,11 @@ public class CollectorSqlTests
             "WHERE ( PersonId IN (/*PIDS*/) ) " +
             "AND (   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01CR%' COLLATE Latin1_General_CI_AI ) " +
             "OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01D[CDH]%' COLLATE Latin1_General_CI_AI ) " +
-            "OR   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01MA%' COLLATE Latin1_General_CI_AI ) )");
+            "OR   ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01FF%' COLLATE Latin1_General_CI_AI ) " +
+            "OR ( ot.ATC COLLATE Latin1_General_CI_AI LIKE 'J01MA%' COLLATE Latin1_General_CI_AI ) )");
 
         Assert.Equal(
-            new[] { "J01CR%", "J01D[CDH]%", "J01MA%" },
+            new[] { "J01CR%", "J01D[CDH]%", "J01FF%", "J01MA%" },
             DrugSql.ResistanceDrivingAtcPatterns);
     }
 
