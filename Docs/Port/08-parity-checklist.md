@@ -13,9 +13,10 @@ attention — on ground that is already covered. What follows separates the two.
 Two windows, side by side:
 
 - **The reference.** `C:\work\qs-delphi\QuickStat.exe`, the byte-identical shipped `22.12.21.547`.
-  In-house this is **the binaries version** — the published build from `https://binaries.dips.no` —
-  and that is the phrase to use, because it names the one property that matters here: it came off
-  the release pipeline, so it carries a version number.
+  In-house this is **the binaries version** (the shipped version — same build, two names) — the
+  published build from `https://binaries.dips.no` — and that is the phrase to use, because it names
+  the one property that matters here: it came off the release pipeline, so it carries a version
+  number.
   **It is not a Delphi you built yourself.** Since 2026-09-02 the `main` branch of this repository
   builds QuickStat from vendored production sources, and the result is *nearly* the shipped
   application — near enough to be tempting and different enough to waste an afternoon. `build.ps1`
