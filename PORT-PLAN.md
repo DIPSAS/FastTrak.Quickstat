@@ -2176,8 +2176,9 @@ port task: what is missing is a ruling on which value belongs in the cell, not a
 
 ### 8.14 The two sides of the CSV comparison, side by side at last
 
-The last two things Phase 5 owed — the Delphi half of the byte comparison (R4, §10.6) and the third
-palette colour (§8.9 a) — needed the same setup, so they were done in one sitting on 2026-08-27:
+The last two things Phase 5 owed — the Delphi half of the byte comparison (§9 R4, §5 criterion 6)
+and the third palette colour (§8.9 a) — needed the same setup, so they were done in one sitting on
+2026-08-27:
 `22.12.21.547` driven from `C:\work\qs-delphi` against `EFT00028_TEST_020`, and the port's headless
 harness at `C:\work\qs-harness` run over the same cohort.
 
@@ -2262,12 +2263,33 @@ branch ambiguity to measure away. New brush `QsUnfocusedSelectionBrush` `#E7F2FC
 §F.4 and in the inventory test. The focused half was wrong too and is now right for free, because it
 binds `QsCurrentCellBrush`.
 
-**What this leaves for §10.6.** The criterion says *byte-identical for a fixture dataset*. Taken
+**What this leaves for §5 criterion 6.** It says *byte-identical for a fixture dataset*. Taken
 literally it cannot be met while the port de-duplicates columns, and it cannot be met at all for a
 dataset containing the form-instance collector, because the Delphi's own column order there is an
 artefact of its dictionary. What can be met — and now is — is: **same rows, same column names, same
 values, same encoding, same delimiters, same line ends, and the same column order everywhere except
 one collector.** The two exceptions are named, attributed and reproducible.
+
+**Signed off on that basis by the product owner, 2026-09-03**, which closes §5 criterion 6. The two
+alternatives were costed and declined:
+
+| | What it would take | Why not |
+|---|---|---|
+| A literal `fc /b` after post-processing | Untick *Skjema: Antall totalt per type*, then strip the two repeated columns from the Delphi file | A byte match between two files where one has been edited is weaker evidence than 0 differing cells in 12 462, not stronger |
+| A literal `fc /b` with no post-processing | Also untick whichever collector of each colliding pair is redundant, exporting ~210 of 213 elements | Same objection, plus the colliding pairs would have to be identified from a fresh export header — `NDV_TREATMENT_TYPE` is a metadata-defined variable, not a name in any module |
+
+**A repeat would be a new comparison, not a re-run.** The 31-patient cohort is gone: ProcId 23
+deletes from `StudCase` and was run on 2026-09-01, taking NDV from 287 study cases to 26, and the
+database is FULL recovery with no backups. The population itself still works — ProcId 282 is
+`NDV.GetCaseListNoDuration`, a pure `SELECT` (read, not executed), and the same predicate counts
+**25 patients** as of 2026-09-03. So the numbers in this section are of the 31 and stand as the
+record; they cannot be reproduced.
+
+**The confinement is exact, and was re-checked in the port on 2026-09-03.** Only one factory passes
+a batch size of 1 — `Make.FormInstances` (`Collectors/Registry/Make.cs:257`) — and only one data
+element uses it, `FORMS.FREQUENCY` / *Skjema: Antall totalt per type*
+(`Collectors/Registry/CollectorCatalog.Basic.cs:15`). Every other collector takes its column order
+from the server. So difference 2 cannot spread: it is one tick-box wide, by construction.
 
 ### 8.9 Surfaced during Phase 3 wave 1 — all five are now closed
 
@@ -2482,7 +2504,9 @@ down:
 
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
 
-   **Met, with two named exceptions — §8.14 has the evidence.** Both sides exported the same 31-patient
+   **Met with two named exceptions, and signed off on that basis by the product owner on
+   2026-09-03 — §8.14 has the evidence and the costing of the two declined alternatives.** Both
+   sides exported the same 31-patient
    cohort with the same 213 data elements in the same order, in three identification variants:
    **0 differing cells in 12 462**, same rows, same set of column names, same encoding (including the
    eight CP1252 bytes this criterion existed to check), same delimiters, quoting, line ends and
@@ -2496,9 +2520,10 @@ down:
      to copy a permutation nobody chose.
 
    So *byte-identical* is not achievable for a dataset containing the form-instance collector, and the
-   remaining prose above is what was achieved instead. If a literal byte comparison is wanted for
-   sign-off, exclude that one data element and remove the two duplicate columns from the Delphi file
-   first; everything else already matches byte for byte.
+   remaining prose above is what was achieved instead — accepted as the reading of this criterion.
+   **What a consumer sees is unaffected:** every value, every column name, and the encoding and
+   framing that this criterion existed to protect are identical, and anything keying on the header
+   rather than on ordinal position cannot tell the two files apart.
 7. The three identification modes behave exactly as specified in §6.
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.
 
@@ -2506,4 +2531,6 @@ down:
    re-read of 1 163 lines of specification. **51 items** still need eyes; everything already pinned
    by a test or measured off the running binary is listed as covered and skippable, with the source
    of the assurance named, and every deliberate difference is collected so it is not reported as a
-   defect. Criteria 2, 3, 5, 6 and 7 close along the way and are marked where they do.
+   defect. Criteria 2, 3, 5 and 7 close along the way and are marked where they do; 6 was signed off
+   separately on 2026-09-03, and §5 of the checklist carries its two exceptions so the walker does
+   not report them as defects.

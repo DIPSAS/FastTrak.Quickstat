@@ -19,8 +19,9 @@ Two windows, side by side:
 Both against `EFT00028_TEST_020` on `localhost`, and no other database. **Pick
 `Testdatabase (NDV)`** — the picker is sorted by display name and preselects nothing, so the
 entry that sorts to the top is not necessarily the one you want, and everything measured during the
-port is NDV. Suggested cohort: ProcId **282** *"Diagnoseår mangler"* — 31 patients, small enough to
-collect all 213 elements in about a minute.
+port is NDV. Suggested cohort: ProcId **282** *"Diagnoseår mangler"* — **25 patients** as of
+2026-09-03, small enough to collect all 213 elements in about a minute. It was 31 until ProcId 23
+was run on 2026-09-01; that population deletes from `StudCase`, so **do not pick ProcId 23**.
 
 ## Legend
 
@@ -276,7 +277,7 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   covered for weeks.
 - ✅ Caption format string and its argument order — `Ui/Dataset/DatasetViewModelTests.cs`.
 
-## 5. Export — **[AC-6]** and **[AC-7]**
+## 5. Export — **[AC-7]** *(AC-6 was signed off separately on 2026-09-03; see the ✅ at the end)*
 
 - [ ] **5.1** `Save dataset to CSV file` from the grid's context menu: default name `QuickStat.csv`,
   one file type *Comma separated values*, overwrite prompt on. §D.1. *(Reachable from the new
@@ -302,10 +303,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   is never assigned, and `actExportData` latches on and never off. Both are gated on one predicate
   here — `DatasetViewModel.CanExport` — rather than only the half that was reported, because they
   sit next to each other on one menu and fail for the same reason.
-- ⚠ **Two structural differences from the Delphi's CSV are known, deliberate and attributed** — the
-  port de-duplicates two repeated column names, and the ten `FORM.*` columns are permuted because
-  the Delphi's order is `TObjectDictionary` hash order. **Read PORT-PLAN.md §8.14 before reporting
-  either.**
+- ⚠ **Two structural differences from the Delphi's CSV are known, deliberate, attributed and
+  accepted** — the port de-duplicates two repeated column names, and the ten `FORM.*` columns are
+  permuted because the Delphi's order is `TObjectDictionary` hash order. The product owner signed
+  criterion 6 off on that basis on 2026-09-03. **Neither is a defect; read PORT-PLAN.md §8.14 before
+  reporting either.** The `FORM.*` permutation is one tick-box wide — it can only appear when
+  *Skjema: Antall totalt per type* is collected.
 - ✅ **The national-id half of AC-5, in three tests added 2026-09-03.** The recovery path against a
   real catalogue and a real cohort, and a fully identified export that carries **280 ids into the
   file for 281 patients** — `Live/FullyIdentifiedExportTests`, skipped unless
@@ -313,9 +316,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   real *Fully identified patients* radio in a realised `CollectionsTabView` moves
   `IIdentificationPolicy` — `Ui/Collections/IdentificationRadioTests`. All three
   negative-controlled. What they leave for 5.5 is the human's look at the file.
-- ✅ **0 differing cells in 12 462**, across three identification variants, same encoding,
-  delimiters, quoting, line ends and trailing separator, including the eight CP1252 bytes.
-  PORT-PLAN.md §8.14. Criterion 6 is met bar the two exceptions above.
+- ✅ **[AC-6] closed. 0 differing cells in 12 462**, across three identification variants, same
+  encoding, delimiters, quoting, line ends and trailing separator, including the eight CP1252 bytes.
+  Signed off on 2026-09-03 with the two exceptions above accepted, so **there is nothing for this
+  pass to do about criterion 6** — the alternatives were costed and declined, and a repeat would be
+  a new comparison rather than a re-run, the 31-patient cohort having been emptied on 2026-09-01.
+  PORT-PLAN.md §8.14.
 
 ## 6. Packages tab — §B.3
 

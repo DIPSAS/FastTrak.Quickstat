@@ -34,36 +34,28 @@ live list stays a list of things that actually stand between this and a release.
 | 8. Chrome, theme and shutdown | 5 |
 | 7. Dialogs | 4 |
 
-Criteria 2, 3, 5, 6 and 7 close along the way, and everything already settled by test or
-measurement is marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.
+Criteria 2, 3, 5 and 7 close along the way, and everything already settled by test or measurement is
+marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.
 
-**2. Acceptance criterion 6 needs a sign-off decision, not more work.** 0 differing cells in 12 462
-stands. *Byte-identical* is unreachable while a dataset contains the form-instance collector: the
-Delphi orders its ten `FORM.*` columns by a hash-dictionary walk, and it repeats two column names
-the port de-duplicates. Accept the two exceptions, or ask for a literal comparison with that element
-excluded. §8.14.
+That is the whole blocking list: one pass of manual work.
 
-> ⚠ **The 31-patient cohort behind that comparison no longer exists**, so a repeat is a *new*
-> comparison, not a re-run. ProcId 23 deletes from `StudCase` and was run on 2026-09-01; NDV went
-> from 287 study cases to 26, and the database is FULL recovery with no backups. The same population
-> still works — ProcId 282 `NDV.GetCaseListNoDuration` is a pure `SELECT` and returns **25 patients
-> today** (measured 2026-09-03) — but §8.14's numbers are of the 31 and cannot be reproduced.
-> Promise accordingly.
-
-That is the whole blocking list: one pass of manual work and one decision.
+> ⚠ **Pick the cohort deliberately.** ProcId 282 *"Diagnoseår mangler"* is the suggested one and now
+> returns **25 patients**, not the 31 §8.14 was measured on. ProcId 23 deletes from `StudCase` and
+> is what shrank it on 2026-09-01, on a database in FULL recovery with no backups — **do not pick
+> it**.
 
 ---
 
 ## Deployment-time, undischargeable here
 
-**3. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
+**2. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
 non-cohort rows client-side. Harmless on 25 patients, unknown on production volumes. Preserved
 deliberately for parity; recorded as a performance follow-up.
 
-**4. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
+**3. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
 where re-checked against the pinned ref. Confirm before relying on one.
 
-**5. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
+**4. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
 five-minute check for whoever has access; it would either confirm the row or overturn it.
 
 ---
