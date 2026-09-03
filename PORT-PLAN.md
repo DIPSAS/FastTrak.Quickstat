@@ -2503,7 +2503,7 @@ down:
 8. A human parity pass against `05-ui-spec.md` finds no unexplained differences.
 
    **Written out as `Docs/Port/08-parity-checklist.md`**, so the pass is a walk rather than a
-   re-read of 1 163 lines of specification. **49 items** still need eyes; everything already pinned
+   re-read of 1 163 lines of specification. **51 items** still need eyes; everything already pinned
    by a test or measured off the running binary is listed as covered and skippable, with the source
    of the assurance named, and every deliberate difference is collected so it is not reported as a
    defect. Criteria 2, 3, 5, 6 and 7 close along the way and are marked where they do.

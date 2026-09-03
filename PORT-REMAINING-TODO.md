@@ -43,10 +43,12 @@ Delphi orders its ten `FORM.*` columns by a hash-dictionary walk, and it repeats
 the port de-duplicates. Accept the two exceptions, or ask for a literal comparison with that element
 excluded. §8.14.
 
-> ⚠ **The 31-patient cohort behind that comparison no longer exists.** Population ProcId 23 deletes
-> from `StudCase` and was run on 2026-09-01; NDV went from 287 study cases to 26, the database is
-> FULL recovery with no backups. The evidence is recorded, but a *repeat* run needs a different
-> cohort or a restored database. Promise accordingly.
+> ⚠ **The 31-patient cohort behind that comparison no longer exists**, so a repeat is a *new*
+> comparison, not a re-run. ProcId 23 deletes from `StudCase` and was run on 2026-09-01; NDV went
+> from 287 study cases to 26, and the database is FULL recovery with no backups. The same population
+> still works — ProcId 282 `NDV.GetCaseListNoDuration` is a pure `SELECT` and returns **25 patients
+> today** (measured 2026-09-03) — but §8.14's numbers are of the 31 and cannot be reproduced.
+> Promise accordingly.
 
 That is the whole blocking list: one pass of manual work and one decision.
 
