@@ -37,6 +37,26 @@ live list stays a list of things that actually stand between this and a release.
 Criteria 2, 3, 5 and 7 close along the way, and everything already settled by test or measurement is
 marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.
 
+**Treat it as the bulk of a full manual test of the port, not as a separate exercise.** Walking the
+47 means launching, connecting, picking a population, loading it, ticking elements, collecting,
+scrolling the grid, exporting three ways, opening the dialogs and shutting down — so whoever does it
+has run the primary workflow end to end, with the shipped Delphi open beside them for comparison. If
+a full manual acceptance test is wanted before release, this *is* most of it; schedule one session,
+not two.
+
+What it does **not** reach, stated so the gap is a decision rather than an oversight:
+
+| | Covered by |
+|---|---|
+| Collector data correctness | Golden SQL files, 131/131, plus the cell-by-cell CSV comparison |
+| Other locales | The suite, under `nn-NO`, `nb-NO` and `en-US` |
+| Production volumes | Nothing — that is R10 below |
+| Install, configuration, logging | Nothing — deployment-time |
+| **Error and cancellation paths** — server down, permission denied, a cancelled collect, an empty cohort | **Nothing, by hand or by test** |
+
+Only the last row is a genuine hole. It is not a numbered item here because nobody has asked for it;
+if it should be one, say so and it goes on the list.
+
 That is the whole blocking list: one pass of manual work.
 
 > ⚠ **Pick the cohort deliberately.** ProcId 282 *"Diagnoseår mangler"* is the suggested one and now
