@@ -13,6 +13,13 @@ attention — on ground that is already covered. What follows separates the two.
 Two windows, side by side:
 
 - **The reference.** `C:\work\qs-delphi\QuickStat.exe`, the byte-identical shipped `22.12.21.547`.
+  **Not a Delphi you built yourself.** Since 2026-09-02 the `main` branch of this repository builds
+  QuickStat from vendored production sources, and the result is *nearly* the shipped application —
+  near enough to be tempting and different enough to waste an afternoon. `build.ps1` compiles no
+  VERSIONINFO resource, so a self-built exe shows a **blank** version panel (see 8.6); the Raize and
+  RTL versions are whatever is installed locally rather than what DIPS shipped; and
+  `QuickStat.config.xml` on `main` has been cut down to one connection. Use it to read source or to
+  hot-fix. Do not compare pixels against it. PORT-PLAN.md §8.17.
 - **The port.** `C:\work\qs-run\run.ps1` builds it, stages the configuration and launches it. That
   folder's `README.md` has the four traps and where the log lands.
 
@@ -454,6 +461,13 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
   PORT-PLAN.md §8.11 (4).
 - [ ] **8.5** Nothing personal in `LOGS\quickstat-*.log` after a full session with *Fully
   identified patients* — no national id, no patient name. R6 is release-blocking.
+- ⚠ **8.6 The version numbers differ, and one way of comparing makes the Delphi's vanish.** The
+  banner reads `QuickStat  version <n>`: the reference shows `22.12.21.547`, the port shows whatever
+  the assembly carries (`MainViewModel.VersionText`, from `<Version>`). Differing numbers are
+  expected — that is not the item. The item is that `build.ps1` on `main` compiles no VERSIONINFO
+  resource, so a **self-built** Delphi renders the panel **empty**, and an empty panel next to a
+  populated one reads as a missing control rather than as a missing build step. Check this against
+  `C:\work\qs-delphi` or not at all. PORT-PLAN.md §8.17.
 - ⚠ **Segoe UI throughout**, not Calibri/Tahoma/Consolas. §F.3.
 - ⚠ **Tab strip is 28 px** against the Delphi's 19. §A.3.
 - ⚠ **The splitter position and last-used database are persisted**; the Delphi persists neither.

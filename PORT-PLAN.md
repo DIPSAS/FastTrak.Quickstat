@@ -344,17 +344,24 @@ relevant document before writing code**; they contain verbatim SQL, exact captio
 
 ### 2.1 The parity baseline is **not** this repository
 
-`C:\work\FastTrakApps\App.QuickStat\` holds the canonical QuickStat source. **This repository is a
-reduced copy of it.** The complete set of differences comes from the pairing chosen during
+> **Overtaken by events, 2026-09-02 — see §8.17.** `main` was re-extracted that day: it now vendors
+> `origin/tarmscreening/develop` under `FastTrak/`, all five comment-outs below are gone, and it
+> compiles. The Delphi on `main` *is* the canonical pairing now, and `git show main:FastTrak/…` is
+> the cheapest correct way to read library source. Everything from here to the end of §2.1 describes
+> the state before that commit and is kept because the reasoning is what settled which baseline the
+> port follows — it is history, not instructions.
+
+`C:\work\FastTrakApps\App.QuickStat\` holds the canonical QuickStat source. **This repository was a
+reduced copy of it.** The complete set of differences came from the pairing chosen during the first
 extraction (`9935ea9`, "Hentet ut fra FastTrakApps og develop_old"):
 
-| | FastTrakApps (canonical) | This repo |
+| | FastTrakApps (canonical) | This repo, before `a731b76` |
 |---|---|---|
 | The four collector registrations | active | commented out |
 | `AddNationalIds` / `IncludesNationalId` | **active** | commented out, `// TODO: Disse feiler, hvor er de??` |
 | `Generics.Collections` → `System.Generics.Collections`, `{$ENDIF }`, `.dpr` uses clause | — | cosmetic |
 
-Nothing else differs. Whoever extracted this repo paired the canonical app with the `develop_old`
+Nothing else differed. Whoever extracted this repo paired the canonical app with the `develop_old`
 library, hit five symbols that do not exist there, and commented them out to make it compile.
 
 **That pairing was a deliberate choice, not accidental damage.** `develop_old` is not a side branch:
@@ -473,7 +480,9 @@ The Delphi source remains the final authority while it is still in the tree.
   not code. The last substantive work is the interleukin support and version bump of December 2022,
   so anything describing "recent" QuickStat behaviour is describing a 2022 build.
 - **Build definitions live in `C:\work\FastTrak.BuildServer`** (FinalBuilder, Continua CI).
-  `QuickStat.fbp8` is the QuickStat build; see R13 for why it is unlikely to succeed.
+  `QuickStat.fbp8` is the QuickStat build, and R13 explains why it was thought unlikely to succeed.
+  **That is history as of 2026-09-02:** `main` no longer resolves the library through
+  `$(FastTrakDir)` at all — it vendors it — and it compiles. §8.17.
 - **Both of those repos have uncommitted changes right now** — `QuickStat.fbp8` in the build server,
   the `.dproj` in FastTrakApps. Quote them only via `git show HEAD:<path>`. See R14.
 
@@ -2391,6 +2400,87 @@ code.** That is a real result rather than a reassuring one — the reason it is 
 was built from the golden files and the running exe, not from the prose. The prose is now correct
 too.
 
+### 8.17 The Delphi on `main` was rebuilt against production, and it compiles
+
+On 2026-09-02 the Delphi side of this repository was re-extracted so that it would match what
+actually ships. Two commits: `a731b76` "Bygg QuickStat fra FastTrakApps/master og develop_old" and
+`96667c4` "Etter claude". Verified on 2026-09-03, because the whole port rests on this being the
+right source.
+
+**The library is `origin/tarmscreening/develop` (`249ac2d16`) — the baseline the port pins.**
+Compared the 176 files under `FastTrak/` against every candidate ref by blob hash:
+
+| | Files |
+|---|---|
+| Byte-identical to `tarmscreening/develop` | 134 |
+| Identical ignoring line endings | 11 |
+| Absent from `tarmscreening/develop`, taken from mainline | 31 |
+| **Real content differences** | **0** |
+
+The 31 are core `Emetra.Logging.*`, `Emetra.Person.pas`, `Emetra.Database.Interfaces.pas` and
+similar. Tarmscreening genuinely does not carry them — 349 `Emetra.*` files against mainline's 527 —
+so mainline was the only source available, and the shipped build cannot have resolved them any other
+way either.
+
+The discriminating files all land on the right side. `EPR.QA.SQL.pas`,
+`EPR.QA.Collector.Names.pas`, `.Factory`, `.Drug`, `.Base`, `EPR.QA.Matrix.pas`,
+`CRF.Patient.List.pas` and `EPR.VclFrame.Populations.pas` are each **identical to tarmscreening and
+different from `develop_old`, `master` and `develop`**. `Collector.Names.pas` additionally differs
+from `release/tarmscreening`, which is the fork point §2.1 turns on: this is the 131-collector
+sibling, not the 130-collector one. The R14 trap file
+`Emetra.VclUtil.ColorSet.Interfaces.pas` — where `clFocusedSelectionColor` and so the grid's current
+cell colour comes from — is tarmscreening's, not `master`'s.
+
+`EPR.QA.SQL.pas` is byte-identical to the copy the golden files were derived from. **Nothing to
+regenerate.**
+
+**Two claims in `a731b76`'s own commit message are false.** Recorded because the next reader will
+otherwise believe them:
+
+- It says dependencies were resolved *from `develop_old`*. The tree says the opposite. Before that
+  commit `FastTrak/EPR.QA.SQL.pas` was blob `b4a7be1ab` — which is exactly what
+  `develop_old`, `master` and `develop` carry; after it, `91cca6ea5`, which is tarmscreening's. The
+  commit moved *off* mainline.
+- It says the five call sites were deactivated. They are **active**: `QuickStat.Collectors.pas:297`
+  (`QST_LAB_INTERLEUKINS`), `:381-383` (both antibiotics plus `QS_DRUG_J01XX05`), `:480`
+  (`QS_ROAS_BASE`), and `MainQuickStat.pas:537-538` (`IncludesNationalId` / `AddNationalIds`). So
+  §2.1's pairing no longer holds on `main`, and the five comment-outs are gone.
+
+**The application source is byte-identical to `FastTrakApps/master`** — all ten source files,
+`MainQuickStat.pas`/`.dfm`, the five `QuickStat.*.pas`, `FormExport.SqlGenerator.pas`,
+`QuickStat.dpr` and the manifest. Only `QuickStat.dproj` and `QuickStat.config.xml` differ, both
+deliberately. `master`'s `App.QuickStat` is two commits past the shipped `313a15c`
+(`22.12.21.547`) and both are metadata: `c01a04c` corrects `.dproj` version keys (Release 6→21,
+MinorVer 5→12, ProductVersion 22.5→22.12; `FileVersion` was already right) and `c3f84e3` adds five
+lines of test-database configuration. **No code drift from the shipped build.**
+
+**It compiles.** Built from a throwaway worktree on `main` with Delphi 11.3 (`dcc32` 35.0):
+**249 128 lines, zero errors.** `DCC_UnitSearchPath` is `FastTrak;Spring;$(DCC_UnitSearchPath)` —
+no `$(FastTrakDir)`, so the tree is self-contained and R13's failure mode is gone at the source.
+This is the first observed successful Delphi QuickStat build; R13's closing sentence said none had
+ever been demonstrated, and that is now corrected there.
+
+Three caveats that matter more than they look:
+
+- **`build.ps1` never produces a VERSIONINFO resource.** It compiles the icon into `.res` and stops,
+  so the resulting exe reports **no FileVersion at all**. `MainQuickStat.dfm:897` carries a visible
+  `TRzVersionInfoStatus` panel that reads it, so a locally built QuickStat shows a blank version
+  where `22.12.21.547` shows the version. It is a build artefact, not a port difference —
+  `08-parity-checklist.md` §8 says so, and the reference remains `C:\work\qs-delphi`.
+- **`QuickStat.config.xml` was cut down** to a single `GBD` entry pointing at `.\FastTrak.udl`, from
+  upstream's Dogfood / COVID-19 / three test databases / a PLL connection naming a real server.
+  Local convenience; the connection list matches neither upstream nor the port's configuration.
+- **`build.ps1` does not run unmodified here.** It defaults to `-StudioVersion 37.0` with a
+  `BonusKSVC\8.0.1` Raize path; this machine has 22.0 and 23.0 with
+  `KonopkaControls-280-7.0For11.3`. The build above called `dcc32` directly. The line-count
+  difference against the 258 176 recorded in `a731b76` is the RTL and Raize version gap, nothing
+  more.
+
+**What this changes for the port: nothing, and that is the finding.** The golden files stay valid,
+the collector set is the same 131, and no measurement has to be repeated. What it does change is
+method — Delphi lookups can now go through `git show main:FastTrak/…` instead of `C:\work\FastTrak`
+on `master`, which is what R14 has been warning about since Phase 2.
+
 ### 8.9 Surfaced during Phase 3 wave 1 — all five are now closed
 
 | # | Question | Status |
@@ -2518,8 +2608,8 @@ down:
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass. **Partly lifted on 2026-08-27**: `EFT00028_TEST_020` on `localhost` was made available for Phase 5 and is the only database that may be used. Everything learned from it is in §8.11. **Amended 2026-09-03**: the rule still stands for the suite as a whole — `dotnet test QuickStat.slnx` reaches no network and 2 633 tests pass with none — but `QuickStat.Tests/Live/` now holds two tests that *may* use a server. They skip themselves unless `QUICKSTAT_LIVE_CONNECTION` names one, so the default is unchanged; what they buy is that the recovery path and the fully identified export stop depending on a scratch console nobody can audit. `Live/LiveDatabase.cs` carries the reasoning and the R6 rules they follow |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Closed 2026-09-03 (§8.16):** the remaining "what ships today" surface was swept exhaustively rather than left as a standing warning — all 469 `file:line` citations in `01`, `02`, `04` and `05` were compared against the pinned worktree. 146 of the 148 landing in a divergent file survive verbatim; the two that do not are one no-op (`StrictDelimiter`, behaviourally identical once the constructors are read) and one local-only fix already recorded in `02` (the DOB `FormatDateTime`). Three citations read from `C:\work\FastTrak` on `master` were chased separately and produced the only real corrections: two wrong line numbers and one false absolute claim about `AccessControl`, all fixed in `01`. **None of it reached the code**, because the port was built from the golden files and the running exe rather than from the prose |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
-| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | **Closed 2026-09-03 — no consumer remains**, not because the open half was answered. Everything that once leaned on this row is settled by other means: the parity reference is the **deployed exe** rather than a freshly built one (four byte-identical copies of `22.12.21.547`, §8.9(a); UPX-packed, so it must be *run*, not read — copied to `C:\work\qs-delphi`, pointed at `EFT00028_TEST_020` and driven on 2026-08-27, where it connects, lists populations and loads one); the library baseline by R12's dated commit chain; the five comment-outs by §2.1's pairing; the three disputed palette values by measurement off that running exe (§8.5). The remaining check — reading Continua's `FastTrakDevelop` source definition — is **withdrawn rather than done.** It would say whether `22.12.21.547` came off CI or off someone's working copy, and nothing downstream turns on the answer: the .NET build resolves from NuGet and this repository alone, with no `$(FastTrakDir)` search path into a repo whose branch is chosen elsewhere, so the failure mode this row describes cannot carry forward into the replacement tile. **The one fact worth keeping:** nobody has demonstrated a Delphi QuickStat build succeeding, so there is no hot-fix path on the old application while the port is in flight. Rollback is unaffected — the artefact already exists and needs no build |
-| R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos |
+| R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | **Closed 2026-09-03 — no consumer remains**, not because the open half was answered. Everything that once leaned on this row is settled by other means: the parity reference is the **deployed exe** rather than a freshly built one (four byte-identical copies of `22.12.21.547`, §8.9(a); UPX-packed, so it must be *run*, not read — copied to `C:\work\qs-delphi`, pointed at `EFT00028_TEST_020` and driven on 2026-08-27, where it connects, lists populations and loads one); the library baseline by R12's dated commit chain; the five comment-outs by §2.1's pairing; the three disputed palette values by measurement off that running exe (§8.5). The remaining check — reading Continua's `FastTrakDevelop` source definition — is **withdrawn rather than done.** It would say whether `22.12.21.547` came off CI or off someone's working copy, and nothing downstream turns on the answer: the .NET build resolves from NuGet and this repository alone, with no `$(FastTrakDir)` search path into a repo whose branch is chosen elsewhere, so the failure mode this row describes cannot carry forward into the replacement tile. **Superseded 2026-09-03 (§8.17):** this row's last remaining fact was "nobody has demonstrated a Delphi QuickStat build succeeding, so there is no hot-fix path on the old application while the port is in flight." That is now false. `main` was re-extracted on 2026-09-02 to build against production sources, `DCC_UnitSearchPath` is `FastTrak;Spring;$(DCC_UnitSearchPath)` with no `$(FastTrakDir)` at all, and it compiles: 249 128 lines, zero errors, Delphi 11.3. **A hot-fix path exists.** The row's premise is retired rather than answered — the `$(FastTrakDir)` search path it describes no longer exists to fail. Rollback is unaffected either way — the artefact already exists and needs no build |
+| R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos. **Cheaper since 2026-09-02 (§8.17):** `main` vendors the tarmscreening library under `FastTrak/`, verified file by file, so `git show main:FastTrak/<unit>.pas` reads the right lineage out of this repository and needs no external worktree at all |
 
 ---
 
