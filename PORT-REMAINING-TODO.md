@@ -68,18 +68,15 @@ That is the whole blocking list: one pass of manual work.
 
 ## Deployment-time, undischargeable here
 
-**2. R10** — most `maxint`-batch collectors carry no `{IdList}` and scan whole tables, discarding
-non-cohort rows client-side. Harmless on 25 patients, unknown on production volumes. Preserved
-deliberately for parity; recorded as a performance follow-up.
+**2. R10** — **56 of the 131 collectors** carry no `{IdList}`; every matching row for every patient
+crosses the wire and the non-cohort ones are dropped client-side. 29 of the 56 are bounded by
+neither patient, date nor study. Harmless on 25 patients, unknown on production volumes, and **not
+measurable on the test database** (349 people). Preserved deliberately for parity. Counted and
+costed on 2026-09-03 — §8.15 splits it into 50 mechanical rewrites, one trap (`DRUID_SPECIFIED`)
+and five that need a procedure signature changed in `C:\work\FastTrak.Database`.
 
 **3. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
 where re-checked against the pinned ref. Confirm before relying on one.
-
-> **Not a task, but plan around it: there is no fallback build of the Delphi.** Nobody has
-> demonstrated `QuickStat.fbp8` compiling — locally `$(FastTrakDir)` defaults to a working copy on
-> `master`, which lacks every symbol the app needs. So there is no hot-fix path on the old
-> application while the port is in flight. Rollback is unaffected: the deployed `22.12.21.547`
-> already exists and needs no build. R13, closed 2026-09-03.
 
 ---
 

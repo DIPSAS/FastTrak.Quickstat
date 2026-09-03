@@ -2293,6 +2293,54 @@ element uses it, `FORMS.FREQUENCY` / *Skjema: Antall totalt per type*
 (`Collectors/Registry/CollectorCatalog.Basic.cs:15`). Every other collector takes its column order
 from the server. So difference 2 cannot spread: it is one tick-box wide, by construction.
 
+### 8.15 R10, counted and costed — but still not measurable here
+
+R10 has been a one-line row since it was written: *"most `maxint`-batch collectors carry no
+`{IdList}` and scan the whole database."* "Most" was never a number, and "a separate performance
+follow-up" was never a scoped one. Both are now, as of **2026-09-03**. The decision does not
+change — R10 stays out of the port — but whoever picks it up inherits a split rather than an
+adjective.
+
+**How many.** Counted off `QuickStat.Tests/Collectors/Golden/`, where every collector's finished
+statement is one file and `{IdList}` renders as `(/*PIDS*/)`:
+
+| | Collectors | How the cohort reaches the server |
+|---|---|---|
+| `PidBinding.IdList` | 74 | `PersonId IN (…)`, chunked at 100 (forms: 200) |
+| `PidBinding.SinglePerson` | 1 | `:PersonId`, one round trip per patient — `FORMS.FREQUENCY` |
+| **`PidBinding.None`** | **56** | **It does not.** Every matching row for every patient is transported, and `CollectorRunner.cs:88-101` drops the ones outside the cohort |
+
+So it is 56 of 131, not "most of the `maxint` ones" — and `PidBinding.cs`'s own remark, which said
+"`SpDiagnoseDetailsByLevel`, every `EXEC Report.Col*`, and about eighteen others", understated it by
+a factor of three. That remark is corrected.
+
+**What bounds the 56 instead, since it is not the cohort.** 25 carry a `DATEADD`/`GETDATE` window,
+5 are study-scoped (`Make.StudyScoped`), 3 are both — so **29 of the 56 are bounded by neither
+patient, date nor study.** Some of those narrow by ICD-10 or ATC pattern, which is selectivity, not
+a cohort filter: the server still reads the driving table to apply it.
+
+**The amplification factor is roughly `cohort ÷ patients in the database`, and it is exactly the
+number nobody has.** A 25-patient cohort out of 349 people keeps about 7% of what comes back; out
+of a real site's register it would keep a fraction of one percent, with the rest crossing the wire
+to be discarded in a `HashSet` lookup.
+
+**`EFT00028_TEST_020` cannot demonstrate this, and it is worth saying so explicitly** so nobody
+tries. Its largest tables are all metadata — `MetaNomListItem` 66 881, `MetaFormItem` 48 673 — and
+the patient side is `ClinDataPoint` 5 210, `Person` 349, `LabData` 132, `StudCase` 96
+(`sys.dm_db_partition_stats`, metadata only, nothing read). R10 is a production-volume question and
+needs a production-like volume; there is no substitute on this machine.
+
+**What a fix would cost, checked rather than assumed:**
+
+| Group | Count | What it takes |
+|---|---|---|
+| Inline `SELECT`, safe to filter | **50** | Add `AND PersonId IN {IdList}`. **Semantics-preserving, and this was verified, not assumed**: every window function partitions by `PersonId` (or `StudCaseId`, which is per-person-per-study), and every `GROUP BY` includes `PersonId`. The golden files would prove each rewrite |
+| Inline `SELECT`, **trap** | **1** | `DRUID_SPECIFIED`. Its inner aggregate counts alert classes across the whole database and keeps those with `n > 5` — the threshold is global *by design*. Filtering the outer join is safe; pushing the filter into the subquery changes **which columns the collector emits**. The only cross-patient aggregate among the 56, and the only one where a mechanical rewrite would silently change results |
+| `EXEC Report.*` | **5** | Four procedures — `NorGeP`, `ColGbdTvangsvedtak`, `ColDrugAndRenalFunction` (twice), `ColAntiHypertensivesLowBP`. **None accepts a person list**; two take no parameters at all (`sys.parameters`). Fixing these means changing signatures in `C:\work\FastTrak.Database`, a different repository with callers other than QuickStat — not a QuickStat-local change |
+
+That is the shape of it: 50 mechanical rewrites with a golden file each, one that needs reading
+before it is touched, and five that are somebody else's schema.
+
 ### 8.9 Surfaced during Phase 3 wave 1 — all five are now closed
 
 | # | Question | Status |
@@ -2415,7 +2463,7 @@ down:
 | R5 | Custom grid control is the largest single piece of UI work | Time-boxed; `DataGrid` fallback documented with a ~150-column ceiling |
 | R6 | Privacy regressions around anonymisation | Dedicated tests; treated as release-blocking |
 | R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
-| R10 | Most `maxint`-batch collectors carry **no `{IdList}` at all** and scan the whole database, discarding non-cohort rows client-side | Pre-existing behaviour, preserved for parity; recorded as a separate performance follow-up, not fixed during the port |
+| R10 | **56 of the 131 collectors carry no `{IdList}` at all** and are filtered client-side after every matching row for every patient has crossed the wire. 29 of those 56 are bounded by neither patient, date nor study | Pre-existing behaviour, preserved for parity; a performance follow-up, not fixed during the port. **Counted and costed 2026-09-03 (§8.15)**, which is the only thing that changed: 50 are mechanical `AND PersonId IN {IdList}` rewrites, *verified* semantics-preserving because every window partitions by person and every `GROUP BY` carries `PersonId`; 1 (`DRUID_SPECIFIED`) has a deliberately global `n > 5` threshold and would break if filtered naively; 5 are `EXEC Report.*` against procedures that take no person list, so they need a signature change in `C:\work\FastTrak.Database`. **Not measurable here** — `EFT00028_TEST_020` holds 349 people and 5 210 clinical datapoints, so the amplification this row is about cannot be reproduced on it |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass. **Partly lifted on 2026-08-27**: `EFT00028_TEST_020` on `localhost` was made available for Phase 5 and is the only database that may be used. Everything learned from it is in §8.11. **Amended 2026-09-03**: the rule still stands for the suite as a whole — `dotnet test QuickStat.slnx` reaches no network and 2 633 tests pass with none — but `QuickStat.Tests/Live/` now holds two tests that *may* use a server. They skip themselves unless `QUICKSTAT_LIVE_CONNECTION` names one, so the default is unchanged; what they buy is that the recovery path and the fully identified export stop depending on a scratch console nobody can audit. `Live/LiveDatabase.cs` carries the reasoning and the R6 rules they follow |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
