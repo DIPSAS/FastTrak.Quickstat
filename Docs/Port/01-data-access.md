@@ -318,6 +318,9 @@ Dates get special treatment in two places:
   dates as strings.
 - `CRF.Patient.List.pas:376` sidesteps the issue entirely:
   `FastQuery(QRY_STUDY_PERSON_BY_DOB, [StudyId, FormatDateTime('yyyy-mm-dd', searchDOB)])`.
+  **This one is local-only and does not ship** (R11): upstream at `:411` passes the raw `TDateTime`,
+  `[StudyId, searchDOB]`. `02-populations-patients.md` §5.2 records it as a local fix worth keeping.
+  Nothing in the port depends on it — there is no date-of-birth search.
 
 **Reading results.** Delphi `TField` NULL semantics are relied on throughout:
 `AsInteger` → 0, `AsString` → `''`, `AsFloat` → 0, `AsDateTime` → 0.0 (= 1899-12-30),
@@ -587,13 +590,19 @@ aktuelle databaser, også kalt QuickStat."*
 
 - The role name is `ROLE_QUICKSTAT = 'QuickStat'`
   (`FastTrak\Emetra.AccessControl.Constants.pas:51`).
-- **QuickStat.exe never checks it.** There is no `AccessControl` usage in the QuickStat reachable
-  graph. The check lives in *FastTrak.exe*:
+- **QuickStat.exe never checks *this* right.** The check lives in *FastTrak.exe*:
   `GrantAccessToDatabaseRole( FUNC_START_QUICKSTAT_APP, ROLE_QUICKSTAT )`
-  (`C:\work\FastTrak\LIB\Service\Emetra.AccessControl.AccessControlManager.pas:228`,
-  `FUNC_START_QUICKSTAT_APP = 'QUICKSTAT.START'` at
-  `Emetra.AccessControl.Constants.pas:137`) and only enables/disables the *"Start QuickStat"*
-  menu item (`C:\work\FastTrak\EPR\Menu\GUI\EPR.Admin.GUI.Frame.MainMenu.pas:691`).
+  (`Emetra.AccessControl.AccessControlManager.pas:228`, `FUNC_START_QUICKSTAT_APP =
+  'QUICKSTAT.START'` at `Emetra.AccessControl.Constants.pas:136`) and only enables/disables the
+  *"Start QuickStat"* menu item (`EPR.Admin.GUI.Frame.MainMenu.pas:675`).
+- **Corrected 2026-09-03 (R11 sweep).** An earlier revision said there was "no `AccessControl` usage
+  in the QuickStat reachable graph" and gave the two line numbers above as `:137` and `:691`. All
+  three were read from `C:\work\FastTrak`, which is on `master`. The line numbers are as shown here
+  on the shipping lineage, and the absolute claim is **false**: `EPR.VclFrame.Populations.pas:168-177`
+  registers `FUNC_POPULATION_SOURCE` as `asDenied` and gates the SQL source pane on it, identically
+  on both lineages. What is true is narrower — QuickStat checks no right that governs *starting* it.
+  The port did not inherit the error: `PopulationPickerViewModel.ShowSourceCode` cites the gate and
+  records the owner's decision to replace it with a check box.
 - Enforcement is therefore **entirely SQL Server object-level GRANTs**. The `QuickStat` role must
   hold `EXECUTE` on the `Report.*` and `QuickStat.*` programmability used by the app
   (`Report.AddQuickStat`, `Report.AddSelection`, `Report.AddSelectionMember`,

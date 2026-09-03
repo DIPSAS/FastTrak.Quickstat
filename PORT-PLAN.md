@@ -2341,6 +2341,56 @@ needs a production-like volume; there is no substitute on this machine.
 That is the shape of it: 50 mechanical rewrites with a golden file each, one that needs reading
 before it is touched, and five that are somebody else's schema.
 
+### 8.16 R11 swept exhaustively — 469 citations, two survivors, both harmless
+
+R11 said the five `Docs/Port/` analyses were written against the reduced copy and that any "what
+ships today" claim in `01`, `02`, `04` and `05` was unverified. §F was resolved in August; the rest
+stayed open as an unbounded worry. It is bounded now, by comparing every citation in those four
+documents against the pinned worktree at `C:\work\FastTrak-tarmscreening` (`249ac2d16`) —
+**2026-09-03**.
+
+**The narrowing.** 110 distinct Pascal files are cited, in 469 distinct `file:line` citations:
+
+| Cited file | Count | Consequence |
+|---|---|---|
+| Byte-identical on both lineages | 41 | Any claim about them is baseline-independent. R11 cannot reach these |
+| **Differ** | **24** | The whole risk surface |
+| App-level, not library (`MainQuickStat.pas` and friends) | 25 | Governed by §2.1's five comment-outs, not by the library baseline |
+| Present only upstream | 3 | Read from somewhere else — chased separately below |
+| Not found | 17 | Extraction artefacts: `Grid.pas` matched out of `EPR.QA.GUI.Grid.pas`, and so on. Not real citations |
+
+148 of the 469 citations land in one of the 24 divergent files. For each, the cited line's text was
+looked for in the shipping copy: **146 survive verbatim** once whitespace is normalised. Two do not,
+and both were run down rather than counted:
+
+| Citation | Verdict |
+|---|---|
+| `Emetra.Database.ConnectionString.pas:190` — local `udlFile.StrictDelimiter := true` vs upstream `self.StrictDelimiter := true` | **Behaviourally identical, which took reading the constructors to establish.** Both constructors funnel through `Create( AServer, ADatabase )`, which sets `StrictDelimiter := true` on `Self` before `LoadFromUdl` can run. The local line sets the flag on a list that only ever calls `LoadFromFile` and never parses `DelimitedText`, so it is a no-op; the upstream line is redundant. Neither changes how a UDL parses |
+| `CRF.Patient.List.pas:376` — the `FormatDateTime( 'yyyy-mm-dd', … )` wrapper on the DOB search | **Genuine R11 instance, no port impact.** Upstream `:411` passes the raw `TDateTime`. `02-populations-patients.md` §5.2 already records it as a deliberate local fix; `01-data-access.md` cited it as shipping behaviour without that caveat, and now says so. The port has no date-of-birth search |
+
+**The three cited-but-absent files were the more interesting half**, because a file missing from the
+reduced copy means the author read it somewhere — and two of the three citations name
+`C:\work\FastTrak` outright, which is on `master`. That is R14 and R11 in one line of prose:
+
+- **`05-ui-spec.md` §296, the selection colours.** The cited region of `Emetra.VclUtil.ListBoxPainter.pas`
+  is unchanged across lineages (the three hunks that differ are at `:68`, `:412` and `:475`), and the
+  values are right for the *shipping* lineage: `clUnfocusedSelectionColor = $00FCF2E7` → `#E7F2FC` on
+  both, and `clFocusedSelectionColor = clSelectedBk = $00E9D9C8` → `#C8D9E9` upstream, where `master`
+  instead has the literal `$00D4FBFF` → `#FFFBD4`, "Pale yellow". This is the third §8.5 colour, and
+  it is the one Phase 5 got right by measuring the running exe rather than by reading either tree.
+- **`01-data-access.md`, access control.** The substance holds on the shipping lineage but two line
+  numbers were `master`'s: `Constants.pas:137` is `:136`, `MainMenu.pas:691` is `:675`. Both fixed.
+- **`01-data-access.md`, "no `AccessControl` usage in the QuickStat reachable graph".** **False**, and
+  identically false on both lineages, so not a baseline error at all — just wrong.
+  `EPR.VclFrame.Populations.pas:168-177` registers `FUNC_POPULATION_SOURCE` as `asDenied` and gates
+  the population SQL pane on it. The port did not inherit it: `ShowSourceCode` cites the gate and
+  records the owner's decision to replace it with a check box.
+
+**Verdict: R11's residue was four sentences in `01-data-access.md`, and none of them reached the
+code.** That is a real result rather than a reassuring one — the reason it is small is that the port
+was built from the golden files and the running exe, not from the prose. The prose is now correct
+too.
+
 ### 8.9 Surfaced during Phase 3 wave 1 — all five are now closed
 
 | # | Question | Status |
@@ -2466,7 +2516,7 @@ down:
 | R10 | **56 of the 131 collectors carry no `{IdList}` at all** and are filtered client-side after every matching row for every patient has crossed the wire. 29 of those 56 are bounded by neither patient, date nor study | Pre-existing behaviour, preserved for parity; a performance follow-up, not fixed during the port. **Counted and costed 2026-09-03 (§8.15)**, which is the only thing that changed: 50 are mechanical `AND PersonId IN {IdList}` rewrites, *verified* semantics-preserving because every window partitions by person and every `GROUP BY` carries `PersonId`; 1 (`DRUID_SPECIFIED`) has a deliberately global `n > 5` threshold and would break if filtered naively; 5 are `EXEC Report.*` against procedures that take no person list, so they need a signature change in `C:\work\FastTrak.Database`. **Not measurable here** — `EFT00028_TEST_020` holds 349 people and 5 210 clinical datapoints, so the amplification this row is about cannot be reproduced on it |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
 | R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass. **Partly lifted on 2026-08-27**: `EFT00028_TEST_020` on `localhost` was made available for Phase 5 and is the only database that may be used. Everything learned from it is in §8.11. **Amended 2026-09-03**: the rule still stands for the suite as a whole — `dotnet test QuickStat.slnx` reaches no network and 2 633 tests pass with none — but `QuickStat.Tests/Live/` now holds two tests that *may* use a server. They skip themselves unless `QUICKSTAT_LIVE_CONNECTION` names one, so the default is unchanged; what they buy is that the recovery path and the fully identified export stop depending on a scratch console nobody can audit. `Live/LiveDatabase.cs` carries the reasoning and the R6 rules they follow |
-| R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
+| R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Closed 2026-09-03 (§8.16):** the remaining "what ships today" surface was swept exhaustively rather than left as a standing warning — all 469 `file:line` citations in `01`, `02`, `04` and `05` were compared against the pinned worktree. 146 of the 148 landing in a divergent file survive verbatim; the two that do not are one no-op (`StrictDelimiter`, behaviourally identical once the constructors are read) and one local-only fix already recorded in `02` (the DOB `FormatDateTime`). Three citations read from `C:\work\FastTrak` on `master` were chased separately and produced the only real corrections: two wrong line numbers and one false absolute claim about `AccessControl`, all fixed in `01`. **None of it reached the code**, because the port was built from the golden files and the running exe rather than from the prose |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
 | R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | **Closed 2026-09-03 — no consumer remains**, not because the open half was answered. Everything that once leaned on this row is settled by other means: the parity reference is the **deployed exe** rather than a freshly built one (four byte-identical copies of `22.12.21.547`, §8.9(a); UPX-packed, so it must be *run*, not read — copied to `C:\work\qs-delphi`, pointed at `EFT00028_TEST_020` and driven on 2026-08-27, where it connects, lists populations and loads one); the library baseline by R12's dated commit chain; the five comment-outs by §2.1's pairing; the three disputed palette values by measurement off that running exe (§8.5). The remaining check — reading Continua's `FastTrakDevelop` source definition — is **withdrawn rather than done.** It would say whether `22.12.21.547` came off CI or off someone's working copy, and nothing downstream turns on the answer: the .NET build resolves from NuGet and this repository alone, with no `$(FastTrakDir)` search path into a repo whose branch is chosen elsewhere, so the failure mode this row describes cannot carry forward into the replacement tile. **The one fact worth keeping:** nobody has demonstrated a Delphi QuickStat build succeeding, so there is no hot-fix path on the old application while the port is in flight. Rollback is unaffected — the artefact already exists and needs no build |
 | R14 | **Reading uncommitted working trees as if they were the shipped state.** This has now caused one wrong conclusion (see §2.1) and one near-miss (`C:\work\FastTrak` sits on `master`, which lacks the tarmscreening lineage) | For every repo outside this one, read through `git show HEAD:<path>` or a pinned worktree, and run `git status --porcelain` before quoting a file as evidence. `C:\work\FastTrak.BuildServer` currently has an uncommitted `QuickStat.fbp8`; `C:\work\FastTrakApps` has a dirty `.dproj`. The library worktree at `C:\work\FastTrak-tarmscreening` exists precisely to remove this failure mode — extend the same discipline to the other two repos |

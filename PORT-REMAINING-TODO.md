@@ -75,8 +75,7 @@ measurable on the test database** (349 people). Preserved deliberately for parit
 costed on 2026-09-03 — §8.15 splits it into 50 mechanical rewrites, one trap (`DRUID_SPECIFIED`)
 and five that need a procedure signature changed in `C:\work\FastTrak.Database`.
 
-**3. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
-where re-checked against the pinned ref. Confirm before relying on one.
+That is the only one left here.
 
 ---
 
