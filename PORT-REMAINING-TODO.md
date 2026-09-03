@@ -21,7 +21,7 @@ live list stays a list of things that actually stand between this and a release.
 
 ## Blocking
 
-**1. The human parity pass — acceptance criterion 8.**
+**The human parity pass — acceptance criterion 8.**
 `Docs/Port/08-parity-checklist.md`, **47 items** still marked `[ ]`:
 
 | Section | Items |
@@ -50,7 +50,7 @@ What it does **not** reach, stated so the gap is a decision rather than an overs
 |---|---|
 | Collector data correctness | Golden SQL files, 131/131, plus the cell-by-cell CSV comparison |
 | Other locales | The suite, under `nn-NO`, `nb-NO` and `en-US` |
-| Production volumes | Nothing — that is R10 below |
+| Production volumes | Nothing — that is R10, deliberately not port work (`PORT-PLAN.md` §8.15) |
 | Install, configuration, logging | Nothing — deployment-time |
 | **Error and cancellation paths** — server down, permission denied, a cancelled collect, an empty cohort | **Nothing, by hand or by test** |
 
@@ -66,24 +66,21 @@ That is the whole blocking list: one pass of manual work.
 
 ---
 
-## Deployment-time, undischargeable here
-
-**2. R10** — **56 of the 131 collectors** carry no `{IdList}`; every matching row for every patient
-crosses the wire and the non-cohort ones are dropped client-side. 29 of the 56 are bounded by
-neither patient, date nor study. Harmless on 25 patients, unknown on production volumes, and **not
-measurable on the test database** (349 people). Preserved deliberately for parity. Counted and
-costed on 2026-09-03 — §8.15 splits it into 50 mechanical rewrites, one trap (`DRUID_SPECIFIED`)
-and five that need a procedure signature changed in `C:\work\FastTrak.Database`.
-
-That is the only one left here.
-
----
-
 ## Observed, handed on — **not port work**
 
-Three findings that are real, measured, and reproduce the Delphi exactly. Each would change
-behaviour to fix, so each belongs to the product, not to this port. Listed so they are not lost, and
-kept off the list above so it does not read as unfinished porting.
+Findings that are real, measured, and reproduce the Delphi exactly — or that were deliberately left
+alone. Each would change behaviour to fix, so each belongs to the product, not to this port. Listed
+so they are not lost, and kept off the list above so it does not read as unfinished porting.
+
+**R10 — 56 of the 131 collectors carry no `{IdList}`**, so every matching row for every patient
+crosses the wire and the non-cohort ones are dropped client-side; 29 of the 56 are bounded by
+neither patient, date nor study. Harmless at 25 patients, unknown at production volumes, and **not
+measurable on the test database** (349 people). Left alone on purpose: fixing it would mean
+regenerating 51 of the golden files, trading the port's strongest correctness evidence for a win
+nobody can yet measure. §8.15 costs it at 50 mechanical rewrites, one trap (`DRUID_SPECIFIED`,
+whose `n > 5` threshold is global by design) and five needing a procedure signature changed in
+`C:\work\FastTrak.Database`. Revisit once the port runs on production volumes — the per-collector
+discard counts are already logged, so it starts with data.
 
 **The antibiotic collectors miss 87 of the 333 antibiotic codes.** The three cover 246 and overlap
 on 0; the 87 fall in two halves — `QS_DRUG_ANTIBIOTIC_RESISTANCE` reaches 84 of view 3's 119,
