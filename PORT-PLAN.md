@@ -2466,7 +2466,9 @@ Three caveats that matter more than they look:
   so the resulting exe reports **no FileVersion at all**. `MainQuickStat.dfm:897` carries a visible
   `TRzVersionInfoStatus` panel that reads it, so a locally built QuickStat shows a blank version
   where `22.12.21.547` shows the version. It is a build artefact, not a port difference —
-  `08-parity-checklist.md` §8 says so, and the reference remains `C:\work\qs-delphi`.
+  `08-parity-checklist.md` §8 says so, and the reference remains `C:\work\qs-delphi`. This is also
+  what the in-house term marks: a build from `main` is *not* **the binaries version** (§8.9(a)),
+  and the empty version panel is the visible sign of that.
 - **`QuickStat.config.xml` was cut down** to a single `GBD` entry pointing at `.\FastTrak.udl`, from
   upstream's Dogfood / COVID-19 / three test databases / a PLL connection naming a real server.
   Local convenience; the connection list matches neither upstream nor the port's configuration.
@@ -2558,6 +2560,14 @@ and it is changed now because it was measured, not because the pattern held.
 **byte-identical at 1 951 936 bytes**, all reporting file version **22.12.21.547**, product `22.12`.
 So there is exactly one shipped binary to compare against and it needs no Delphi build, which
 removes R13's obstacle for Phase 5.
+
+> **Terminology.** In-house this artefact is *"the binaries version"* or *"the version from
+> binaries"* — after **`https://binaries.dips.no`**, where DIPS publishes built releases and where
+> all four copies ultimately come from. Carrying a version number is part of what the phrase means:
+> the release pipeline writes VERSIONINFO, so *binaries version* and *`22.12.21.547`* pick out the
+> same thing. Use it as the name for the parity reference; it is the term that distinguishes the
+> published artefact from a locally compiled one, which since 2026-09-02 (§8.17) is a distinct thing
+> that exists and has **no** version at all.
 
 But it is **UPX-packed** (sections `UPX0` 5 029 888 virtual / `UPX1` 1 892 352 raw / `.rsrc`), so the
 code and data are compressed and only the resource directory is readable — which is why the version
