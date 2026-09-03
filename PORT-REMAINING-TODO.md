@@ -75,8 +75,11 @@ deliberately for parity; recorded as a performance follow-up.
 **3. R11** — "what ships today" claims in `Docs/Port/01`, `02`, `04` and `05` are unverified except
 where re-checked against the pinned ref. Confirm before relying on one.
 
-**4. R13** — nobody has observed which branch Continua's `$Source.FastTrakDevelop` tracks. A
-five-minute check for whoever has access; it would either confirm the row or overturn it.
+> **Not a task, but plan around it: there is no fallback build of the Delphi.** Nobody has
+> demonstrated `QuickStat.fbp8` compiling — locally `$(FastTrakDir)` defaults to a working copy on
+> `master`, which lacks every symbol the app needs. So there is no hot-fix path on the old
+> application while the port is in flight. Rollback is unaffected: the deployed `22.12.21.547`
+> already exists and needs no build. R13, closed 2026-09-03.
 
 ---
 
