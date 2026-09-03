@@ -8,8 +8,13 @@
     when the test binary is run directly.  The full evidence is in Directory.Packages.props.
 
     net10.0-windows + UseWPF because the suite references QuickStat.App (which is WPF) as well as
-    QuickStat.Core.  No database is available to tests (PORT-PLAN.md §9 R9) - everything must be
-    unit-testable without a server.
+    QuickStat.Core.
+
+    DATABASE: everything must still be unit-testable without a server (PORT-PLAN.md §9 R9), and a
+    plain "dotnet test" reaches no network.  The one exception is Live/, whose tests skip themselves
+    unless QUICKSTAT_LIVE_CONNECTION names a database - see Live/LiveDatabase.cs for why they exist
+    and what they may not print.  Skipped, not passed: a test that returns quietly when its
+    precondition is missing reports success for having done nothing.
   -->
 
   <PropertyGroup>

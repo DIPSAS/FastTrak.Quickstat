@@ -31,8 +31,10 @@ collect all 213 elements in about a minute.
 | ⚠ | **Deliberate difference.** Do *not* report it — it is a decision already taken, with its reason |
 | ❓ | **A decision, not a comparison.** Nothing to look at; somebody has to choose |
 
-**49 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
-measured on 2026-09-01 rather than looked at. Four other acceptance criteria close along the way,
+**51 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
+measured on 2026-09-01 rather than looked at. The count has since gone *up* twice, which is the
+list working: 3.7 for the Collections filter the owner asked for, and 5.5 for the last human step
+of acceptance criterion 5. Four other acceptance criteria close along the way,
 marked **[AC-n]** where they do.
 
 **Where a ✅ says "measured", the number is in the item and the script that produced it is in
@@ -289,6 +291,13 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 - [ ] **5.4** On a freshly started QuickStat **all three** menu items are greyed. They light up
   together at the end of a collect run, and go dark again the moment a new population empties the
   grid. §D.1.
+- [ ] **5.5** **[AC-5]** *Fully identified patients* really does fill `Fødselsnummer`. Load a
+  population, tick something, press the radio, save, and look: the column is populated, not blank.
+  This is the last piece of acceptance criterion 5 and the only piece a test cannot take — the
+  recovery path, the export and the radio each have one now (see the ✅ below), but nobody has done
+  the whole thing in the running window. *Two conditions, both from PORT-PLAN.md R6: verify by
+  **counting** non-empty cells rather than reading them, and **delete the file** afterwards. It
+  contains real national identity numbers.* PORT-PLAN.md §5 AC-5.
 - ⚠ **A deliberate divergence, on your own report.** The Delphi greys neither export: `actSaveDataset`
   is never assigned, and `actExportData` latches on and never off. Both are gated on one predicate
   here — `DatasetViewModel.CanExport` — rather than only the half that was reported, because they
@@ -297,6 +306,13 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
   port de-duplicates two repeated column names, and the ten `FORM.*` columns are permuted because
   the Delphi's order is `TObjectDictionary` hash order. **Read PORT-PLAN.md §8.14 before reporting
   either.**
+- ✅ **The national-id half of AC-5, in three tests added 2026-09-03.** The recovery path against a
+  real catalogue and a real cohort, and a fully identified export that carries **280 ids into the
+  file for 281 patients** — `Live/FullyIdentifiedExportTests`, skipped unless
+  `QUICKSTAT_LIVE_CONNECTION` names a database. The window link, needing no database — pressing the
+  real *Fully identified patients* radio in a realised `CollectionsTabView` moves
+  `IIdentificationPolicy` — `Ui/Collections/IdentificationRadioTests`. All three
+  negative-controlled. What they leave for 5.5 is the human's look at the file.
 - ✅ **0 differing cells in 12 462**, across three identification variants, same encoding,
   delimiters, quoting, line ends and trailing separator, including the eight CP1252 bytes.
   PORT-PLAN.md §8.14. Criterion 6 is met bar the two exceptions above.

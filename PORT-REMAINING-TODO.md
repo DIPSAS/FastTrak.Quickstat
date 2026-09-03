@@ -1,12 +1,13 @@
 # What is left — a working TODO list
 
-Last updated: **2026-09-02**. Companion to `PORT-PLAN.md`, not a replacement: the plan is the
+Last updated: **2026-09-03**. Companion to `PORT-PLAN.md`, not a replacement: the plan is the
 record of *why* everything is the way it is, and it is long. This is the short list of what still
 needs doing, ranked by what would stop a release. Every line points at the plan section or document
 that carries the detail.
 
 Build and tests are green: `dotnet build QuickStat.slnx` and `dotnet test QuickStat.slnx` pass with
-**2 622 tests** and zero warnings, so acceptance criterion 1 is met.
+**2 624 tests** and zero warnings, so acceptance criterion 1 is met. Two more are *skipped* by
+design — `Live/`, which needs a server and says so.
 
 **The scope is porting.** Clear bugs get fixed; beyond that the port reproduces the Delphi. Anything
 found to behave identically in both is not work — it goes under "Observed, handed on" below, so the
@@ -17,7 +18,7 @@ live list stays a list of things that actually stand between this and a release.
 ## Blocking
 
 **1. The human parity pass — acceptance criterion 8.**
-`Docs/Port/08-parity-checklist.md`, **50 items** still marked `[ ]`:
+`Docs/Port/08-parity-checklist.md`, **51 items** still marked `[ ]`:
 
 | Section | Items |
 |---|---|
@@ -25,22 +26,21 @@ live list stays a list of things that actually stand between this and a release.
 | 2. Population tab | 11 |
 | 3. Collections tab | 7 |
 | 1. Launch and connect | 6 |
+| 5. Export | 5 |
 | 8. Chrome, theme and shutdown | 5 |
 | 7. Dialogs | 4 |
-| 5. Export | 4 |
 
 Criteria 2, 3, 5, 6 and 7 close along the way, and everything already settled by test or
 measurement is marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.
 
-**2. Acceptance criterion 5 has never been shown end to end.** Two halves are proved and they do not
-meet: the recovery ran on a real cohort — 280 of 281, the 281st having none on file (§8.11 (3)) —
-and a *fully identified* file was written and matched the shipped build cell for cell, 0 differing of
-3 193 (§8.14). But the first run exported only PID-only variants, and **the port's side of both was
-the headless harness**, not the window. Nobody has selected *Fully identified patients* in the
-running application and saved a file. The untested span is radio → `IIdentificationPolicy` → grid
-columns → export options → writer: unit-tested on fabricated data, never carrying a real national id.
-A parity-pass item rather than development, but the criterion most entangled with R6, so it must be
-checked by counting non-empty cells programmatically and deleting the file.
+**2. ~~Acceptance criterion 5~~ — met on 2026-09-03, and what is left of it is now checklist item
+5.5.** Three tests replaced the blocking line: the recovery path and a fully identified export
+against a real catalogue (`Live/FullyIdentifiedExportTests`, **280 ids in the file for 281
+patients**, skipped unless `QUICKSTAT_LIVE_CONNECTION` is set), and the window link with no database
+at all (`Ui/Collections/IdentificationRadioTests`, pressing the real radio moves
+`IIdentificationPolicy`). All three negative-controlled. The human step — press the button, look at
+the file, delete it — belongs in the pass above, not on a list of its own. See the "Closed" section
+for what building them corrected. §5 AC-5.
 
 **3. Acceptance criterion 6 needs a sign-off decision, not more work.** 0 differing cells in 12 462
 stands. *Byte-identical* is unreachable while a dataset contains the form-instance collector: the
@@ -53,7 +53,7 @@ excluded. §8.14.
 > FULL recovery with no backups. The evidence is recorded, but a *repeat* run needs a different
 > cohort or a restored database. Promise accordingly.
 
-That is the whole blocking list: one pass of manual work, one demonstration, one decision.
+That is the whole blocking list: one pass of manual work and one decision.
 
 ---
 
@@ -104,6 +104,25 @@ and the reference worktree. One trap: deleting the `.dfm` files kills
 `Ui/AppBannerIconTests.TheBannerIconIsTheOneTheDelphiFormCarries`, which must be **replaced** with a
 recorded SHA-256 — it is the only thing tying the banner picture to the build being ported.
 `PORT-PLAN.md` §5 Phase 6.
+
+---
+
+## Closed on 2026-09-03
+
+- **Acceptance criterion 5 is met, and building the proof corrected the record twice.** Three tests:
+  the recovery path against a real catalogue, a fully identified export carrying **280 ids into the
+  file for 281 patients**, and the window link — pressing the real *Fully identified patients* radio
+  in a realised view — which needs no database. All negative-controlled. `Live/` tests skip unless
+  `QUICKSTAT_LIVE_CONNECTION` is set, so R9 is relaxed rather than withdrawn. §5 AC-5.
+- **§8.11 (3)'s "280 of 281 recovered" was misattributed.** Its population is
+  `dbo.GetCaseListTest`, whose result set already contains `NationalId`, so `IncludesNationalId`
+  answered true and the recovery query never ran — the ids came from the population procedure.
+  Caught by negative control: suppressing the assignment in `EnsureNationalIdsAsync` left the new
+  export test passing. The recovery *statement* was always sound (§8.11 (1), 342 ids for 500
+  patients); the **path** through `PopulationLoader` is what had never run against real data, and
+  now has its own test. The ⚠ note in §8.11 (3) records it.
+- **The 281st patient is not a miss.** The statement filters `NationalId IS NOT NULL`, so absence
+  means none on file — `NationalIdRecovery.cs:111-114`.
 
 ---
 

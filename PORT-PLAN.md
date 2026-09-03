@@ -1424,11 +1424,28 @@ driving the WPF shell to do the same thing would have needed the screen.
 | | |
 |---|---|
 | Cohort | `Populations.GetStudyPopulations` → 55 populations; ProcId 282 *"Diagnoseår mangler"* (31) and ProcId 14 *"Alle testpersoner"* (281) |
-| National ids | **280 of 281 recovered** — the Phase 4 feature, against a real server, through the chunked path §8.11 (1) switched it to |
+| National ids | **280 of 281 carried one** — but see the correction below: they were *selected by the population procedure*, not recovered |
 | Registry | `BuildAsync` → **213 data elements**, the same 213 the shipped build shows |
 | Collectors | **213 ran, 0 threw**, on both cohorts |
 | Rows | 29 collectors returned data; 184 returned none |
 | Export | `DatasetExporter` wrote 281 × 101 and 281 × 201 (timestamps) CSV files |
+
+> ⚠ **Correction, 2026-09-03: "recovered" was the wrong word, and the difference matters.** This
+> table used to say 280 of 281 national ids were *recovered*, which credited
+> `NationalIdRecovery`. They were not. ProcId 14 is `dbo.GetCaseListTest`, and
+> `sp_describe_first_result_set` says its result set is `PersonId, DOB, FullName, GroupName,
+> GenderId, NationalId, InfoText` — the column is already there, so `IncludesNationalId` answers
+> true and the second query is never issued. The ids came from the population procedure.
+>
+> Found by negative control while building the live test for acceptance criterion 5: suppressing
+> the assignment inside `EnsureNationalIdsAsync` left the new export test passing, which is the
+> definition of an assertion that proves nothing. What §8.11 (1) does establish stands — the
+> recovery *statement* returns 342 ids for the first 500 patients — but the **path** through
+> `PopulationLoader` had never run against real data until
+> `Live/FullyIdentifiedExportTests.TheRecoveryQueryFillsInIdsAPopulationDidNotReturn`, which now
+> does and which fails when that assignment is suppressed. No population on this database can reach
+> the path unaided: every procedure that omits the column returns an empty cohort here, because
+> ProcId 23 emptied study 2 on 2026-09-01.
 
 **The 184 empty results are the database, not a defect, and that was checked rather than assumed.**
 `dbo.DrugPrescription` and `dbo.DrugTreatment` are **empty**, so every `DRUG.*` collector is correctly
@@ -2376,7 +2393,7 @@ down:
 | R7 | `KB.AntibioticResistance2` is an **inner** join in a non-`dbo` schema; a missing table fails the query outright rather than returning nothing | Register that collector only when `OBJECT_ID(...) IS NOT NULL`. **One** collector is affected — `QS_DRUG_ANTIBIOTIC_INTERMEDIATE`, the sole `JOIN KB.AntibioticResistance2` in the library (`EPR.QA.SQL.pas:453`). `QS_DRUG_ANTIBIOTIC_RECOMMENDED` lists its nine ATC codes inline (`:431`) and is **not** gated |
 | R10 | Most `maxint`-batch collectors carry **no `{IdList}` at all** and scan the whole database, discarding non-cohort rows client-side | Pre-existing behaviour, preserved for parity; recorded as a separate performance follow-up, not fixed during the port |
 | R8 | Period semantics are `[Start, Stop)`, end-exclusive | Getting this wrong shifts every cohort by a day; explicit tests |
-| R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass. **Partly lifted on 2026-08-27**: `EFT00028_TEST_020` on `localhost` was made available for Phase 5 and is the only database that may be used. Everything learned from it is in §8.11. The rule still stands for the *suite* — no test may require a server, and none does |
+| R9 | No database available to the implementation agents | All DB-touching work must be unit-testable without a server; a human runs the parity pass. **Partly lifted on 2026-08-27**: `EFT00028_TEST_020` on `localhost` was made available for Phase 5 and is the only database that may be used. Everything learned from it is in §8.11. **Amended 2026-09-03**: the rule still stands for the suite as a whole — `dotnet test QuickStat.slnx` reaches no network and 2 624 tests pass with none — but `QuickStat.Tests/Live/` now holds two tests that *may* use a server. They skip themselves unless `QUICKSTAT_LIVE_CONNECTION` names one, so the default is unchanged; what they buy is that the recovery path and the fully identified export stop depending on a scratch console nobody can audit. `Live/LiveDatabase.cs` carries the reasoning and the R6 rules they follow |
 | R11 | **Wrong parity baseline.** The five `Docs/Port/` analyses were written against *this* repo, which is a reduced copy (§2.1). Their "what ships today" statements describe `develop_old`, a combination that cannot build the application | **Resolved for §F** (2026-08-25) — see §8.5 for the corrected verdicts and the invariance evidence. **Correction:** an earlier revision of this row claimed the cited commits were ancestors of `origin/tarmscreening/develop` "and of no other branch". That was wrong — only two refs were tested. `4c96c3c3b` is contained by 27 refs; 9 remote tips carry `QS_ROAS_BASE`, including two release branches. Only `fefc8a809` (interleukins) is genuinely narrow, at 3 remote tips. The corrected verdicts survive this because they were re-checked across **all 9** candidate refs, not one. **Still open elsewhere:** any *other* "what ships today" claim in `01`–`02`, `04`–`05` is unverified — confirm against the pinned ref before relying on it |
 | R12 | **Which of the two sibling tarmscreening refs is the baseline** — they disagree on interleukins, i.e. 131 vs 130 collectors | **Resolved** (2026-08-26) in favour of `origin/tarmscreening/develop`, target **131**. The app-side and library-side interleukin commits landed the same day (2022-12-13) and the shipped exe is v22.12.21.547, matching the version-bump commit eight days later; `release/tarmscreening` forked three weeks before interleukins existed. See the table in §2.1. Residual risk is clinical, not archaeological, and is covered by §8.4 |
 | R13 | **QuickStat probably has no working build.** `QuickStat.fbp8` resolves the library through `$(FastTrakDir)`. Locally that defaults to `c:\work\FastTrak`, which is on `master` and lacks every symbol — **verified**. Under Continua it binds to the `$Source.FastTrakDevelop` source, whose tracked branch **has not been observed**; if it is `develop` (as the name implies) CI cannot succeed either, but that step is inference, not fact | Regardless of how the Continua half resolves, do not rely on a Delphi build as a check — nobody has demonstrated one succeeding. Phase 5's parity pass runs against the **existing deployed exe**, not a freshly built one. **That exe is already on this machine** — four byte-identical copies of `22.12.21.547`, listed in §8.9(a) — so this row no longer blocks Phase 5. It is UPX-packed, so it must be *run*, not read. To settle R13 properly, someone with Continua access should read the `FastTrakDevelop` source definition; it is a five-minute check and it would either confirm this row or overturn it. **Neutralised in practice on 2026-08-27:** the deployed exe was copied to `C:\work\qs-delphi`, configured against `EFT00028_TEST_020` and *run* — it connects, lists populations, loads one and shows its data elements. So a reference build exists to compare against whether or not anyone can compile one, and §8.9 (a) records the two setup traps (`MSOLEDBSQL`, not `SQLOLEDB`; UTF-16 LE UDL) |
@@ -2435,26 +2452,34 @@ down:
    blank column the feature exists to fill. The statement it now issues recovers 342 ids for the
    first 500 patients of `EFT00028_TEST_020`.
 
-   **Two halves are proved and they do not quite meet.** The recovery path ran on a real cohort:
-   through the port's own services against `EFT00028_TEST_020`, **280 of 281** patients came back
-   with a national id (§8.11 (3)) — the 281st has none on file, which the statement's
-   `NationalId IS NOT NULL` filter makes the expected outcome, not a miss
-   (`NationalIdRecovery.cs:111-114`). And a *fully identified* file was written and compared: §8.14's
-   third variant put `Født`, `Fødselsnummer` and `Navn` in the header and matched the shipped build
-   cell for cell, **0 differing of 3 193**. Since only this repository has
-   `AddNationalIds` commented out (§10.5), the Delphi side of that comparison had a populated
-   national-id column, so the port's did too.
+   **Met on 2026-09-03, by three tests rather than by a click.** The criterion asked for two things
+   that had each been half-shown and never joined: that the recovery fills the column, and that a
+   *fully identified* export carries it out of the application. Both now run on demand.
 
-   What is missing is the join between them. §8.11 (3)'s run exercised the recovery but exported only
-   the two PID-only variants; §8.14's run exported the fully identified variant on a 31-patient cohort
-   without recording whether the ids came from the recovery query or from the population procedure
-   itself. And **the port's side of both runs was the headless harness** at `C:\work\qs-harness`,
-   composing the same services `App.xaml.cs` does — nobody has selected *Fully identified patients* in
-   the running window and saved a file. The untested span is the window itself: radio →
-   `IIdentificationPolicy.ModeChanged` → grid columns → export options → writer, every link of which
-   has unit tests on fabricated data and none of which has carried a real national id. It is a parity
-   pass item, not development, and under R6 it must be verified by counting non-empty cells
-   programmatically and deleting the file.
+   | Test | What it proves | Needs a server |
+   |---|---|:-:|
+   | `Live/FullyIdentifiedExportTests.TheRecoveryQueryFillsInIdsAPopulationDidNotReturn` | The recovery path — real cohort, real repository, real chunked statement | yes |
+   | `Live/FullyIdentifiedExportTests.AFullyIdentifiedExportCarriesTheNationalIds` | A real cohort reaches a real file: **280 ids in the file, 280 on the matrix rows, 281 patients** | yes |
+   | `Ui/Collections/IdentificationRadioTests` (2) | The window link: pressing the real *Fully identified patients* radio in a realised `CollectionsTabView` sets `IIdentificationPolicy` | no |
+
+   The first two skip themselves unless `QUICKSTAT_LIVE_CONNECTION` names a database, so the suite is
+   hermetic by default and R9 is relaxed rather than withdrawn. All three were negative-controlled:
+   suppressing the assignment in `EnsureNationalIdsAsync` fails the recovery test, and breaking the
+   `Identification` pass-through fails both radio tests. The export file holds real national identity
+   numbers, so the assertions are counts and an 11-digit shape check, no field content reaches a
+   message, and the file is deleted in a `finally` — R6.
+
+   **What building them changed about the record.** Two things, both corrections upward in honesty
+   and downward in claim. §8.11 (3)'s "280 of 281 recovered" was misattributed — the ids came from
+   the population procedure, and the ⚠ note there now says so. And the 281st patient is not a miss:
+   the statement filters `NationalId IS NOT NULL`, so absence means none on file
+   (`NationalIdRecovery.cs:111-114`).
+
+   **What is still a human's job**, and is now checklist item 5.5 rather than a blocking line of its
+   own: *pressing the button*. The tests drive the product's own composition and the real radio, but
+   nobody has done the whole thing in the running window — connect, load, tick, choose, save — and
+   looked at the file. That is one row of the parity pass, and the pass is where it belongs.
+
 6. CSV output is byte-identical to the Delphi build for a fixture dataset.
 
    **Met, with two named exceptions — §8.14 has the evidence.** Both sides exported the same 31-patient

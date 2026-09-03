@@ -26,13 +26,20 @@ namespace QuickStat.Tests.Ui.Shell;
 public class ShellCompositionTests
 {
     /// <summary>Composes the container exactly as <c>App.xaml.cs</c> does.</summary>
+    /// <param name="customise">
+    /// Runs after every extension, so a registration made here <b>replaces</b> the shell's - last
+    /// wins in this container. For swapping a WPF seam (dispatcher, save dialog, notification
+    /// presenter) out of a test that has no window; leave it null for the graph the product uses.
+    /// </param>
     /// <returns>A validated provider the caller must dispose.</returns>
     /// <remarks>
     /// Internal rather than private because <see cref="ViewInstantiationTests"/> needs the same
     /// graph to give each view the view-model the shell would give it, and a second transcription of
-    /// the seven extension calls is a second thing that can drift from <c>App.xaml.cs</c>.
+    /// the seven extension calls is a second thing that can drift from <c>App.xaml.cs</c>. The
+    /// live-database tests need it for the same reason: what they are checking is that the product's
+    /// own composition carries a national id end to end, which a bespoke graph would not show.
     /// </remarks>
-    internal static ServiceProvider Build()
+    internal static ServiceProvider Build(Action<IServiceCollection>? customise = null)
     {
         ServiceCollection services = new();
 
@@ -47,6 +54,8 @@ public class ShellCompositionTests
         services.AddQuickStatDiagnostics();
 
         services.AddQuickStatShell();
+
+        customise?.Invoke(services);
 
         // Validated on build, which is what turns a cycle into a readable failure here rather than a
         // stack overflow at start-up.
