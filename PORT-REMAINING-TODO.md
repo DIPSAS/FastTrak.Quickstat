@@ -10,7 +10,7 @@ a tail section — the plan is where the record of a closed question lives, and 
 should be readable as exactly that.
 
 Build and tests are green: `dotnet build QuickStat.slnx` and `dotnet test QuickStat.slnx` pass with
-**2 624 tests** and zero warnings, so acceptance criterion 1 is met. Two more are *skipped* by
+**2 633 tests** and zero warnings, so acceptance criterion 1 is met. Two more are *skipped* by
 design — `Live/`, which needs a server and says so.
 
 **The scope is porting.** Clear bugs get fixed; beyond that the port reproduces the Delphi. Anything
@@ -22,17 +22,17 @@ live list stays a list of things that actually stand between this and a release.
 ## Blocking
 
 **1. The human parity pass — acceptance criterion 8.**
-`Docs/Port/08-parity-checklist.md`, **51 items** still marked `[ ]`:
+`Docs/Port/08-parity-checklist.md`, **47 items** still marked `[ ]`:
 
 | Section | Items |
 |---|---|
-| 4. The dataset grid | 13 |
+| 4. The dataset grid | 12 |
 | 2. Population tab | 11 |
-| 3. Collections tab | 7 |
 | 1. Launch and connect | 6 |
+| 3. Collections tab | 5 |
 | 5. Export | 5 |
-| 8. Chrome, theme and shutdown | 5 |
 | 7. Dialogs | 4 |
+| 8. Chrome, theme and shutdown | 4 |
 
 Criteria 2, 3, 5 and 7 close along the way, and everything already settled by test or measurement is
 marked so it can be skipped. Largest single piece of work left; Phase 6 waits on it.

@@ -32,10 +32,12 @@ was run on 2026-09-01; that population deletes from `StudCase`, so **do not pick
 | ⚠ | **Deliberate difference.** Do *not* report it — it is a decision already taken, with its reason |
 | ❓ | **A decision, not a comparison.** Nothing to look at; somebody has to choose |
 
-**51 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
-measured on 2026-09-01 rather than looked at. The count has since gone *up* twice, which is the
+**47 items need eyes** — it was 60 until §6, the whole Packages tab, was driven and
+measured on 2026-09-01 rather than looked at. The count went *up* twice on the way, which is the
 list working: 3.7 for the Collections filter the owner asked for, and 5.5 for the last human step
-of acceptance criterion 5. Four other acceptance criteria close along the way,
+of acceptance criterion 5. It came down by four on 2026-09-03, when **3.1, 3.2, 4.1 and 8.1** were
+automated — §10 had flagged them as manual only for want of an assertion, and they are literal
+strings and literal brushes in a realised view. Four other acceptance criteria close along the way,
 marked **[AC-n]** where they do.
 
 **Where a ✅ says "measured", the number is in the item and the script that produced it is in
@@ -164,13 +166,19 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 
 ## 3. Collections tab — §B.2
 
-- [ ] **3.1** Header `Select data elements`, and the paragraph verbatim, **including the two
+- ✅ **3.1** Header `Select data elements`, and the paragraph verbatim, **including the two
   spaces after `process.`**:
   `Select data elements from the list below, and click "Collect data" at the bottom to start the process.  Depending on what you select, this will take some time!`
-  *(Not pinned by any test — it lives only in the XAML.)*
-- [ ] **3.2** `Export options` header; the three radios read `Fully identified patients`,
+  *(Automated 2026-09-03 — `Ui/Collections/CollectionsTabCaptionTests.cs`. Read off the realised
+  visual tree, and off the section bar's own `TextBlock` rather than off `SectionHeader.Header`, so
+  a template that stopped painting the heading fails too.)*
+- ✅ **3.2** `Export options` header; the three radios read `Fully identified patients`,
   `Identified with PID only`, `Generate new random PIDs`; **`Identified with PID only` is the
   default**; the check box reads `Export timestamp for every data element`. §B.2.
+  *(Same file. The default is asserted as the radio's `IsChecked` through the real converter
+  binding, not as the policy's enum — `IdentificationRadioTests` covers the other direction.
+  Negative control: adding one trailing space to a caption fails it, which is the exact defect §B.2
+  warns about in the `.dfm`.)*
 - [ ] **3.3** `Collect data` is disabled until at least one element is checked, and re-disables
   when the last one is unchecked. §D.1.
 - [ ] **3.4** During a run the element being collected is highlighted and the status text shows its
@@ -212,9 +220,12 @@ that "the parity pass found nothing" is not read as covering it. PORT-PLAN.md §
 
 ## 4. The dataset grid — §C.1, §C.3
 
-- [ ] **4.1** Caption bar reads `Your dataset` before a load and
-  `Population: 282 "Diagnoseår mangler". Grid size: 31 x <n>` after — **rows × columns**, in that
-  order. §C.1.
+- ✅ **4.1** Caption bar reads `Your dataset` before a load and
+  `Population: 282 "Diagnoseår mangler". Grid size: 25 x <n>` after — **rows × columns**, in that
+  order. §C.1. *(Automated 2026-09-03 — `Ui/Dataset/DatasetCaptionBarTests.cs` for the bar and the
+  binding, `DatasetViewModelTests` for the format string and the argument order. The bar case
+  asserts a **change** as well as a value, so a caption bound to the wrong property fails whatever
+  that property holds.)*
 - [ ] **4.2** `Wide columns` sits **inside** the teal bar, **flush right**, **caption to the left of
   the box**, one point smaller. Toggling it moves data columns between 64 and 120 px. §C.1.
 - [ ] **4.2a** **`Export ⌄`**, immediately left of `Wide columns`, drops down the same three items
@@ -421,13 +432,18 @@ is back to the 0 rows it started with. **If you re-run any of this by hand, dele
 
 ## 8. Chrome, theme and shutdown
 
-- [ ] **8.1** Section headers: teal `#178891`, white text, 26 px. Tab strip: selected tab has a
+- ✅ **8.1** Section headers: teal `#178891`, white text, 26 px. Tab strip: selected tab has a
   3 px teal bar along the **top** edge and **bold** text. §F.4. *(Both confirmed in a fresh window
   on 2026-09-01. The caption was `SemiBold`, which this build does not render; making it `Bold`
   then turned the **whole page** bold, because the setter was on the `TabItem` and `FontWeight`
   inherits into a tab's content. Both are fixed, and the same style's `FontSize` had been leaking
   13 px into every control on the selected tab since the theme was written — PORT-PLAN.md
-  §8.11 (15). Worth a look at the page as well as the strip.)*
+  §8.11 (15).)* **Automated 2026-09-03** — `Ui/Theme/SectionHeaderChromeTests.cs` for the bar's
+  colour, height and text colour and for the 3 px highlight and which edge it sits on;
+  `TabCaptionWeightTests` for the bold caption **and** for the containment rule that the weight and
+  the size must not reach the tab's page. Each brush is asserted twice: `Assert.Same` against the
+  application's own resource, so the lookup provably reached the theme, and the hex, so the theme is
+  provably the right colour.
 - [ ] **8.2** Move the window, maximise it, close, reopen — geometry comes back. Then change screen
   resolution: the ini is keyed **per resolution**, so a different geometry is expected, not a bug.
   §G.1.
@@ -481,11 +497,15 @@ still waiting for an answer.
 
 ## 10. If you would rather not do part of this by hand
 
-Several `[ ]` items above are only unautomated because nobody has written the assertion yet, not
-because they need judgement — **3.1**, **3.2**, **4.1** and **8.1** are literal strings and
-literal brushes in XAML, and `Ui/ViewInstantiationTests.cs` already realises every view on an STA
-thread, so asserting on their visual tree is a small addition rather than a new harness. Say so
-and they can be moved from `[ ]` to ✅ before you start walking.
+**Done, 2026-09-03.** This section used to name **3.1**, **3.2**, **4.1** and **8.1** as unautomated
+only for want of an assertion — literal strings and literal brushes in XAML, with
+`Ui/ViewInstantiationTests.cs` already realising every view on an STA thread. All four are now ✅,
+in nine tests across three files, each one negative-controlled by breaking the markup it reads.
+That is what took the count from 51 to 47.
+
+If another `[ ]` item looks the same way to you while walking, say so rather than working around
+it: the pattern is `RealisedWindow.RunControl` plus `Ui/VisualTree.cs`, and it is a few lines per
+assertion.
 
 What genuinely cannot be moved: anything whose reference is *the other application's behaviour*
 against a live server — the workflow items in §1, §2.3, §3.4, §6, and every colour that has to be
